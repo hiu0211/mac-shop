@@ -1,0 +1,128 @@
+.modalContent {
+    padding: 20px;
+
+    .section {
+        margin-bottom: 24px;
+
+        .sectionTitle {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+    }
+
+    .customerInfo {
+        background: #f8f9fa;
+        padding: 16px;
+        border-radius: 8px;
+
+        .infoGrid {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 12px;
+            align-items: center;
+
+            .label {
+                font-weight: 600;
+                color: #666;
+            }
+
+            .value {
+                color: #1a1a1a;
+            }
+        }
+    }
+
+    .productList {
+        max-height: 400px;
+        overflow-y: auto;
+        padding-right: 10px;
+
+        &::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        &::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+
+        .productItem {
+            display: flex;
+            padding: 15px;
+            margin-bottom: 12px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            transition: transform 0.2s ease;
+
+            &:hover {
+                transform: translateY(-2px);
+            }
+
+            .productImage {
+                width: 100px;
+                height: 100px;
+                object-fit: cover;
+                border-radius: 6px;
+                margin-right: 20px;
+            }
+
+            .productDetails {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+
+                .productName {
+                    font-size: 16px;
+                    font-weight: 600;
+                    color: #1a1a1a;
+                    margin-bottom: 8px;
+                }
+
+                .productMeta {
+                    display: flex;
+                    gap: 20px;
+                    color: #666;
+
+                    .quantity,
+                    .price {
+                        font-size: 14px;
+                    }
+
+                    .price {
+                        color: #f5222d;
+                        font-weight: 500;
+                    }
+                }
+            }
+        }
+    }
+
+    .orderTotal {
+        margin-top: 24px;
+        padding-top: 16px;
+        border-top: 2px solid #f0f0f0;
+        text-align: right;
+
+        .totalAmount {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a1a1a;
+
+            span {
+                color: #f5222d;
+                margin-left: 8px;
+            }
+        }
+    }
+}

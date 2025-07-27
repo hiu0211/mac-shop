@@ -1,0 +1,336 @@
+.main {
+    width: 100%;
+    height: 100vh;
+    padding-top: 80px;
+}
+
+.inner {
+    width: 90%;
+    margin: 0px auto;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.product-info {
+    background: #fff;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+
+    h1 {
+        font-size: 20px;
+        margin-bottom: 16px;
+        color: #1d1d1f;
+    }
+
+    > p {
+        font-size: 24px;
+        color: #0066cc;
+        font-weight: 600;
+        margin-bottom: 24px;
+    }
+
+    ul {
+        list-style: none;
+        padding: 0;
+        margin-bottom: 30px;
+
+        li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 12px;
+            color: #1d1d1f;
+            line-height: 1.4;
+
+            svg {
+                color: #0066cc;
+                font-size: 16px;
+                margin-top: 4px;
+            }
+
+            p {
+                margin: 0;
+                font-size: 14px;
+                color: #1d1d1f;
+            }
+
+            span {
+                font-size: 14px;
+            }
+        }
+    }
+}
+.button-group {
+    display: flex;
+    gap: 16px;
+    margin: 24px 0;
+
+    button {
+        flex: 1;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+
+        &:first-child {
+            background: #0066cc;
+            color: white;
+            border: none;
+
+            &:hover {
+                background: #004999;
+            }
+        }
+
+        &:last-child {
+            background: white;
+            color: #0066cc;
+            border: 2px solid #0066cc;
+
+            &:hover {
+                background: #f0f0f0;
+            }
+        }
+    }
+}
+
+.specs {
+    background: #f8f8f8;
+    padding: 24px;
+    border-radius: 12px;
+    margin-top: 30px;
+
+    h4 {
+        font-size: 20px;
+        color: #1d1d1f;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #e5e5e5;
+    }
+
+    div {
+        margin-bottom: 16px;
+
+        h5 {
+            font-size: 14px;
+            color: #86868b;
+            margin-bottom: 4px;
+        }
+
+        p {
+            font-size: 14px;
+            color: #1d1d1f;
+            line-height: 1.5;
+            margin: 0;
+        }
+    }
+}
+
+.container {
+    max-width: 100%;
+    margin: auto;
+}
+h1 {
+    text-align: center;
+}
+.response {
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.compare-list {
+    padding: 30px 0;
+    background-color: #f8f9fa;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+
+    .container {
+        max-width: 100%;
+        margin: 0 auto;
+        padding: 0 20px;
+
+        h1 {
+            font-size: 28px;
+            color: #1a1a1a;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .response {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 1px 8px rgba(0, 0, 0, 0.05);
+
+            p {
+                line-height: 1.6;
+                color: #444;
+                margin-bottom: 20px;
+
+                strong {
+                    color: #1a1a1a;
+                }
+            }
+
+            ul {
+                list-style: none;
+                padding: 0;
+                margin: 25px 0;
+
+                li {
+                    position: relative;
+                    padding-left: 24px;
+                    margin-bottom: 16px;
+                    color: #555;
+                    line-height: 1.5;
+
+                    &:before {
+                        content: '•';
+                        position: absolute;
+                        left: 0;
+                        color: #007aff;
+                        font-size: 20px;
+                        line-height: 1;
+                    }
+
+                    strong {
+                        color: #1a1a1a;
+                        margin-right: 6px;
+                    }
+                }
+            }
+        }
+    }
+}
+
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    padding: 2rem;
+}
+
+.loading-animation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
+}
+
+.phone-1,
+.phone-2 {
+    width: 60px;
+    height: 100px;
+    background: linear-gradient(45deg, #f3f4f6 25%, #e5e7eb 25%, #e5e7eb 50%, #f3f4f6 50%, #f3f4f6 75%, #e5e7eb 75%);
+    background-size: 20px 20px;
+    border-radius: 10px;
+    position: relative;
+    animation: phoneFloat 2s ease-in-out infinite alternate;
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 8px;
+        background: #d1d5db;
+        border-radius: 4px;
+    }
+
+    &::after {
+        content: '';
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 30px;
+        height: 30px;
+        background: #d1d5db;
+        border-radius: 50%;
+    }
+}
+
+.phone-1 {
+    animation-delay: -0.2s;
+}
+
+.phone-2 {
+    animation-delay: 0.2s;
+}
+
+.vs {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #3b82f6;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.loading-text {
+    color: #6b7280;
+    font-size: 1.1rem;
+    text-align: center;
+    animation: fadeInOut 1.5s ease-in-out infinite;
+}
+
+@keyframes phoneFloat {
+    0% {
+        transform: translateY(0);
+    }
+    100% {
+        transform: translateY(-10px);
+    }
+}
+
+@keyframes pulse {
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.7;
+    }
+}
+
+@keyframes fadeInOut {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+.loading-container {
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.8) 50%,
+        rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+}

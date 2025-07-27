@@ -1,0 +1,42 @@
+.wrapper {
+    width: 100%;
+}
+
+.inner {
+    width: 90%;
+    height: 100%;
+    margin: 0px auto;
+    padding: 20px 0px;
+    .title {
+        h2 {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+    }
+}
+
+.card-body {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+}
+
+.button-group {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+    button {
+        background-color: #000;
+        color: #fff;
+        padding: 10px 20px;
+        border-radius: 5px;
+    }
+    button:hover {
+        background-color: #fff;
+        color: #000;
+        border: 1px solid #000;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+}

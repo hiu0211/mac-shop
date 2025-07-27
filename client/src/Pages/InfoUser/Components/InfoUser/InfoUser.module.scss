@@ -1,0 +1,20 @@
+.wrapper {
+    h5 {
+        padding: 10px 0px;
+    }
+}
+
+.form {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.table {
+    padding-top: 10px;
+}
+
+.btn {
+    margin-top: 10px;
+    width: 100%;
+}
