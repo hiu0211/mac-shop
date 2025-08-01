@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styles from './Chatbot.module.scss';
-import { requestAskQuestion } from '../config/request';
+import { requestAskQuestion } from '../Config/request';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faComments, faTimes } from '@fortawesome/free-solid-svg-icons';
 

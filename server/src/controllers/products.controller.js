@@ -92,31 +92,54 @@ class controllerProducts {
   }
 
   async editProduct(req, res) {
-    try {
-      const { _id, name, price, description, category, attributes, images } =
-        req.body;
-      const product = await modelProduct.findByIdAndUpdate(_id, {
-        name,
-        price,
-        description,
-        category,
-        attributes,
-        images,
-      });
-      if (!product) {
-        throw new BadRequestError("Không tìm thấy sản phẩm");
-      }
-      new OK({
-        message: "Chiềnh sửa thống tin sản phẩm thành cong",
-        metadata: product,
-      }).send(res);
-    } catch (error) {
-      new BadRequestError({
-        message: "Lỗi khi chiềnh sửa thống tin sản phẩm",
-        error: error.message,
-      }).send(res);
+  try {
+    const { _id, name, price, images, stock, cpu, screen, gpu, storage, screenHz, ram, battery, camera, weight, priceDiscount } = req.body;
+
+    // Kiểm tra xem có ID và ít nhất một trường cần sửa không
+    if (!_id) {
+      return new BadRequestError("ID sản phẩm không hợp lệ").send(res);
     }
+
+    // Lấy thông tin sản phẩm cũ
+    const product = await modelProduct.findById(_id);
+
+    if (!product) {
+      throw new BadRequestError("Không tìm thấy sản phẩm");
+    }
+
+    // Tạo object cập nhật với những trường đã thay đổi (không phải trường trống)
+    const updatedData = {
+      name: name || product.name,
+      price: price || product.price,
+      images: images || product.images,
+      stock: stock || product.stock,
+      cpu: cpu || product.cpu,
+      screen: screen || product.screen,
+      gpu: gpu || product.gpu,
+      storage: storage || product.storage,
+      screenHz: screenHz || product.screenHz,
+      ram: ram || product.ram,
+      battery: battery || product.battery,
+      camera: camera || product.camera,
+      weight: weight || product.weight,
+      priceDiscount: priceDiscount || product.priceDiscount,
+    };
+
+    // Cập nhật sản phẩm
+    const updatedProduct = await modelProduct.findByIdAndUpdate(_id, updatedData, { new: true });
+
+    new OK({
+      message: "Chỉnh sửa thông tin sản phẩm thành công",
+      metadata: updatedProduct,
+    }).send(res);
+    
+  } catch (error) {
+    new BadRequestError({
+      message: "Lỗi khi chỉnh sửa thông tin sản phẩm",
+      error: error.message,
+    }).send(res);
   }
+}
 
   async deleteProduct(req, res) {
     const { id } = req.query;
