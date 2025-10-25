@@ -93,8 +93,9 @@ class controllerCart {
         return {
           ...product._doc,
           quantity: item.quantity,
-          price:
-            product.priceDiscount > 0 ? product.priceDiscount : product.price,
+          price: product.price,
+          // price: product.priceDiscount > 0 ? product.priceDiscount : product.price,
+
         };
       })
     );
@@ -164,6 +165,62 @@ class controllerCart {
     await cart.save();
     new OK({ message: "Thành công", metadata: cart }).send(res);
   }
+
+  async updateQuantity(req, res) {
+  const { id } = req.user;
+  const { productId, quantity } = req.body;
+
+  if (quantity < 1) {
+    throw new BadRequestError("Số lượng phải lớn hơn 0");
+  }
+
+  const cart = await modelCart.findOne({ userId: id });
+  if (!cart) {
+    throw new BadRequestError("Không tìm thấy giỏ hàng");
+  }
+
+  const product = await modelProduct.findById(productId);
+  if (!product) {
+    throw new BadRequestError("Không tìm thấy sản phẩm");
+  }
+
+  const productIndex = cart.product.findIndex(
+    (item) => item.productId.toString() === productId
+  );
+
+  if (productIndex === -1) {
+    throw new BadRequestError("Không tìm thấy sản phẩm trong giỏ hàng");
+  }
+
+  const currentQuantity = cart.product[productIndex].quantity;
+  const quantityDiff = quantity - currentQuantity;
+
+  // Kiểm tra stock nếu tăng số lượng
+  if (quantityDiff > 0 && quantityDiff > product.stock) {
+    throw new BadRequestError("Số lượng trong kho không đủ");
+  }
+
+  // Cập nhật giá tổng (sử dụng giá gốc để thống nhất với deleteProductCart)
+  const pricePerItem = product.price;
+  cart.totalPrice += pricePerItem * quantityDiff;
+
+  // Cập nhật số lượng trong giỏ hàng
+  cart.product[productIndex].quantity = quantity;
+
+  // Cập nhật stock
+  await modelProduct.updateOne(
+    { _id: productId },
+    { $inc: { stock: -quantityDiff } }
+  );
+
+  await cart.save();
+
+  new OK({
+    message: "Cập nhật số lượng thành công",
+    metadata: cart,
+  }).send(res);
+}
+
 }
 
 module.exports = new controllerCart();

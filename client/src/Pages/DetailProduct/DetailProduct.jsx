@@ -11,8 +11,7 @@ import { faCheckCircle } from '@fortawesome/free-regular-svg-icons';
 
 import { useEffect, useRef, useState } from 'react';
 import { requestAddToCart, requestGetProductById } from '../../Config/request';
-import { useParams } from 'react-router-dom';
-import { Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 
 import { message } from 'antd';
 
@@ -20,6 +19,7 @@ const cx = classNames.bind(styles);
 
 function DetailProduct() {
     const ref = useRef();
+    const navigate = useNavigate();
 
     const { id } = useParams();
 
@@ -45,9 +45,18 @@ function DetailProduct() {
             };
             await requestAddToCart(data);
             message.success('Thêm vào giỏ hàng thành công');
+            return true;
         } catch (error) {
             console.error(error);
-            message.error('Thêm vào giỏ hàng thất bại');
+            message.error('Sản phẩm đã hết hàng');
+            return false;
+        }
+    };
+
+    const handleBuyNow = async () => {
+        const success = await handleAddToCart();
+        if (success) {
+            navigate('/cart');
         }
     };
 
@@ -119,9 +128,7 @@ function DetailProduct() {
                         </ul>
 
                         <div className={cx('button-group')}>
-                            <Link to="/cart">
-                                <button onClick={handleAddToCart}>Mua ngay</button>
-                            </Link>
+                            <button onClick={handleBuyNow}>Mua ngay</button>
                             <button onClick={handleAddToCart}>Thêm vào giỏ hàng</button>
                         </div>
 

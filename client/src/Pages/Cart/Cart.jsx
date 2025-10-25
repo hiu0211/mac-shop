@@ -1,13 +1,14 @@
 import classNames from 'classnames/bind';
 import styles from './Cart.module.scss';
 import Header from '../../Components/Header/Header';
-import { Button, Table, Form, Input, AutoComplete } from 'antd';
+import { Button, Table, Form, Input, AutoComplete, InputNumber } from 'antd';
 import { useEffect, useState } from 'react';
-import { requestDeleteCart, requestGetCart, requestPayment, requestUpdateInfoUserCart } from '../../Config/request';
+import { requestDeleteCart, requestGetCart, requestPayment, requestUpdateInfoUserCart, requestUpdateQuantityCart } from '../../Config/request';
 import { message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import useDebounce from '../../hooks/useDebounce';
+import { MinusOutlined, PlusOutlined } from '@ant-design/icons';
 
 const cx = classNames.bind(styles);
 
@@ -16,10 +17,11 @@ function Cart() {
     const [totalPrice, setTotalPrice] = useState(0);
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
+    const [updatingQuantity, setUpdatingQuantity] = useState({});
     
     // States cho Autocomplete địa chỉ
-    const [addressOptions, setAddressOptions] = useState([]); // Danh sách gợi ý
-    const [valueAddress, setValueAddress] = useState(''); // Giá trị đang nhập
+    const [addressOptions, setAddressOptions] = useState([]);
+    const [valueAddress, setValueAddress] = useState('');
     
     // Debounce để tối ưu API calls
     const debounce = useDebounce(valueAddress, 800);
@@ -45,7 +47,6 @@ function Cart() {
                     },
                 });
                 
-                // AutoComplete
                 const options = response.data.predictions.map((item) => ({
                     value: item.description,
                     label: item.description,
@@ -61,9 +62,38 @@ function Cart() {
         if (debounce !== '') {
             fetchAddressData();
         } else {
-            setAddressOptions([]); // Clear options khi input rỗng
+            setAddressOptions([]);
         }
     }, [debounce]);
+
+    // Hàm cập nhật số lượng
+    const handleUpdateQuantity = async (productId, newQuantity) => {
+        // Validate input
+        if (!newQuantity || newQuantity < 1) {
+            message.warning('Số lượng phải lớn hơn 0');
+            return;
+        }
+
+        // Kiểm tra nếu số lượng không thay đổi thì không gọi API
+        const currentProduct = cart.find(item => item._id === productId);
+        if (currentProduct && currentProduct.quantity === newQuantity) {
+            return;
+        }
+
+        try {
+            setUpdatingQuantity(prev => ({ ...prev, [productId]: true }));
+            await requestUpdateQuantityCart(productId, newQuantity);
+            await fetchCart();
+            message.success('Cập nhật số lượng thành công');
+        } catch (error) {
+            console.error(error);
+            message.error(error.response?.data?.message || 'Cập nhật số lượng thất bại');
+            // Reload lại giỏ hàng để đồng bộ dữ liệu nếu có lỗi
+            await fetchCart();
+        } finally {
+            setUpdatingQuantity(prev => ({ ...prev, [productId]: false }));
+        }
+    };
 
     const dataSource = cart.map((item) => ({
         key: item._id,
@@ -72,6 +102,7 @@ function Cart() {
         image: item.images[0],
         price: item.price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }),
         quantity: item.quantity,
+        stock: item.stock,
     }));
 
     const handleDelete = async (productId) => {
@@ -145,6 +176,30 @@ function Cart() {
             dataIndex: 'quantity',
             key: 'quantity',
             align: 'center',
+            render: (quantity, record) => (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <Button
+                        size="small"
+                        icon={<MinusOutlined />}
+                        onClick={() => handleUpdateQuantity(record.id, quantity - 1)}
+                        disabled={quantity <= 1 || updatingQuantity[record.id]}
+                    />
+                    <InputNumber
+                        min={1}
+                        max={record.stock + quantity}
+                        value={quantity}
+                        onChange={(value) => handleUpdateQuantity(record.id, value)}
+                        disabled={updatingQuantity[record.id]}
+                        style={{ width: '50px' }}
+                    />
+                    <Button
+                        size="small"
+                        icon={<PlusOutlined />}
+                        onClick={() => handleUpdateQuantity(record.id, quantity + 1)}
+                        disabled={updatingQuantity[record.id]}
+                    />
+                </div>
+            ),
         },
         {
             title: 'Hành động',
@@ -192,12 +247,10 @@ function Cart() {
         }
     };
 
-    // Xử lý khi user nhập vào AutoComplete
     const handleAddressSearch = (value) => {
         setValueAddress(value);
     };
 
-    // Xử lý khi user chọn một địa chỉ
     const handleAddressSelect = (value) => {
         form.setFieldsValue({ address: value });
     };
@@ -251,7 +304,7 @@ function Cart() {
                                         onSearch={handleAddressSearch}
                                         onSelect={handleAddressSelect}
                                         placeholder="Nhập địa chỉ"
-                                        filterOption={false} // Tắt filter mặc định vì đã có API
+                                        filterOption={false}
                                         notFoundContent={valueAddress ? "Đang tìm kiếm..." : null}
                                     />
                                 </Form.Item>
