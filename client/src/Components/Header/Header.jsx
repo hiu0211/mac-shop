@@ -3,7 +3,7 @@ import styles from './Header.module.scss';
 
 import { Link, useNavigate } from 'react-router-dom';
 
-import logo from '../../assets/images/logo.png';
+import logoo from '../../assets/images/logoo.png';
 
 import { useStore } from '../../hooks/useStore';
 
@@ -37,7 +37,7 @@ function Header() {
             try {
                 const res = await requestSearchProduct(debouncedValue);
                 setResultSearch(res.metadata);
-            } catch (error) {
+            } catch {
                 setResultSearch([]);
             } finally {
                 setIsSearching(false);
@@ -55,7 +55,7 @@ function Header() {
                 window.location.reload();
             }, 1000);
             navigate('/');
-        } catch (error) {
+        } catch {
             return;
         }
     };
@@ -65,7 +65,7 @@ function Header() {
             <div className={cx('inner')}>
                 <Link to="/">
                     <div className={cx('logo')}>
-                        <img src={logo} alt="logo" />
+                        <img src={logoo} alt="logo" />
                     </div>
                 </Link>
 

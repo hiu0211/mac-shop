@@ -34,6 +34,7 @@ function routes(app) {
   app.get("/api/get-cart", cartRoutes);
   app.delete("/api/delete-cart", cartRoutes);
   app.post("/api/update-info-user-cart", cartRoutes);
+  // app.put("/api/update-cart-quantity/:productId", cartRoutes);
 
   app.post("/api/payment", paymentsRoutes);
   app.get("/api/check-payment-momo", paymentsRoutes);

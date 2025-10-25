@@ -1,12 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Form, Input, InputNumber, Upload, Button, Card, message, Space } from 'antd';
 import { UploadOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import axios from 'axios';
 import { requestAddProduct, requestUploadImage } from '../../../Config/request';
 
 const AddProduct = ({ setActiveComponent }) => {
     const [form] = Form.useForm();
-    const [imageFiles, setImageFiles] = useState([]);
 
     const handleUpload = async (files) => {
         try {
@@ -42,10 +40,9 @@ const AddProduct = ({ setActiveComponent }) => {
 
             message.success('Thêm sản phẩm thành công');
             form.resetFields();
-            setImageFiles([]);
         } catch (error) {
-            message.error('Có lỗi xảy ra khi thêm sản phẩm!');
             console.error(error);
+            message.error('Có lỗi xảy ra khi thêm sản phẩm!');
         }
     };
 

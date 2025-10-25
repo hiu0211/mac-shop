@@ -5,8 +5,6 @@ const modelProduct = require("../models/products.model");
 const { BadRequestError } = require("../core/error.response");
 const { OK } = require("../core/success.response");
 
-const crypto = require("crypto");
-const axios = require("axios");
 const {
   VNPay,
   ignoreLogger,
@@ -34,6 +32,7 @@ class PaymentsController {
     ) {
       throw new BadRequestError("Vui lòng nhập đầy đủ thông tin");
     }
+
     if (typePayment === "COD") {
       const newPayment = new modelPayments({
         userId: id,
@@ -53,121 +52,32 @@ class PaymentsController {
         metadata: newPayment._id,
       }).send(res);
     }
-    if (typePayment === "MOMO") {
-      var partnerCode = "MOMO";
-      var accessKey = "F8BBA842ECF85";
-      var secretkey = "K951B6PE1waDMi640xX08PD3vg6EkVlz";
-      var requestId = partnerCode + new Date().getTime();
-      var orderId = requestId;
-      var orderInfo = `thanh toan ${findCart._id}`; // nội dung giao dịch thanh toán
-      var redirectUrl = "http://localhost:3000/api/check-payment-momo"; // 8080
-      var ipnUrl = "http://localhost:3000/api/check-payment-momo";
-      var amount = findCart.totalPrice;
-      var requestType = "captureWallet";
-      var extraData = ""; //pass empty value if your merchant does not have stores
 
-      var rawSignature =
-        "accessKey=" +
-        accessKey +
-        "&amount=" +
-        amount +
-        "&extraData=" +
-        extraData +
-        "&ipnUrl=" +
-        ipnUrl +
-        "&orderId=" +
-        orderId +
-        "&orderInfo=" +
-        orderInfo +
-        "&partnerCode=" +
-        partnerCode +
-        "&redirectUrl=" +
-        redirectUrl +
-        "&requestId=" +
-        requestId +
-        "&requestType=" +
-        requestType;
-      //puts raw signature
-
-      //signature
-      var signature = crypto
-        .createHmac("sha256", secretkey)
-        .update(rawSignature)
-        .digest("hex");
-
-      //json object send to MoMo endpoint
-      const requestBody = JSON.stringify({
-        partnerCode: partnerCode,
-        accessKey: accessKey,
-        requestId: requestId,
-        amount: amount,
-        orderId: orderId,
-        orderInfo: orderInfo,
-        redirectUrl: redirectUrl,
-        ipnUrl: ipnUrl,
-        extraData: extraData,
-        requestType: requestType,
-        signature: signature,
-        lang: "en",
-      });
-
-      const response = await axios.post(
-        "https://test-payment.momo.vn/v2/gateway/api/create",
-        requestBody,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      new OK({ message: "Thanh toán thông báo", metadata: response.data }).send(
-        res
-      );
-    }
     if (typePayment === "VNPAY") {
       const vnpay = new VNPay({
         tmnCode: "VWCX5PWG",
         secureSecret: "L0OTNI0RRFI3IGV0HIWHNK5U13Q2WCMF",
         vnpayHost: "https://sandbox.vnpayment.vn",
-        testMode: true, // tùy chọn
-        hashAlgorithm: "SHA512", // tùy chọn
-        loggerFn: ignoreLogger, // tùy chọn
+        testMode: true,
+        hashAlgorithm: "SHA512",
+        loggerFn: ignoreLogger,
       });
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       const vnpayResponse = await vnpay.buildPaymentUrl({
-        vnp_Amount: findCart.totalPrice, //
-        vnp_IpAddr: "127.0.0.1", //
+        vnp_Amount: findCart.totalPrice,
+        vnp_IpAddr: "127.0.0.1",
         vnp_TxnRef: findCart._id,
         vnp_OrderInfo: `${findCart._id}`,
         vnp_OrderType: ProductCode.Other,
-        vnp_ReturnUrl: `http://localhost:3000/api/check-payment-vnpay`, //
-        vnp_Locale: VnpLocale.VN, // 'vn' hoặc 'en'
-        vnp_CreateDate: dateFormat(new Date()), // tùy chọn, mặc định là hiện tại
-        vnp_ExpireDate: dateFormat(tomorrow), // tùy chọn
+        vnp_ReturnUrl: `http://localhost:3000/api/check-payment-vnpay`,
+        vnp_Locale: VnpLocale.VN,
+        vnp_CreateDate: dateFormat(new Date()),
+        vnp_ExpireDate: dateFormat(tomorrow),
       });
       new OK({ message: "Thanh toán thông báo", metadata: vnpayResponse }).send(
         res
       );
-    }
-  }
-
-  async checkPaymentMomo(req, res, next) {
-    const { orderInfo, resultCode } = req.query;
-    if (resultCode === "0") {
-      const result = orderInfo.split(" ")[2];
-      const findCart = await modelCart.findOne({ _id: result });
-      const newPayment = new modelPayments({
-        userId: findCart.userId,
-        products: findCart.product,
-        address: findCart.address,
-        phone: findCart.phone,
-        fullName: findCart.fullName,
-        typePayments: "MOMO",
-      });
-      await newPayment.save();
-      await findCart.deleteOne();
-      return res.redirect(`http://localhost:5173/payment/${newPayment._id}`);
     }
   }
 
@@ -183,6 +93,7 @@ class PaymentsController {
         phone: findCart.phone,
         typePayments: "VNPAY",
         fullName: findCart.fullName,
+        totalPrice: findCart.totalPrice,
       });
       await newPayment.save();
       await findCart.deleteOne();

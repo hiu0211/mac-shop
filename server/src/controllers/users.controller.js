@@ -164,13 +164,13 @@ class controllerUsers {
       res.cookie("token", token, {
         httpOnly: true, // Chặn truy cập từ JavaScript (bảo mật hơn)
         secure: true, // Chỉ gửi trên HTTPS (để đảm bảo an toàn)
-        sameSite: "Strict", // ChONGL tấn công CSRF
+        sameSite: "Strict", // Chống tấn công CSRF
         maxAge: 15 * 60 * 1000, // 15 phút
       });
       res.cookie("logged", 1, {
         httpOnly: false, // Chặn truy cập từ JavaScript (bảo mật hơn)
         secure: true, // Chỉ gửi trên HTTPS (để đảm bảo an toàn)
-        sameSite: "Strict", // ChONGL tấn công CSRF
+        sameSite: "Strict", // Chống tấn công CSRF
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
       });
       res.cookie("refreshToken", refreshToken, {
@@ -343,21 +343,32 @@ class controllerUsers {
         };
       });
 
-      // Format đơn hàng gần đây
+      // Helper function để mapping trạng thái đơn hàng
+      const getStatusLabel = (status) => {
+        switch (status) {
+          case "pending":
+            return "Chờ xác nhận";
+          case "completed":
+            return "Đã xác nhận";
+          case "shipping":
+            return "Đang giao";
+          case "delivered":
+            return "Đã giao";
+          case "cancelled":
+            return "Đã hủy";
+          default:
+            return "Không xác định";
+        }
+      };
+
+      // Format đơn hàng gần đây với trạng thái đúng
       const formattedRecentOrders = stats.recentOrders.map((order) => ({
         key: order._id.toString(),
         order: order._id.toString().slice(-6).toUpperCase(),
         customer: order.fullName,
         product: `${order.products.length} sản phẩm`,
         amount: order.totalPrice,
-        status:
-          order.statusOrder === "pending"
-            ? "Chờ xử lý"
-            : order.statusOrder === "shipping"
-            ? "Đang giao"
-            : order.statusOrder === "delivered"
-            ? "Đã giao"
-            : "Đã hủy",
+        status: getStatusLabel(order.statusOrder),
       }));
 
       new OK({
@@ -504,71 +515,6 @@ class controllerUsers {
       message: "Đăng nhập thành công",
       metadata: "success",
     }).send(res);
-  }
-
-  async loginGoogle(req, res) {
-    const { credential } = req.body;
-    const dataToken = jwtDecode(credential);
-    const user = await modelUser.findOne({ email: dataToken.email });
-    if (user) {
-      await createApiKey(user._id);
-      const token = await createToken({ id: user._id });
-      const refreshToken = await createRefreshToken({ id: user._id });
-      res.cookie("token", token, {
-        httpOnly: true, // Chặn truy cập từ JavaScript (bảo mật hơn)
-        secure: true, // Chỉ gửi trên HTTPS (để đảm bảo an toàn)
-        sameSite: "Strict", // Chống tấn công CSRF
-        maxAge: 15 * 60 * 1000, // 15 phút
-      });
-      res.cookie("logged", 1, {
-        httpOnly: false, // Chặn truy cập từ JavaScript (bảo mật hơn)
-        secure: true, // Chỉ gửi trên HTTPS (để đảm bảo an toàn)
-        sameSite: "Strict", // Chống tấn công CSRF
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
-      });
-      res.cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "Strict",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
-      });
-      new OK({
-        message: "Đăng nhập thành công",
-        metadata: { token, refreshToken },
-      }).send(res);
-    } else {
-      const newUser = await modelUser.create({
-        fullName: dataToken.name,
-        email: dataToken.email,
-        typeLogin: "google",
-      });
-      await newUser.save();
-      await createApiKey(newUser._id);
-      const token = await createToken({ id: newUser._id });
-      const refreshToken = await createRefreshToken({ id: newUser._id });
-      res.cookie("token", token, {
-        httpOnly: true, // Chặn truy cập từ JavaScript (bảo mật hơn)
-        secure: true, // Chỉ gửi trên HTTPS (để đảm bảo an toàn)
-        sameSite: "Strict", // ChONGL tấn công CSRF
-        maxAge: 15 * 60 * 1000, // 15 phút
-      });
-      res.cookie("logged", 1, {
-        httpOnly: false, // Chặn truy cập từ JavaScript (bảo mật hơn)
-        secure: true, // Chỉ gửi trên HTTPS (để đảm bảo an toàn)
-        sameSite: "Strict", // ChONGL tấn công CSRF
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
-      });
-      res.cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "Strict",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
-      });
-      new OK({
-        message: "Đăng nhập thành công",
-        metadata: { token, refreshToken },
-      }).send(res);
-    }
   }
 
   async authAdmin(req, res) {

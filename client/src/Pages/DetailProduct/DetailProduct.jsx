@@ -12,6 +12,7 @@ import { faCheckCircle } from '@fortawesome/free-regular-svg-icons';
 import { useEffect, useRef, useState } from 'react';
 import { requestAddToCart, requestGetProductById } from '../../Config/request';
 import { useParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 import { message } from 'antd';
 
@@ -45,6 +46,7 @@ function DetailProduct() {
             await requestAddToCart(data);
             message.success('Thêm vào giỏ hàng thành công');
         } catch (error) {
+            console.error(error);
             message.error('Thêm vào giỏ hàng thất bại');
         }
     };
@@ -85,11 +87,18 @@ function DetailProduct() {
 
                     <div className={cx('product-info')}>
                         <h1>{dataProduct?.name}</h1>
-                        <p>{dataProduct?.price?.toLocaleString()}đ</p>
+                        <div className={cx('price-box')}>
+                            <span className={cx('price-text')}>Giá bán:</span>
+                            <h2 className={cx('price-money')}>{dataProduct?.price?.toLocaleString()}đ</h2>
+                        </div>
                         <ul>
                             <li>
                                 <FontAwesomeIcon icon={faCheckCircle} />
-                                <span>Giao hàng ngày mở bán tại Việt Nam 27/09/2024</span>
+                                <span>Hãng Sản Xuất: Iphone</span>
+                            </li>
+                            <li>
+                                <FontAwesomeIcon icon={faCheckCircle} />
+                                <span>Giao hàng ngày mở bán tại Việt Nam 27/06/2025</span>
                             </li>
                             <li>
                                 <FontAwesomeIcon icon={faCheckCircle} />
@@ -110,18 +119,20 @@ function DetailProduct() {
                         </ul>
 
                         <div className={cx('button-group')}>
-                            <button>Mua ngay</button>
+                            <Link to="/cart">
+                                <button onClick={handleAddToCart}>Mua ngay</button>
+                            </Link>
                             <button onClick={handleAddToCart}>Thêm vào giỏ hàng</button>
                         </div>
 
                         <ul>
                             <li>
                                 <FontAwesomeIcon icon={faCheckCircle} />
-                                <p> Dùng thử 10 ngày miễn phí đổi máy. (MacBook Like New)</p>
+                                <p> Dùng thử 10 ngày miễn phí đổi máy. </p>
                             </li>
                             <li>
                                 <FontAwesomeIcon icon={faCheckCircle} />
-                                <p>Lỗi 1 Đổi 1 trong 30 ngày đầu. (MacBook Like New)</p>
+                                <p>Lỗi 1 Đổi 1 trong 30 ngày đầu. </p>
                             </li>
                             <li>
                                 <FontAwesomeIcon icon={faCheckCircle} />

@@ -13,7 +13,7 @@ import {
     Legend,
     PointElement,
 } from 'chart.js';
-import axios from 'axios';
+// import axios from 'axios';
 import { requestGetAdminStats } from '../../../Config/request';
 
 // Đăng ký các components cần thiết cho Chart.js
@@ -195,8 +195,10 @@ const Dashboard = () => {
                                     render: (status) => (
                                         <Tag
                                             color={
-                                                status === 'Chờ xử lý'
-                                                    ? 'gold'
+                                                status === 'Chờ xác nhận'
+                                                    ? 'purple'
+                                                    : status === 'Đã xác nhận'
+                                                    ? 'orange'
                                                     : status === 'Đang giao'
                                                     ? 'blue'
                                                     : status === 'Đã giao'

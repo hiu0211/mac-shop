@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Space, Button, Input } from 'antd';
+import { Table, Space, Input } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { requestGetAllUser } from '../../../Config/request';
 
@@ -9,6 +9,12 @@ const UserManagement = () => {
             title: 'ID',
             dataIndex: 'id',
             key: 'id',
+            hidden: true,
+        },
+        {
+            title: 'STT',
+            key: 'stt',
+            render: (_, __, index) => index + 1,
         },
         {
             title: 'Tên',
@@ -28,10 +34,15 @@ const UserManagement = () => {
     ];
 
     const [dataUsers, setDataUsers] = useState([]);
+    const [searchText, setSearchText] = useState('');
 
     const fetchData = async () => {
-        const res = await requestGetAllUser();
-        setDataUsers(res.metadata.users);
+        try {
+            const res = await requestGetAllUser();
+            setDataUsers(res.metadata.users);
+        } catch (error) {
+            console.error('Lỗi khi lấy danh sách người dùng:', error);
+        }
     };
 
     useEffect(() => {
@@ -46,13 +57,30 @@ const UserManagement = () => {
         phone: user.phone,
     }));
 
+    // Lọc dữ liệu dựa trên searchText
+    const filteredData = data.filter((item) => {
+        const searchLower = searchText.toLowerCase();
+        return (
+            item.name?.toLowerCase().includes(searchLower) ||
+            item.email?.toLowerCase().includes(searchLower) ||
+            item.phone?.toLowerCase().includes(searchLower)
+        );
+    });
+
     return (
         <div>
             <Space style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
                 <h2>Quản lý người dùng</h2>
-                <Input placeholder="Tìm kiếm người dùng" prefix={<SearchOutlined />} />
+                <Input
+                    placeholder="Tìm kiếm người dùng"
+                    prefix={<SearchOutlined />}
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    allowClear
+                    style={{ width: 350 }}
+                />
             </Space>
-            <Table columns={columns} dataSource={data} />
+            <Table columns={columns} dataSource={filteredData} />
         </div>
     );
 };

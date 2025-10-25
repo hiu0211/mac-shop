@@ -71,11 +71,22 @@
         color: #1d1d1f;
     }
 
-    > p {
-        font-size: 24px;
-        color: #0066cc;
-        font-weight: 600;
+    .price-box {
         margin-bottom: 24px;
+
+        .price-text {
+            font-size: 14px;
+            color: #4f4a4a;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .price-money {
+            font-size: 28px;
+            color: #D70018;
+            font-weight: 600;
+            margin: 0;
+        }
     }
 
     ul {
@@ -112,11 +123,10 @@
 
 .button-group {
     display: flex;
-    gap: 16px;
+    gap: 24px;
     margin: 24px 0;
 
     button {
-        flex: 1;
         padding: 14px 24px;
         border-radius: 8px;
         font-size: 16px;

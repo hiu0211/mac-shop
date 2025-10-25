@@ -21,6 +21,15 @@ function MainHome() {
 
             <div className={cx('delivery')}>
                 <div className={cx('inner-item')}>
+
+                    <div className={cx('delivery-item')}>
+                        <FontAwesomeIcon icon={faTruck} />
+                        <div>
+                            <h4>GIAO HÀNG TẬN NƠI</h4>
+                            <p>Miễn phí giao hàng nội thành</p>
+                        </div>
+                    </div>
+                    
                     <div className={cx('delivery-item')}>
                         <FontAwesomeIcon icon={faTruck} />
                         <div>

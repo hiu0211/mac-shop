@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Space, Button, Input, Tag, Select } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
-import axios from 'axios';
 import { message } from 'antd';
 import { requestGetOrderAdmin, requestUpdateStatusOrder } from '../../../Config/request';
 import ModalDetailOrder from './ModalDetailOrder';
@@ -9,6 +8,7 @@ import ModalDetailOrder from './ModalDetailOrder';
 const OrderManagement = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [searchText, setSearchText] = useState('');
 
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState('');
@@ -24,7 +24,6 @@ const OrderManagement = () => {
     const handleShowModal = (order) => {
         setSelectedOrder(order.id);
         console.log(order);
-
         setIsModalVisible(true);
     };
 
@@ -35,6 +34,7 @@ const OrderManagement = () => {
             message.success('Cập nhật trạng thái thành công');
             await fetchOrders();
         } catch (error) {
+            console.error(error);
             message.error('Cập nhật trạng thái thất bại');
         } finally {
             setLoading(false);
@@ -120,6 +120,7 @@ const OrderManagement = () => {
                 setOrders(formattedOrders);
             }
         } catch (error) {
+            console.error(error);
             message.error('Không thể tải danh sách đơn hàng');
         } finally {
             setLoading(false);
@@ -130,13 +131,31 @@ const OrderManagement = () => {
         fetchOrders();
     }, []);
 
+    // Lọc đơn hàng theo searchText
+    const filteredOrders = orders.filter((order) => {
+        const searchLower = searchText.toLowerCase();
+        return (
+            order.id?.toLowerCase().includes(searchLower) ||
+            order.customer?.toLowerCase().includes(searchLower) ||
+            order.phone?.toLowerCase().includes(searchLower) ||
+            order.address?.toLowerCase().includes(searchLower)
+        );
+    });
+
     return (
         <div>
             <Space style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
                 <h2>Quản lý đơn hàng</h2>
-                <Input placeholder="Tìm kiếm đơn hàng" prefix={<SearchOutlined />} />
+                <Input
+                    placeholder="Tìm kiếm đơn hàng"
+                    prefix={<SearchOutlined />}
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    allowClear
+                    style={{ width: 350 }}
+                />
             </Space>
-            <Table columns={columns} dataSource={orders} loading={loading} />
+            <Table columns={columns} dataSource={filteredOrders} loading={loading} />
             <ModalDetailOrder
                 isModalVisible={isModalVisible}
                 setIsModalVisible={setIsModalVisible}

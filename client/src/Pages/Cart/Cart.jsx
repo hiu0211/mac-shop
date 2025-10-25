@@ -1,12 +1,13 @@
 import classNames from 'classnames/bind';
 import styles from './Cart.module.scss';
 import Header from '../../Components/Header/Header';
-
 import { Button, Table, Form, Input, AutoComplete } from 'antd';
 import { useEffect, useState } from 'react';
 import { requestDeleteCart, requestGetCart, requestPayment, requestUpdateInfoUserCart } from '../../Config/request';
 import { message } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import useDebounce from '../../hooks/useDebounce';
 
 const cx = classNames.bind(styles);
 
@@ -15,7 +16,13 @@ function Cart() {
     const [totalPrice, setTotalPrice] = useState(0);
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
-    const [addressOptions, setAddressOptions] = useState([]);
+    
+    // States cho Autocomplete địa chỉ
+    const [addressOptions, setAddressOptions] = useState([]); // Danh sách gợi ý
+    const [valueAddress, setValueAddress] = useState(''); // Giá trị đang nhập
+    
+    // Debounce để tối ưu API calls
+    const debounce = useDebounce(valueAddress, 800);
 
     const fetchCart = async () => {
         const res = await requestGetCart();
@@ -26,6 +33,37 @@ function Cart() {
     useEffect(() => {
         fetchCart();
     }, []);
+
+    // Fetch địa chỉ từ Goong API
+    useEffect(() => {
+        const fetchAddressData = async () => {
+            try {
+                const response = await axios.get('https://rsapi.goong.io/Place/AutoComplete', {
+                    params: {
+                        input: debounce,
+                        api_key: '3HcKy9jen6utmzxno4HwpkN1fJYll5EM90k53N4K',
+                    },
+                });
+                
+                // AutoComplete
+                const options = response.data.predictions.map((item) => ({
+                    value: item.description,
+                    label: item.description,
+                }));
+                
+                setAddressOptions(options);
+            } catch (error) {
+                console.error('Lỗi khi lấy địa chỉ:', error);
+                message.error('Không thể tải danh sách địa chỉ');
+            }
+        };
+
+        if (debounce !== '') {
+            fetchAddressData();
+        } else {
+            setAddressOptions([]); // Clear options khi input rỗng
+        }
+    }, [debounce]);
 
     const dataSource = cart.map((item) => ({
         key: item._id,
@@ -42,6 +80,7 @@ function Cart() {
             await fetchCart();
             message.success('Xóa sản phẩm thành công');
         } catch (error) {
+            console.error(error);
             message.error('Xóa sản phẩm thất bại');
         }
     };
@@ -58,6 +97,7 @@ function Cart() {
             await requestUpdateInfoUserCart(data);
             return;
         } catch (error) {
+            console.error(error);
             message.error('Cập nhật thông tin thất bại');
         } finally {
             setLoading(false);
@@ -72,6 +112,14 @@ function Cart() {
             dataIndex: 'id',
             key: 'id',
             align: 'center',
+            hidden: true,
+        },
+        {
+            title: 'STT',
+            dataIndex: 'stt',
+            key: 'stt',
+            width: '60px',
+            render: (_, __, index) => index + 1,
         },
         {
             title: 'Tên sản phẩm',
@@ -84,7 +132,6 @@ function Cart() {
             dataIndex: 'image',
             key: 'image',
             align: 'center',
-
             render: (image) => <img src={image} alt="product" style={{ width: '100px', height: '100px' }} />,
         },
         {
@@ -99,7 +146,6 @@ function Cart() {
             key: 'quantity',
             align: 'center',
         },
-
         {
             title: 'Hành động',
             dataIndex: 'action',
@@ -121,18 +167,16 @@ function Cart() {
             await handleSubmit(values);
 
             switch (typePayment) {
-                case 'COD':
+                case 'COD': {
                     const codRes = await requestPayment(typePayment);
                     navigate(`/payment/${codRes.metadata}`);
                     break;
-                case 'MOMO':
-                    const momoRes = await requestPayment(typePayment);
-                    window.open(momoRes.metadata.payUrl, '_blank');
-                    break;
-                case 'VNPAY':
+                }
+                case 'VNPAY': {
                     const vnpayRes = await requestPayment(typePayment);
                     window.open(vnpayRes.metadata, '_blank');
                     break;
+                }
                 default:
                     message.error('Phương thức thanh toán không hợp lệ');
             }
@@ -146,6 +190,16 @@ function Cart() {
         } finally {
             setLoading(false);
         }
+    };
+
+    // Xử lý khi user nhập vào AutoComplete
+    const handleAddressSearch = (value) => {
+        setValueAddress(value);
+    };
+
+    // Xử lý khi user chọn một địa chỉ
+    const handleAddressSelect = (value) => {
+        form.setFieldsValue({ address: value });
     };
 
     return (
@@ -162,7 +216,7 @@ function Cart() {
                     </div>
 
                     <div className={cx('cart-content')}>
-                        <Table dataSource={dataSource} columns={columns} pagination={false} />
+                        <Table bordered dataSource={dataSource} columns={columns} pagination={false} />
                     </div>
                     {cart.length > 0 && (
                         <div className={cx('checkout-form')}>
@@ -192,7 +246,14 @@ function Cart() {
                                     name="address"
                                     rules={[{ required: true, message: 'Vui lòng nhập địa chỉ!' }]}
                                 >
-                                    <Input placeholder="Nhập địa chỉ" />
+                                    <AutoComplete
+                                        options={addressOptions}
+                                        onSearch={handleAddressSearch}
+                                        onSelect={handleAddressSelect}
+                                        placeholder="Nhập địa chỉ"
+                                        filterOption={false} // Tắt filter mặc định vì đã có API
+                                        notFoundContent={valueAddress ? "Đang tìm kiếm..." : null}
+                                    />
                                 </Form.Item>
 
                                 <div className={cx('payment-btn')}>
@@ -203,13 +264,7 @@ function Cart() {
                                     >
                                         Thanh toán khi nhận hàng
                                     </Button>
-                                    <Button
-                                        onClick={() => handlePayments('MOMO')}
-                                        className={cx('payment-btn-momo')}
-                                        loading={loading}
-                                    >
-                                        Thanh toán qua MOMO
-                                    </Button>
+                                    
                                     <Button
                                         onClick={() => handlePayments('VNPAY')}
                                         className={cx('payment-btn-vnpay')}

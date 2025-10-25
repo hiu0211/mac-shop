@@ -5,8 +5,9 @@ import { Button, Input, message } from 'antd';
 import { Table } from 'antd';
 import { useStore } from '../../../../hooks/useStore';
 import { useEffect, useState } from 'react';
-import { requestGetHistoryOrder, requestUpdateInfoUser, requestUpdatePassword } from '../../../../Config/request';
+import { requestGetHistoryOrder, requestUpdateInfoUser } from '../../../../Config/request';
 import ModalUpdatePassword from './ModalUpdatePassword/ModalUpdatePassword';
+
 
 const cx = classNames.bind(styles);
 
@@ -17,6 +18,15 @@ const columns = [
         key: 'orderId',
         width: '15%',
         ellipsis: true,
+        hidden: true,
+    },
+    {
+        title: 'STT',
+        dataIndex: 'stt',
+        key: 'stt',
+        width: '60px',
+        ellipsis: true,
+        render: (_, __, index) => index + 1,
     },
     {
         title: 'Tên sản phẩm',
@@ -51,23 +61,23 @@ const columns = [
 
             switch (status) {
                 case 'pending':
-                    color = '#faad14'; // màu vàng
-                    text = 'Đang xử lý';
+                    color = 'purple';
+                    text = 'Chờ xác nhận';
                     break;
                 case 'completed':
-                    color = '#1677ff'; // màu xanh dương
+                    color = 'orange';
                     text = 'Đã xác nhận';
                     break;
                 case 'shipping':
-                    color = '#722ed1'; // màu tím
-                    text = 'Đang vận chuyển';
+                    color = '#1677ff';
+                    text = 'Đang giao hàng';
                     break;
                 case 'delivered':
-                    color = '#52c41a'; // màu xanh lá
+                    color = '#52c41a';
                     text = 'Đã giao hàng';
                     break;
                 case 'cancelled':
-                    color = '#ff4d4f'; // màu đỏ
+                    color = '#ff4d4f';
                     text = 'Đã hủy';
                     break;
                 default:
@@ -127,6 +137,7 @@ function InfoUser({ isOpen, setIsOpen }) {
             message.success('Cập nhật thông tin người dùng thành công');
             window.location.reload();
         } catch (error) {
+            console.error(error);
             message.error('Cập nhật thông tin người dùng thất bại');
         }
     };
@@ -164,7 +175,7 @@ function InfoUser({ isOpen, setIsOpen }) {
             </Button>
             <h5>Đơn hàng</h5>
             <div className={cx('table')}>
-                <Table dataSource={dataOrder} columns={columns} rowKey="orderId" pagination={false} />
+                <Table bordered dataSource={dataOrder} columns={columns} rowKey="orderId" pagination={false} />
             </div>
             <ModalUpdatePassword isOpen={isOpen} setIsOpen={setIsOpen} />
         </div>

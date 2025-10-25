@@ -1,7 +1,6 @@
 import classNames from 'classnames/bind';
 import styles from './Footer.module.scss';
-
-import logo from '../../assets/images/logo.png';
+// import logo from '../../assets/images/logo.png';
 
 const cx = classNames.bind(styles);
 

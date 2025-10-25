@@ -6,7 +6,7 @@ import {
     ShoppingCartOutlined,
     MenuFoldOutlined,
     MenuUnfoldOutlined,
-    PlusOutlined,
+    ProductOutlined,
 } from '@ant-design/icons';
 import Dashboard from './Components/Dashboard';
 import ProductManagement from './Components/ProductManagement';
@@ -32,19 +32,19 @@ const MainLayout = () => {
             label: 'Trang chủ',
         },
         {
-            key: 'users',
-            icon: <UserOutlined />,
-            label: 'Quản lý người dùng',
-        },
-        {
             key: 'orders',
             icon: <ShoppingCartOutlined />,
             label: 'Quản lý đơn hàng',
         },
         {
             key: 'products',
-            icon: <PlusOutlined />,
+            icon: <ProductOutlined />,
             label: 'Quản lý sản phẩm',
+        },
+        {
+            key: 'users',
+            icon: <UserOutlined />,
+            label: 'Quản lý người dùng',
         },
     ];
 
@@ -73,7 +73,7 @@ const MainLayout = () => {
         const fetchAdmin = async () => {
             try {
                 await requestAdmin();
-            } catch (error) {
+            } catch {
                 navigate('/');
             }
         };

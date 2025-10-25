@@ -11,14 +11,16 @@ class controllerCart {
     if (!findProduct) {
       throw new BadRequestError("Không tìm thấy sản phẩm");
     }
-    if (quantity > findProduct.stock) {
-      throw new BadRequestError("Số lượng trong kho không đủ");
-    }
+    
     const findCart = await modelCart.findOne({ userId: id });
-
     const totalPriceProduct = findProduct.price * quantity;
 
     if (!findCart) {
+      // Kiểm tra stock trước khi tạo giỏ hàng mới
+      if (quantity > findProduct.stock) {
+        throw new BadRequestError("Số lượng trong kho không đủ");
+      }
+
       const newCart = await modelCart.create({
         userId: id,
         product: [{ productId, quantity }],
@@ -34,17 +36,43 @@ class controllerCart {
 
       new OK({
         message: "Thêm sản phẩm vào giỏ hàng thành công",
-        metadata: findCart,
+        metadata: newCart,
       }).send(res);
     } else {
-      findCart.product.push({ productId, quantity });
-      findCart.totalPrice += totalPriceProduct;
+      // Kiểm tra xem sản phẩm đã tồn tại trong giỏ hàng chưa
+      const existingProductIndex = findCart.product.findIndex(
+        (item) => item.productId.toString() === productId
+      );
+
+      if (existingProductIndex !== -1) {
+        // Sản phẩm đã tồn tại, cập nhật số lượng
+        const existingQuantity = findCart.product[existingProductIndex].quantity;
+        const newQuantity = existingQuantity + quantity;
+        
+        // Kiểm tra stock với số lượng mới
+        if (newQuantity > findProduct.stock + existingQuantity) {
+          throw new BadRequestError("Số lượng trong kho không đủ");
+        }
+
+        findCart.product[existingProductIndex].quantity = newQuantity;
+        findCart.totalPrice += totalPriceProduct;
+      } else {
+        // Sản phẩm chưa tồn tại, kiểm tra stock và thêm mới
+        if (quantity > findProduct.stock) {
+          throw new BadRequestError("Số lượng trong kho không đủ");
+        }
+        
+        findCart.product.push({ productId, quantity });
+        findCart.totalPrice += totalPriceProduct;
+      }
+
       await findCart.save();
 
       await modelProduct.updateOne(
         { _id: productId },
         { $inc: { stock: -quantity } }
       );
+
       new OK({
         message: "Thêm sản phẩm vào giỏ hàng thành công",
         metadata: findCart,

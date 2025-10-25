@@ -162,6 +162,11 @@ export const requestGetOrderAdmin = async () => {
     return res.data;
 };
 
+// export const requestUpdateCartQuantity = async (productId, quantity) => {
+//     const res = await request.put(`/api/update-cart-quantity/${productId}`, { quantity });
+//     return res.data;
+// };
+
 let isRefreshing = false;
 let failedRequestsQueue = [];
 

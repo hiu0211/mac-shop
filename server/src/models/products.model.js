@@ -18,6 +18,7 @@ const modelProduct = new Schema(
     battery: { type: String, require: true },
     camera: { type: String, require: true },
     weight: { type: String, require: true },
+    wei: { type: String, require: true },
   },
   {
     timestamps: true,

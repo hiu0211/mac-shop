@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Form, Input, InputNumber, Upload, Button, Card, message, Space } from 'antd';
 import { UploadOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { requestEditProduct, requestUploadImage, requestGetProductById } from '../../../Config/request';
 
 const EditProduct = ({ setActiveComponent, productId }) => {
     const [form] = Form.useForm();
-    const [imageFiles, setImageFiles] = useState([]);
 
     useEffect(() => {
         const fetchProductData = async () => {
@@ -25,7 +24,6 @@ const EditProduct = ({ setActiveComponent, productId }) => {
                     ...product,
                     image: imageFileList,
                 });
-                setImageFiles(imageFileList);
             } catch (error) {
                 console.error('Error fetching product:', error);
                 message.error('Không thể tải thông tin sản phẩm!');
@@ -56,35 +54,39 @@ const EditProduct = ({ setActiveComponent, productId }) => {
     };
 
     const onFinish = async (values) => {
-        try {
-            let imageUrls = [];
+    try {
+        let imageUrls = [];
 
-            // Chỉ lấy và upload các ảnh mới
-            const newImages = values.image.filter((file) => file.originFileObj);
-            if (newImages.length > 0) {
-                imageUrls = await handleUpload(newImages);
-            } else {
-                // Nếu không có ảnh mới, giữ lại ảnh cũ
-                imageUrls = values.image.map((file) => file.url);
-            }
+        // Tách ảnh cũ và ảnh mới
+        const oldImages = values.image.filter((file) => file.url && !file.originFileObj);
+        const newImages = values.image.filter((file) => file.originFileObj);
 
-            // Tạo dữ liệu sản phẩm với URLs ảnh
-            const productData = {
-                _id: productId,
-                ...values,
-                images: imageUrls,
-            };
+        // Giữ lại URL ảnh cũ
+        const oldImageUrls = oldImages.map((file) => file.url);
 
-            // Gửi dữ liệu sản phẩm
-            await requestEditProduct(productData);
-
-            message.success('Cập nhật sản phẩm thành công');
-            setActiveComponent('products');
-        } catch (error) {
-            message.error('Có lỗi xảy ra khi cập nhật sản phẩm!');
-            console.error(error);
+        // Upload ảnh mới (nếu có)
+        let newImageUrls = [];
+        if (newImages.length > 0) {
+            newImageUrls = await handleUpload(newImages);
         }
-    };
+
+        // Gộp ảnh cũ + ảnh mới
+        imageUrls = [...oldImageUrls, ...newImageUrls];
+
+        const productData = {
+            _id: productId,
+            ...values,
+            images: imageUrls,
+        };
+
+        await requestEditProduct(productData);
+        message.success('Cập nhật sản phẩm thành công');
+        setActiveComponent('products');
+    } catch (error) {
+        message.error('Có lỗi xảy ra khi cập nhật sản phẩm!');
+        console.error(error);
+    }
+};
 
     const handleBack = () => {
         setActiveComponent('products'); // Quay lại trang quản lý sản phẩm
@@ -122,7 +124,6 @@ const EditProduct = ({ setActiveComponent, productId }) => {
                     label="Giá gốc" 
                     rules={[{ required: true, message: 'Vui lòng nhập giá!' }]}
                 >
-
                     <InputNumber
                         style={{ width: '100%' }}
                         formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}

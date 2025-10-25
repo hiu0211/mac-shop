@@ -21,7 +21,7 @@ function Payments() {
             setDataPayment(res.metadata);
         };
         fetchData();
-    }, []);
+    }, [id]);
 
     return (
         <div>

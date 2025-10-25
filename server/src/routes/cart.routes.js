@@ -25,4 +25,10 @@ router.post(
   asyncHandler(controllerCart.updateInfoUserCart)
 );
 
+// router.put(
+//   "/api/update-cart-quantity/:productId",
+//   authUser,
+//   asyncHandler(controllerCart.updateCartQuantity)
+// );
+
 module.exports = router;
