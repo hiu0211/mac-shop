@@ -147,7 +147,7 @@ function InfoUser({ isOpen, setIsOpen }) {
     useEffect(() => {
         const fetchData = async () => {
             const res = await requestGetHistoryOrder();
-            setDataOrder(res.metadata.orders);
+            setDataOrder(res.metadata.orders.reverse());
         };
         fetchData();
     }, []);
@@ -172,7 +172,7 @@ function InfoUser({ isOpen, setIsOpen }) {
             </div>
             <Button onClick={handleUpdateInfoUser} className={cx('btn')} type="primary" size="large">
                 Cập nhật
-            </Button>
+            </Button>   
             <h5>Đơn hàng</h5>
             <div className={cx('table')}>
                 <Table bordered dataSource={dataOrder} columns={columns} rowKey="orderId" pagination={false} />

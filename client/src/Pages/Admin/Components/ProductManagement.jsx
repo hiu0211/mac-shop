@@ -76,7 +76,8 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
     const fetchData = async () => {
         try {
             const res = await requestGetAllProduct();
-            setProducts(res.metadata);
+            // Đảo ngược mảng để sản phẩm mới nhất hiển thị đầu tiên
+            setProducts(res.metadata.reverse());
         } catch (error) {
             console.error('Lỗi khi lấy danh sách sản phẩm:', error);
             message.error('Không thể tải danh sách sản phẩm');

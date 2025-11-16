@@ -5,6 +5,7 @@ import { requestEditProduct, requestUploadImage, requestGetProductById } from '.
 
 const EditProduct = ({ setActiveComponent, productId }) => {
     const [form] = Form.useForm();
+    const uploadCounterRef = React.useRef(0);
 
     useEffect(() => {
         const fetchProductData = async () => {
@@ -99,6 +100,29 @@ const EditProduct = ({ setActiveComponent, productId }) => {
         return e?.fileList;
     };
 
+    const beforeUpload = (file) => {
+        // Kiểm tra định dạng file
+        const isImage = file.type.startsWith('image/');
+        if (!isImage) {
+            message.error('Chỉ được tải lên file ảnh!');
+            return Upload.LIST_IGNORE;
+        }
+
+        // Kiểm tra kích thước file (tối đa 5MB)
+        const isLt5M = file.size / 1024 / 1024 < 5;
+        if (!isLt5M) {
+            message.error('Ảnh phải nhỏ hơn 5MB!');
+            return Upload.LIST_IGNORE;
+        }
+
+        // Tạo uid hoàn toàn duy nhất với performance.now() (độ chính xác microsecond)
+        uploadCounterRef.current += 1;
+        const timestamp = performance.now().toString().replace('.', '');
+        file.uid = `upload-${timestamp}-${uploadCounterRef.current}-${file.size}-${file.name.replace(/[^a-zA-Z0-9]/g, '')}`;
+        
+        return false; // Ngăn upload tự động
+    };
+
     return (
         <Card
             title={
@@ -165,7 +189,8 @@ const EditProduct = ({ setActiveComponent, productId }) => {
                         listType="picture-card"
                         multiple
                         maxCount={10}
-                        beforeUpload={() => false} // Ngăn upload tự động
+                        beforeUpload={beforeUpload}
+                        accept="image/*"
                     >
                         <div>
                             <UploadOutlined />
