@@ -8,6 +8,7 @@ import { message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import useDebounce from '../../hooks/useDebounce';
+import useDebounceCallback from '../../hooks/useDebounceCallback';
 import { MinusOutlined, PlusOutlined } from '@ant-design/icons';
 
 const cx = classNames.bind(styles);
@@ -67,19 +68,7 @@ function Cart() {
     }, [debounce]);
 
     // Hàm cập nhật số lượng
-    const handleUpdateQuantity = async (productId, newQuantity) => {
-        // Validate input
-        if (!newQuantity || newQuantity < 1) {
-            message.warning('Số lượng phải lớn hơn 0');
-            return;
-        }
-
-        // Kiểm tra nếu số lượng không thay đổi thì không gọi API
-        const currentProduct = cart.find(item => item._id === productId);
-        if (currentProduct && currentProduct.quantity === newQuantity) {
-            return;
-        }
-
+    const updateQuantityAPI = async (productId, newQuantity) => {
         try {
             setUpdatingQuantity(prev => ({ ...prev, [productId]: true }));
             await requestUpdateQuantityCart(productId, newQuantity);
@@ -88,11 +77,49 @@ function Cart() {
         } catch (error) {
             console.error(error);
             message.error(error.response?.data?.message || 'Cập nhật số lượng thất bại');
-            // Reload lại giỏ hàng để đồng bộ dữ liệu nếu có lỗi
             await fetchCart();
         } finally {
             setUpdatingQuantity(prev => ({ ...prev, [productId]: false }));
         }
+    };
+
+    // Tạo debounced version
+    const debouncedUpdateAPI = useDebounceCallback(updateQuantityAPI, 800);
+
+    const handleUpdateQuantity = (productId, newQuantity) => {
+        // Validate input
+        if (!newQuantity || newQuantity < 1) {
+            message.warning('Số lượng phải lớn hơn 0');
+            return;
+        }
+
+        const currentProduct = cart.find(item => item._id === productId);
+        if (currentProduct && currentProduct.quantity === newQuantity) {
+            return;
+        }
+
+        // Update UI ngay lập tức (optimistic update)
+        setCart(prevCart => 
+            prevCart.map(item => 
+                item._id === productId 
+                    ? { ...item, quantity: newQuantity }
+                    : item
+            )
+        );
+        
+        // Tính lại tổng giá tạm thời
+        const updatedCart = cart.map(item => 
+            item._id === productId 
+                ? { ...item, quantity: newQuantity }
+                : item
+        );
+        const newTotalPrice = updatedCart.reduce((sum, item) => 
+            sum + (item.price * item.quantity), 0
+        );
+        setTotalPrice(newTotalPrice);
+
+        // Gọi API với debounce (chờ 800ms sau lần nhấn cuối)
+        debouncedUpdateAPI(productId, productId, newQuantity);
     };
 
     const dataSource = cart.map((item) => ({
