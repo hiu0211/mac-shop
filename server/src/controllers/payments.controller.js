@@ -55,8 +55,8 @@ class PaymentsController {
 
     if (typePayment === "VNPAY") {
       const vnpay = new VNPay({
-        tmnCode: "VWCX5PWG",
-        secureSecret: "L0OTNI0RRFI3IGV0HIWHNK5U13Q2WCMF",
+        tmnCode: "33B1ZZJD",
+        secureSecret: "VAZ00RWCQH4A1ATCJU8M7WID8LWTYV5N",
         vnpayHost: "https://sandbox.vnpayment.vn",
         testMode: true,
         hashAlgorithm: "SHA512",
