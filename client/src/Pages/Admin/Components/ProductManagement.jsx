@@ -129,7 +129,7 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
     return (
         <div>
             <Card title="Quản lý sản phẩm">
-                <Space style={{ marginBottom: 16 }}>
+                <Space>
                     <Input.Search
                         placeholder="Tìm kiếm theo tên hoặc giá sản phẩm"
                         value={searchText}

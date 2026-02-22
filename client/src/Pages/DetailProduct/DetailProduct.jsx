@@ -12,6 +12,7 @@ import { faCheckCircle } from '@fortawesome/free-regular-svg-icons';
 import { useEffect, useRef, useState } from 'react';
 import { requestAddToCart, requestGetProductById } from '../../Config/request';
 import { useParams, useNavigate } from 'react-router-dom';
+import cookies from 'js-cookie';
 
 import { message } from 'antd';
 
@@ -38,6 +39,11 @@ function DetailProduct() {
     }, [id]);
 
     const handleAddToCart = async () => {
+        const token = cookies.get('logged');
+        if (!token) {
+            navigate('/login');
+            return false;
+        }
         try {
             const data = {
                 productId: id,

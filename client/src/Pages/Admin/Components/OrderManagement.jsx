@@ -90,6 +90,7 @@ const OrderManagement = () => {
         {
             title: 'Thao tác',
             key: 'action',
+            align: 'center',
             render: (_, record) => (
                 <Space size="middle">
                     <Button title='Xem chi tiết đơn hàng' icon={<EyeOutlined />} onClick={() => handleShowModal(record)}>

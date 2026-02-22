@@ -195,6 +195,7 @@ const CouponManagement = () => {
             title: 'Trạng thái',
             dataIndex: 'status',
             key: 'status',
+            align: 'center',
             render: (status) => (
                 <Tag color={status === 'ACTIVE' ? 'green' : 'red'}>{status === 'ACTIVE' ? 'Hoạt động' : 'Không hoạt động'}</Tag>
             ),
@@ -202,6 +203,7 @@ const CouponManagement = () => {
         {
             title: 'Thao tác',
             key: 'action',
+            align: 'center',
             render: (_, record) => (
                 <Space size="middle">
                     <Button icon={<EditOutlined />} onClick={() => handleOpenEdit(record)}>

@@ -16,17 +16,8 @@ const columns = [
         title: 'ID',
         dataIndex: 'orderId',
         key: 'orderId',
-        width: '15%',
         ellipsis: true,
         hidden: true,
-    },
-    {
-        title: 'STT',
-        dataIndex: 'stt',
-        key: 'stt',
-        width: '60px',
-        ellipsis: true,
-        render: (_, __, index) => index + 1,
     },
     {
         title: 'Tên sản phẩm',
@@ -38,12 +29,15 @@ const columns = [
         title: 'Giá',
         dataIndex: 'products',
         key: 'price',
+        width: '125px',
         render: (products) => products[0]?.price?.toLocaleString('vi-VN') + ' đ',
     },
     {
         title: 'Số lượng',
         dataIndex: 'products',
+        width: '95px',
         key: 'quantity',
+        align: 'center',
         render: (products) => products[0]?.quantity,
     },
     {
@@ -100,11 +94,13 @@ const columns = [
     {
         title: 'Phương thức',
         dataIndex: 'typePayments',
+        width: '125px',
         key: 'typePayments',
     },
     {
         title: 'Ngày đặt',
         dataIndex: 'createdAt',
+        width: '110px',
         key: 'createdAt',
         render: (date) => new Date(date).toLocaleDateString('vi-VN'),
     },

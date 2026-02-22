@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Layout, Menu } from 'antd';
+import { Button, Layout, Menu } from 'antd';
 import {
     HomeOutlined,
     UserOutlined,
@@ -8,6 +8,7 @@ import {
     MenuUnfoldOutlined,
     ProductOutlined,
     GiftOutlined,
+    LogoutOutlined,
 } from '@ant-design/icons';
 import Dashboard from './Components/Dashboard';
 import ProductManagement from './Components/ProductManagement';
@@ -16,7 +17,7 @@ import AddProduct from './Pages/AddProduct';
 import OrderManagement from './Components/OrderManagement';
 import EditProduct from './Pages/EditProduct';
 import CouponManagement from './Components/CouponManagement';
-import { requestAdmin } from '../../Config/request';
+import { requestAdmin, requestLogout } from '../../Config/request';
 import { useNavigate } from 'react-router-dom';
 
 const { Header, Sider, Content } = Layout;
@@ -90,6 +91,26 @@ const MainLayout = () => {
         fetchAdmin();
     }, [navigate]);
 
+    const handleLogout = async () => {
+    try {
+        await requestLogout();
+    } catch {
+        // Best-effort logout
+    } finally {
+        localStorage.clear();
+        window.location.href = '/login';
+    }
+    };
+
+    const handleMenuClick = ({ key }) => {
+        if (key === 'logout') {
+            handleLogout();
+            return;
+        }
+
+        setActiveComponent(key);
+    };
+
     return (
         <Layout style={{ minHeight: '100vh' }}>
             <Sider trigger={null} collapsible collapsed={collapsed} width={280} style={{ paddingTop: '40px' }}>
@@ -98,17 +119,32 @@ const MainLayout = () => {
                     mode="inline"
                     defaultSelectedKeys={['dashboard']}
                     items={menuItems}
-                    onClick={({ key }) => setActiveComponent(key)}
+                    onClick={handleMenuClick}
                     style={{ fontSize: '16px' }}
                 />
             </Sider>
             <Layout>
-                <Header style={{ padding: 0, background: '#fff' }}>
+                <Header
+                    style={{
+                        padding: 0,
+                        background: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                    }}
+                >
                     {React.createElement(collapsed ? MenuUnfoldOutlined : MenuFoldOutlined, {
                         className: 'trigger',
                         onClick: () => setCollapsed(!collapsed),
                         style: { fontSize: '18px', padding: '0 24px', cursor: 'pointer' },
                     })}
+                    <Button
+                        icon={<LogoutOutlined />}
+                        onClick={handleLogout}
+                        style={{ marginRight: '16px' }}
+                    >
+                        Đăng xuất
+                    </Button>
                 </Header>
                 <Content style={{ margin: '24px 16px', padding: 24, background: '#fff' }}>{renderComponent()}</Content>
             </Layout>
