@@ -55,8 +55,7 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
             key: 'action',
             render: (_, record) => (
                 <Space size="middle">
-                    <Button type="primary" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
-                        Sửa
+                    <Button icon={<EditOutlined />} onClick={() => handleEdit(record)}>
                     </Button>
                     <Popconfirm
                         title="Bạn có chắc chắn muốn xóa sản phẩm này?"
@@ -64,8 +63,7 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
                         okText="Có"
                         cancelText="Không"
                     >
-                        <Button type="primary" danger icon={<DeleteOutlined />}>
-                            Xóa
+                        <Button danger icon={<DeleteOutlined />}>
                         </Button>
                     </Popconfirm>
                 </Space>

@@ -163,11 +163,51 @@ export const requestGetOrderAdmin = async () => {
 };
 
 export const requestUpdateQuantityCart = async (productId, quantity) => {
-    const response = await request.put('/api/update-quantity-cart', {
+    const res = await request.put('/api/update-quantity-cart', {
         productId,
         quantity
     });
-    return response.data;
+    return res.data;
+};
+
+export const requestGetCoupons = async () => {
+    const res = await request.get('/api/admin/coupons');
+    return res.data;
+};
+
+export const requestCreateCoupon = async (data) => {
+    const res = await request.post('/api/admin/coupons', data);
+    return res.data;
+};
+
+export const requestUpdateCoupon = async (data) => {
+    const res = await request.put('/api/admin/coupons', data);
+    return res.data;
+};
+
+export const requestUpdateCouponStatus = async (data) => {
+    const res = await request.patch('/api/admin/coupons/status', data);
+    return res.data;
+};
+
+export const requestDeleteCoupon = async (id) => {
+    const res = await request.delete('/api/admin/coupons', { params: { id } });
+    return res.data;
+};
+
+export const requestValidateCoupon = async (code) => {
+    const res = await request.post('/api/coupons/validate', { code });
+    return res.data;
+};
+
+export const requestApplyCoupon = async (code) => {
+    const res = await request.post('/api/coupons/apply', { code });
+    return res.data;
+};
+
+export const requestRemoveCoupon = async () => {
+    const res = await request.post('/api/coupons/remove');
+    return res.data;
 };
 
 let isRefreshing = false;

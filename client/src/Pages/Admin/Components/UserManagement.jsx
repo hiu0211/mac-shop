@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Space, Input } from 'antd';
+import { Table, Space, Input, Tag } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { requestGetAllUser } from '../../../Config/request';
 
@@ -12,12 +12,7 @@ const UserManagement = () => {
             hidden: true,
         },
         {
-            title: 'STT',
-            key: 'stt',
-            render: (_, __, index) => index + 1,
-        },
-        {
-            title: 'Tên',
+            title: 'Tên người dùng',
             dataIndex: 'name',
             key: 'name',
         },
@@ -31,6 +26,39 @@ const UserManagement = () => {
             dataIndex: 'phone',
             key: 'phone',
         },
+        {
+            title: 'Vai trò',
+            dataIndex: 'isAdmin',
+            key: 'isAdmin',
+            render: (isAdmin) =>
+                isAdmin ? (
+                    <Tag color="red">Admin</Tag>
+                ) : (
+                    <Tag color="blue">Người dùng</Tag>
+                ),
+            filters: [
+                { text: 'Admin', value: true },
+                { text: 'Người dùng', value: false },
+            ],
+            onFilter: (value, record) => record.isAdmin === value,
+        },
+        {
+            title: 'Loại tài khoản',
+            dataIndex: 'typeLogin',
+            key: 'typeLogin',
+            render: (typeLogin) =>
+                typeLogin === 'google' ? (
+                    <Tag color="orange">Google</Tag>
+                ) : (
+                    <Tag color="green">Email</Tag>
+                ),
+            filters: [
+                { text: 'Google', value: 'google' },
+                { text: 'Email', value: 'email' },
+            ],
+            onFilter: (value, record) => record.typeLogin === value,
+        },
+        
     ];
 
     const [dataUsers, setDataUsers] = useState([]);
@@ -55,6 +83,8 @@ const UserManagement = () => {
         name: user.fullName,
         email: user.email,
         phone: user.phone,
+        isAdmin: user.isAdmin,
+        typeLogin: user.typeLogin,
     }));
 
     // Lọc dữ liệu dựa trên searchText

@@ -92,6 +92,32 @@
     }
 }
 
+.coupon-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+
+    :global(.ant-input) {
+        flex: 1;
+        min-width: 220px;
+    }
+}
+
+.coupon-info {
+    margin-bottom: 24px;
+    background: #f6ffed;
+    border: 1px solid #b7eb8f;
+    padding: 12px 16px;
+    border-radius: 6px;
+
+    p {
+        margin: 4px 0;
+        color: #237804;
+        font-weight: 500;
+    }
+}
+
 .payment-btn {
     display: flex;
     gap: 150px;

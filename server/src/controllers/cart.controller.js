@@ -2,6 +2,7 @@ const modelProduct = require("../models/products.model");
 const modelCart = require("../models/cart.model");
 const { BadRequestError } = require("../core/error.response");
 const { OK } = require("../core/success.response");
+const { recalculateCartTotals } = require("../services/couponService");
 
 class controllerCart {
   async addToCart(req, res) {
@@ -25,6 +26,10 @@ class controllerCart {
         userId: id,
         product: [{ productId, quantity }],
         totalPrice: totalPriceProduct,
+        totalPriceAfterDiscount: totalPriceProduct,
+        discountAmount: 0,
+        couponId: null,
+        couponCode: "",
       });
 
       await newCart.save();
@@ -68,6 +73,9 @@ class controllerCart {
 
       await findCart.save();
 
+      await recalculateCartTotals({ cart: findCart, userId: id });
+      await findCart.save();
+
       await modelProduct.updateOne(
         { _id: productId },
         { $inc: { stock: -quantity } }
@@ -87,6 +95,10 @@ class controllerCart {
       throw new BadRequestError("Không tìm thấy giỏ hàng");
     }
 
+    if (!cart.totalPriceAfterDiscount) {
+      cart.totalPriceAfterDiscount = cart.totalPrice;
+    }
+
     const data = await Promise.all(
       cart.product.map(async (item) => {
         const product = await modelProduct.findById(item.productId);
@@ -103,6 +115,9 @@ class controllerCart {
     const newData = {
       data,
       totalPrice: cart.totalPrice,
+      totalPriceAfterDiscount: cart.totalPriceAfterDiscount,
+      discountAmount: cart.discountAmount || 0,
+      couponCode: cart.couponCode || "",
     };
     new OK({ message: "Thành công", metadata: { newData } }).send(res);
   }
@@ -138,6 +153,9 @@ class controllerCart {
       // Xoá sản phẩm khỏi giỏ hàng
       cart.product.splice(index, 1);
 
+      await cart.save();
+
+      await recalculateCartTotals({ cart, userId: id });
       await cart.save();
 
       // Cập nhật lại số lượng tồn kho
@@ -213,6 +231,9 @@ class controllerCart {
     { $inc: { stock: -quantityDiff } }
   );
 
+  await cart.save();
+
+  await recalculateCartTotals({ cart, userId: id });
   await cart.save();
 
   new OK({

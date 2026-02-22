@@ -2,6 +2,7 @@ const userRoutes = require("./users.routes");
 const productRoutes = require("./products.routes");
 const cartRoutes = require("./cart.routes");
 const paymentsRoutes = require("./payments.routes");
+const couponsRoutes = require("./coupons.routes");
 
 function routes(app) {
   app.post("/api/register", userRoutes);
@@ -42,6 +43,17 @@ function routes(app) {
   app.get("/api/get-one-payment", paymentsRoutes);
   app.post("/api/update-status-order", paymentsRoutes);
   app.get("/api/get-order-admin", paymentsRoutes);
+
+  app.post("/api/admin/coupons", couponsRoutes);
+  app.get("/api/admin/coupons", couponsRoutes);
+  app.get("/api/admin/coupons/detail", couponsRoutes);
+  app.put("/api/admin/coupons", couponsRoutes);
+  app.patch("/api/admin/coupons/status", couponsRoutes);
+  app.delete("/api/admin/coupons", couponsRoutes);
+
+  app.post("/api/coupons/validate", couponsRoutes);
+  app.post("/api/coupons/apply", couponsRoutes);
+  app.post("/api/coupons/remove", couponsRoutes);
 }
 
 module.exports = routes;

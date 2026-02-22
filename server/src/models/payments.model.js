@@ -17,6 +17,10 @@ const modelPayments = new Schema(
             require: true,
         },
         totalPrice: { type: Number, require: true },
+        totalPriceBeforeDiscount: { type: Number, default: 0 },
+        discountAmount: { type: Number, default: 0 },
+        couponId: { type: String, default: null, ref: 'coupon' },
+        couponCode: { type: String, default: '' },
     },
     {
         timestamps: true,

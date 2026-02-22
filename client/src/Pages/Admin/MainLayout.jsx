@@ -7,6 +7,7 @@ import {
     MenuFoldOutlined,
     MenuUnfoldOutlined,
     ProductOutlined,
+    GiftOutlined,
 } from '@ant-design/icons';
 import Dashboard from './Components/Dashboard';
 import ProductManagement from './Components/ProductManagement';
@@ -14,6 +15,7 @@ import UserManagement from './Components/UserManagement';
 import AddProduct from './Pages/AddProduct';
 import OrderManagement from './Components/OrderManagement';
 import EditProduct from './Pages/EditProduct';
+import CouponManagement from './Components/CouponManagement';
 import { requestAdmin } from '../../Config/request';
 import { useNavigate } from 'react-router-dom';
 
@@ -46,6 +48,11 @@ const MainLayout = () => {
             icon: <UserOutlined />,
             label: 'Quản lý người dùng',
         },
+        {
+            key: 'coupons',
+            icon: <GiftOutlined />,
+            label: 'Quản lý mã giảm giá',
+        },
     ];
 
     const renderComponent = () => {
@@ -62,6 +69,8 @@ const MainLayout = () => {
                 return <UserManagement />;
             case 'orders':
                 return <OrderManagement />;
+            case 'coupons':
+                return <CouponManagement />;
             default:
                 return <Dashboard />;
         }

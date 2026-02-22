@@ -44,6 +44,7 @@ function DetailProduct() {
                 quantity: 1,
             };
             await requestAddToCart(data);
+            window.dispatchEvent(new Event('cart-updated'));
             message.success('Thêm vào giỏ hàng thành công');
             return true;
         } catch (error) {

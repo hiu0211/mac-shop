@@ -1,6 +1,10 @@
 const modelPayments = require("../models/payments.model");
 const modelCart = require("../models/cart.model");
 const modelProduct = require("../models/products.model");
+const {
+  validateCouponForCart,
+  recordCouponUsage,
+} = require("../services/couponService");
 
 const { BadRequestError } = require("../core/error.response");
 const { OK } = require("../core/success.response");
@@ -33,6 +37,39 @@ class PaymentsController {
       throw new BadRequestError("Vui lòng nhập đầy đủ thông tin");
     }
 
+    let totalPriceBeforeDiscount = findCart.totalPrice;
+    let totalPriceAfterDiscount = findCart.totalPrice;
+    let discountAmount = 0;
+    let couponId = null;
+    let couponCode = "";
+
+    if (findCart.couponCode) {
+      try {
+        const validated = await validateCouponForCart({
+          couponCode: findCart.couponCode,
+          userId: id,
+          cartTotal: findCart.totalPrice,
+        });
+        totalPriceAfterDiscount = validated.finalTotal;
+        discountAmount = validated.discount;
+        couponId = validated.coupon._id;
+        couponCode = validated.coupon.code;
+
+        findCart.totalPriceAfterDiscount = totalPriceAfterDiscount;
+        findCart.discountAmount = discountAmount;
+        findCart.couponId = couponId.toString();
+        findCart.couponCode = couponCode;
+        await findCart.save();
+      } catch (error) {
+        findCart.couponId = null;
+        findCart.couponCode = "";
+        findCart.discountAmount = 0;
+        findCart.totalPriceAfterDiscount = findCart.totalPrice;
+        await findCart.save();
+        throw error;
+      }
+    }
+
     if (typePayment === "COD") {
       const newPayment = new modelPayments({
         userId: id,
@@ -41,10 +78,22 @@ class PaymentsController {
         phone: findCart.phone,
         fullName: findCart.fullName,
         typePayments: "COD",
-        totalPrice: findCart.totalPrice,
+        totalPrice: totalPriceAfterDiscount,
+        totalPriceBeforeDiscount,
+        discountAmount,
+        couponId: couponId ? couponId.toString() : null,
+        couponCode,
         statusOrder: "pending",
       });
       await newPayment.save();
+
+      await recordCouponUsage({
+        couponId,
+        userId: id,
+        orderId: newPayment._id,
+        discountAmount,
+      });
+
       await findCart.deleteOne();
 
       new OK({
@@ -65,7 +114,7 @@ class PaymentsController {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       const vnpayResponse = await vnpay.buildPaymentUrl({
-        vnp_Amount: findCart.totalPrice,
+        vnp_Amount: totalPriceAfterDiscount,
         vnp_IpAddr: "127.0.0.1",
         vnp_TxnRef: findCart._id,
         vnp_OrderInfo: `${findCart._id}`,
@@ -86,6 +135,32 @@ class PaymentsController {
     if (vnp_ResponseCode === "00") {
       const idCart = vnp_OrderInfo;
       const findCart = await modelCart.findOne({ _id: idCart });
+
+      let totalPriceBeforeDiscount = findCart.totalPrice;
+      let totalPriceAfterDiscount = findCart.totalPrice;
+      let discountAmount = 0;
+      let couponId = null;
+      let couponCode = "";
+
+      if (findCart.couponCode) {
+        try {
+          const validated = await validateCouponForCart({
+            couponCode: findCart.couponCode,
+            userId: findCart.userId,
+            cartTotal: findCart.totalPrice,
+          });
+          totalPriceAfterDiscount = validated.finalTotal;
+          discountAmount = validated.discount;
+          couponId = validated.coupon._id;
+          couponCode = validated.coupon.code;
+        } catch (error) {
+          totalPriceAfterDiscount = findCart.totalPrice;
+          discountAmount = 0;
+          couponId = null;
+          couponCode = "";
+        }
+      }
+
       const newPayment = new modelPayments({
         userId: findCart.userId,
         products: findCart.product,
@@ -93,9 +168,21 @@ class PaymentsController {
         phone: findCart.phone,
         typePayments: "VNPAY",
         fullName: findCart.fullName,
-        totalPrice: findCart.totalPrice,
+        totalPrice: totalPriceAfterDiscount,
+        totalPriceBeforeDiscount,
+        discountAmount,
+        couponId: couponId ? couponId.toString() : null,
+        couponCode,
       });
       await newPayment.save();
+
+      await recordCouponUsage({
+        couponId,
+        userId: findCart.userId,
+        orderId: newPayment._id,
+        discountAmount,
+      });
+
       await findCart.deleteOne();
       return res.redirect(`http://localhost:5173/payment/${newPayment._id}`);
     }
@@ -136,6 +223,9 @@ class PaymentsController {
           phone: order.phone,
           address: order.address,
           totalPrice: order.totalPrice,
+          totalPriceBeforeDiscount: order.totalPriceBeforeDiscount,
+          discountAmount: order.discountAmount,
+          couponCode: order.couponCode,
           typePayments: order.typePayments,
           statusOrder: order.statusOrder,
           createdAt: order.createdAt,
@@ -213,6 +303,9 @@ class PaymentsController {
             phone: order.phone,
             address: order.address,
             totalPrice: order.totalPrice,
+            totalPriceBeforeDiscount: order.totalPriceBeforeDiscount,
+            discountAmount: order.discountAmount,
+            couponCode: order.couponCode,
             typePayments: order.typePayments,
             statusOrder: order.statusOrder,
             createdAt: order.createdAt,

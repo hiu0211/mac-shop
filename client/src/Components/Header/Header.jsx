@@ -9,11 +9,11 @@ import { useStore } from '../../hooks/useStore';
 
 import useDebounce from '../../hooks/useDebounce';
 
-import { Avatar, Dropdown, Menu, Space } from 'antd';
+import { Avatar, Badge, Dropdown, Space } from 'antd';
 import { UserOutlined, LogoutOutlined, ShoppingCartOutlined } from '@ant-design/icons';
-import { requestLogout, requestSearchProduct } from '../../Config/request';
+import { requestGetCart, requestLogout, requestSearchProduct } from '../../Config/request';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 const cx = classNames.bind(styles);
 
@@ -25,6 +25,23 @@ function Header() {
     const debouncedValue = useDebounce(keyword, 500);
 
     const [resultSearch, setResultSearch] = useState([]);
+    const [cartCount, setCartCount] = useState(0);
+
+    const fetchCartCount = useCallback(async () => {
+        if (!dataUser?._id) {
+            setCartCount(0);
+            return;
+        }
+
+        try {
+            const res = await requestGetCart();
+            const items = res?.metadata?.newData?.data || [];
+            const total = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+            setCartCount(total);
+        } catch {
+            setCartCount(0);
+        }
+    }, [dataUser?._id]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -46,6 +63,19 @@ function Header() {
         fetchData();
     }, [debouncedValue]);
 
+    useEffect(() => {
+        fetchCartCount();
+    }, [fetchCartCount]);
+
+    useEffect(() => {
+        const handleCartUpdated = () => {
+            fetchCartCount();
+        };
+
+        window.addEventListener('cart-updated', handleCartUpdated);
+        return () => window.removeEventListener('cart-updated', handleCartUpdated);
+    }, [fetchCartCount]);
+
     const navigate = useNavigate();
 
     const handleLogout = async () => {
@@ -59,6 +89,24 @@ function Header() {
             return;
         }
     };
+
+    const menuItems = [
+        {
+            key: 'profile',
+            icon: <UserOutlined />,
+            label: <Link to={`/info-user/${dataUser._id}`}>Hồ sơ</Link>,
+        },
+        {
+            type: 'divider',
+        },
+        {
+            key: 'logout',
+            icon: <LogoutOutlined />,
+            label: 'Đăng xuất',
+            danger: true,
+            onClick: handleLogout,
+        },
+    ];
 
     return (
         <div className={cx('wrapper')}>
@@ -100,46 +148,31 @@ function Header() {
                         </div>
                     )}
                 </div>
-                {dataUser._id ? (
-                    <>
-                        <Dropdown
-                            overlay={
-                                <Menu>
-                                    <Link to={`/info-user/${dataUser._id}`}>
-                                        <Menu.Item key="profile" icon={<UserOutlined />}>
-                                            Hồ sơ
-                                        </Menu.Item>
-                                    </Link>
-                                    <Link to={`/cart`}>
-                                        <Menu.Item key="cart" icon={<ShoppingCartOutlined />}>
-                                            Giỏ hàng
-                                        </Menu.Item>
-                                    </Link>
+                <div className={cx('user-actions')}>
+                    <Link to="/cart" className={cx('cart-link')}>
+                        <Badge count={cartCount} size="small" overflowCount={99}>
+                            <ShoppingCartOutlined className={cx('cart-icon')} />
+                        </Badge>
+                        {/* <span className={cx('cart-text')}>Giỏ hàng</span> */}
+                    </Link>
 
-                                    <Menu.Divider />
-
-                                    <Menu.Item onClick={handleLogout} key="logout" icon={<LogoutOutlined />} danger>
-                                        Đăng xuất
-                                    </Menu.Item>
-                                </Menu>
-                            }
-                            trigger={['click']}
-                        >
+                    {dataUser._id ? (
+                        <Dropdown menu={{ items: menuItems }} trigger={['click']}>
                             <Space style={{ cursor: 'pointer' }}>
                                 <Avatar size="large" icon={<UserOutlined />} />
                             </Space>
                         </Dropdown>
-                    </>
-                ) : (
-                    <div className={cx('button-group')}>
-                        <Link to="/register">
-                            <button>Đăng ký</button>
-                        </Link>
-                        <Link to="/login">
-                            <button>Đăng nhập</button>
-                        </Link>
-                    </div>
-                )}
+                    ) : (
+                        <div className={cx('button-group')}>
+                            <Link to="/register">
+                                <button>Đăng ký</button>
+                            </Link>
+                            <Link to="/login">
+                                <button>Đăng nhập</button>
+                            </Link>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

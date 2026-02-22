@@ -68,6 +68,11 @@ const ModalDetailOrder = ({ isModalVisible, setIsModalVisible, selectedOrder }) 
                 </div>
 
                 <div className={cx('orderTotal')}>
+                    {order?.findPayment?.discountAmount > 0 && (
+                        <div className={cx('totalAmount')}>
+                            Khuyến mãi: <span>{order?.findPayment?.discountAmount?.toLocaleString()} đ</span>
+                        </div>
+                    )}
                     <div className={cx('totalAmount')}>
                         Tổng tiền: <span>{order?.findPayment?.totalPrice?.toLocaleString()} đ</span>
                     </div>

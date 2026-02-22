@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Space, Button, Input, Tag, Select } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import { SearchOutlined, EyeOutlined } from '@ant-design/icons';
 import { message } from 'antd';
 import { requestGetOrderAdmin, requestUpdateStatusOrder } from '../../../Config/request';
 import ModalDetailOrder from './ModalDetailOrder';
@@ -92,8 +92,7 @@ const OrderManagement = () => {
             key: 'action',
             render: (_, record) => (
                 <Space size="middle">
-                    <Button onClick={() => handleShowModal(record)} type="primary">
-                        Chi tiết
+                    <Button title='Xem chi tiết đơn hàng' icon={<EyeOutlined />} onClick={() => handleShowModal(record)}>
                     </Button>
                 </Space>
             ),

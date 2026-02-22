@@ -59,6 +59,28 @@ function Payments() {
                             <p>{dataPayment?.findPayment?.typePayments}</p>
                         </div>
 
+                        {dataPayment?.findPayment?.discountAmount > 0 && (
+                            <div className={cx('list')}>
+                                <span>Giảm giá</span>
+                                <p>
+                                    {dataPayment?.findPayment?.discountAmount?.toLocaleString('vi-VN', {
+                                        style: 'currency',
+                                        currency: 'VND',
+                                    })}
+                                </p>
+                            </div>
+                        )}
+
+                        <div className={cx('list')}>
+                            <span>Tổng thanh toán</span>
+                            <p>
+                                {dataPayment?.findPayment?.totalPrice?.toLocaleString('vi-VN', {
+                                    style: 'currency',
+                                    currency: 'VND',
+                                })}
+                            </p>
+                        </div>
+
                         <div className={cx('list__products')}>
                             <ul>
                                 {dataPayment?.dataProduct?.map((item) => (

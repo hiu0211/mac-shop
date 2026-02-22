@@ -3,7 +3,15 @@ import styles from './Cart.module.scss';
 import Header from '../../Components/Header/Header';
 import { Button, Table, Form, Input, AutoComplete, InputNumber } from 'antd';
 import { useEffect, useState } from 'react';
-import { requestDeleteCart, requestGetCart, requestPayment, requestUpdateInfoUserCart, requestUpdateQuantityCart } from '../../Config/request';
+import {
+    requestApplyCoupon,
+    requestDeleteCart,
+    requestGetCart,
+    requestPayment,
+    requestRemoveCoupon,
+    requestUpdateInfoUserCart,
+    requestUpdateQuantityCart,
+} from '../../Config/request';
 import { message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -16,6 +24,10 @@ const cx = classNames.bind(styles);
 function Cart() {
     const [cart, setCart] = useState([]);
     const [totalPrice, setTotalPrice] = useState(0);
+    const [totalPriceAfterDiscount, setTotalPriceAfterDiscount] = useState(0);
+    const [discountAmount, setDiscountAmount] = useState(0);
+    const [couponCode, setCouponCode] = useState('');
+    const [couponInput, setCouponInput] = useState('');
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
     const [updatingQuantity, setUpdatingQuantity] = useState({});
@@ -25,12 +37,16 @@ function Cart() {
     const [valueAddress, setValueAddress] = useState('');
     
     // Debounce để tối ưu API calls
-    const debounce = useDebounce(valueAddress, 800);
+    const debounce = useDebounce(valueAddress, 500);
 
     const fetchCart = async () => {
         const res = await requestGetCart();
         setCart(res.metadata.newData.data);
         setTotalPrice(res.metadata.newData.totalPrice);
+        setTotalPriceAfterDiscount(res.metadata.newData.totalPriceAfterDiscount || res.metadata.newData.totalPrice);
+        setDiscountAmount(res.metadata.newData.discountAmount || 0);
+        setCouponCode(res.metadata.newData.couponCode || '');
+        setCouponInput(res.metadata.newData.couponCode || '');
     };
 
     useEffect(() => {
@@ -73,6 +89,7 @@ function Cart() {
             setUpdatingQuantity(prev => ({ ...prev, [productId]: true }));
             await requestUpdateQuantityCart(productId, newQuantity);
             await fetchCart();
+            window.dispatchEvent(new Event('cart-updated'));
             message.success('Cập nhật số lượng thành công');
         } catch (error) {
             console.error(error);
@@ -117,6 +134,11 @@ function Cart() {
             sum + (item.price * item.quantity), 0
         );
         setTotalPrice(newTotalPrice);
+        if (couponCode) {
+            setTotalPriceAfterDiscount(Math.max(newTotalPrice - discountAmount, 0));
+        } else {
+            setTotalPriceAfterDiscount(newTotalPrice);
+        }
 
         // Gọi API với debounce (chờ 800ms sau lần nhấn cuối)
         debouncedUpdateAPI(productId, productId, newQuantity);
@@ -136,6 +158,7 @@ function Cart() {
         try {
             await requestDeleteCart(productId);
             await fetchCart();
+            window.dispatchEvent(new Event('cart-updated'));
             message.success('Xóa sản phẩm thành công');
         } catch (error) {
             console.error(error);
@@ -282,6 +305,37 @@ function Cart() {
         form.setFieldsValue({ address: value });
     };
 
+    const handleApplyCoupon = async () => {
+        try {
+            if (!couponInput.trim()) {
+                message.warning('Vui lòng nhập mã giảm giá');
+                return;
+            }
+            const res = await requestApplyCoupon(couponInput.trim());
+            setDiscountAmount(res.metadata.discountAmount || 0);
+            setTotalPriceAfterDiscount(res.metadata.totalPriceAfterDiscount || totalPrice);
+            setCouponCode(res.metadata.code || couponInput.trim().toUpperCase());
+            message.success('Áp dụng mã giảm giá thành công');
+        } catch (error) {
+            console.error(error);
+            message.error(error.response?.data?.message || 'Mã giảm giá không hợp lệ');
+        }
+    };
+
+    const handleRemoveCoupon = async () => {
+        try {
+            await requestRemoveCoupon();
+            setDiscountAmount(0);
+            setTotalPriceAfterDiscount(totalPrice);
+            setCouponCode('');
+            setCouponInput('');
+            message.success('Đã hủy mã giảm giá');
+        } catch (error) {
+            console.error(error);
+            message.error('Không thể hủy mã giảm giá');
+        }
+    };
+
     return (
         <div className={cx('wrapper')}>
             <header>
@@ -300,6 +354,33 @@ function Cart() {
                     </div>
                     {cart.length > 0 && (
                         <div className={cx('checkout-form')}>
+                            <h4>Mã giảm giá</h4>
+                            <div className={cx('coupon-row')}>
+                                <Input
+                                    placeholder="Nhập mã giảm giá"
+                                    value={couponInput}
+                                    onChange={(e) => setCouponInput(e.target.value)}
+                                    disabled={!!couponCode}
+                                />
+                                <Button type="primary" onClick={handleApplyCoupon} disabled={!!couponCode}>
+                                    Áp dụng
+                                </Button>
+                                {couponCode && (
+                                    <Button danger onClick={handleRemoveCoupon}>
+                                        Hủy mã
+                                    </Button>
+                                )}
+                            </div>
+                            {couponCode && (
+                                <div className={cx('coupon-info')}>
+                                    <p>Mã đã áp dụng: {couponCode}</p>
+                                    <p>Giảm giá: {discountAmount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</p>
+                                    <p>
+                                        Tổng thanh toán:{' '}
+                                        {totalPriceAfterDiscount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
+                                    </p>
+                                </div>
+                            )}
                             <h4>Thông tin thanh toán</h4>
                             <Form form={form} layout="vertical" onFinish={handleSubmit}>
                                 <Form.Item
