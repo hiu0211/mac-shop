@@ -35,6 +35,66 @@ router.post(
   asyncHandler(controllerPayments.updateStatusOrder)
 );
 
+router.post(
+  "/api/cancel-order",
+  authUser,
+  asyncHandler(controllerPayments.cancelOrderByUser)
+);
+
+router.post(
+  "/api/reorder",
+  authUser,
+  asyncHandler(controllerPayments.reorder)
+);
+
+router.get(
+  "/api/order-contact",
+  authUser,
+  asyncHandler(controllerPayments.getOrderContactMessages)
+);
+
+router.post(
+  "/api/order-contact",
+  authUser,
+  asyncHandler(controllerPayments.addOrderContactMessage)
+);
+
+router.post(
+  "/api/order-contact-reply",
+  authAdmin,
+  asyncHandler(controllerPayments.addOrderContactMessageByAdmin)
+);
+
+router.delete(
+  "/api/order-contact-message",
+  authUser,
+  asyncHandler(controllerPayments.deleteOrderContactMessageByAdmin)
+);
+
+router.post(
+  "/api/review-order-product",
+  authUser,
+  asyncHandler(controllerPayments.createOrderReview)
+);
+
+router.get(
+  "/api/admin/reviews",
+  authAdmin,
+  asyncHandler(controllerPayments.getProductReviewsAdmin)
+);
+
+router.post(
+  "/api/admin/reviews/reply",
+  authAdmin,
+  asyncHandler(controllerPayments.replyProductReviewByAdmin)
+);
+
+router.delete(
+  "/api/admin/reviews",
+  authAdmin,
+  asyncHandler(controllerPayments.deleteProductReviewByAdmin)
+);
+
 router.get(
   "/api/get-order-admin",
   authAdmin,

@@ -42,6 +42,16 @@ function routes(app) {
   app.get("/api/get-history-order", paymentsRoutes);
   app.get("/api/get-one-payment", paymentsRoutes);
   app.post("/api/update-status-order", paymentsRoutes);
+  app.post("/api/cancel-order", paymentsRoutes);
+  app.post("/api/reorder", paymentsRoutes);
+  app.get("/api/order-contact", paymentsRoutes);
+  app.post("/api/order-contact", paymentsRoutes);
+  app.post("/api/order-contact-reply", paymentsRoutes);
+  app.delete("/api/order-contact-message", paymentsRoutes);
+  app.post("/api/review-order-product", paymentsRoutes);
+  app.get("/api/admin/reviews", paymentsRoutes);
+  app.post("/api/admin/reviews/reply", paymentsRoutes);
+  app.delete("/api/admin/reviews", paymentsRoutes);
   app.get("/api/get-order-admin", paymentsRoutes);
 
   app.post("/api/admin/coupons", couponsRoutes);

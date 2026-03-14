@@ -21,6 +21,30 @@ const modelPayments = new Schema(
         discountAmount: { type: Number, default: 0 },
         couponId: { type: String, default: null, ref: 'coupon' },
         couponCode: { type: String, default: '' },
+        productReviews: {
+            type: [
+                {
+                    productId: { type: String, required: true, ref: 'product' },
+                    rating: { type: Number, required: true, min: 1, max: 5 },
+                    comment: { type: String, default: '' },
+                    images: { type: [String], default: [] },
+                    createdAt: { type: Date, default: Date.now },
+                },
+            ],
+            default: [],
+        },
+        contactMessages: {
+            type: [
+                {
+                    senderType: { type: String, enum: ['user', 'admin'], required: true },
+                    senderId: { type: String, required: true, ref: 'user' },
+                    senderName: { type: String, default: '' },
+                    message: { type: String, required: true },
+                    createdAt: { type: Date, default: Date.now },
+                },
+            ],
+            default: [],
+        },
     },
     {
         timestamps: true,

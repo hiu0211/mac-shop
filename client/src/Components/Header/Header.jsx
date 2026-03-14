@@ -94,7 +94,7 @@ function Header() {
         {
             key: 'profile',
             icon: <UserOutlined />,
-            label: <Link to={`/info-user/${dataUser._id}`}>Hồ sơ</Link>,
+            label: <Link to={`/info-user/${dataUser._id}`}>Tài khoản của tôi</Link>,
         },
         {
             type: 'divider',

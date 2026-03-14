@@ -1,110 +1,26 @@
 import classNames from 'classnames/bind';
 import styles from './InfoUser.module.scss';
 
-import { Button, Input, message } from 'antd';
+import { Button, Dropdown, Input, message, Modal, Rate, Upload, Empty, Popconfirm } from 'antd';
 import { Table } from 'antd';
+import { DeleteOutlined, DownOutlined, UploadOutlined } from '@ant-design/icons';
 import { useStore } from '../../../../hooks/useStore';
 import { useEffect, useState } from 'react';
-import { requestGetHistoryOrder, requestUpdateInfoUser } from '../../../../Config/request';
+import { useNavigate } from 'react-router-dom';
+import {
+    requestCancelOrder,
+    requestGetHistoryOrder,
+    requestGetOrderContactMessages,
+    requestDeleteOrderContactMessage,
+    requestReorder,
+    requestReviewOrderProduct,
+    requestSendOrderContactMessage,
+    requestUpdateInfoUser,
+    requestUploadImage,
+} from '../../../../Config/request';
 import ModalUpdatePassword from './ModalUpdatePassword/ModalUpdatePassword';
 
-
 const cx = classNames.bind(styles);
-
-const columns = [
-    {
-        title: 'ID',
-        dataIndex: 'orderId',
-        key: 'orderId',
-        ellipsis: true,
-        hidden: true,
-    },
-    {
-        title: 'Tên sản phẩm',
-        dataIndex: 'products',
-        key: 'products',
-        render: (products) => products[0].name,
-    },
-    {
-        title: 'Giá',
-        dataIndex: 'products',
-        key: 'price',
-        width: '125px',
-        render: (products) => products[0]?.price?.toLocaleString('vi-VN') + ' đ',
-    },
-    {
-        title: 'Số lượng',
-        dataIndex: 'products',
-        width: '95px',
-        key: 'quantity',
-        align: 'center',
-        render: (products) => products[0]?.quantity,
-    },
-    {
-        title: 'Địa chỉ',
-        dataIndex: 'address',
-        key: 'address',
-    },
-    {
-        title: 'Trạng thái',
-        dataIndex: 'statusOrder',
-        key: 'statusOrder',
-        render: (status) => {
-            let color = '';
-            let text = '';
-
-            switch (status) {
-                case 'pending':
-                    color = 'purple';
-                    text = 'Chờ xác nhận';
-                    break;
-                case 'completed':
-                    color = 'orange';
-                    text = 'Đã xác nhận';
-                    break;
-                case 'shipping':
-                    color = '#1677ff';
-                    text = 'Đang giao hàng';
-                    break;
-                case 'delivered':
-                    color = '#52c41a';
-                    text = 'Đã giao hàng';
-                    break;
-                case 'cancelled':
-                    color = '#ff4d4f';
-                    text = 'Đã hủy';
-                    break;
-                default:
-                    color = '#000000';
-                    text = status;
-            }
-
-            return (
-                <span
-                    style={{
-                        color: color,
-                        fontWeight: 600,
-                    }}
-                >
-                    {text}
-                </span>
-            );
-        },
-    },
-    {
-        title: 'Phương thức',
-        dataIndex: 'typePayments',
-        width: '125px',
-        key: 'typePayments',
-    },
-    {
-        title: 'Ngày đặt',
-        dataIndex: 'createdAt',
-        width: '110px',
-        key: 'createdAt',
-        render: (date) => new Date(date).toLocaleDateString('vi-VN'),
-    },
-];
 
 function InfoUser({ isOpen, setIsOpen }) {
     const { dataUser } = useStore();
@@ -139,14 +55,344 @@ function InfoUser({ isOpen, setIsOpen }) {
     };
 
     const [dataOrder, setDataOrder] = useState([]);
+    const [isLoadingOrder, setIsLoadingOrder] = useState(false);
+
+    const [cancelOrderId, setCancelOrderId] = useState('');
+    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+    const [isCancelLoading, setIsCancelLoading] = useState(false);
+
+    const [contactOrderId, setContactOrderId] = useState('');
+    const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+    const [contactInput, setContactInput] = useState('');
+    const [contactMessages, setContactMessages] = useState([]);
+    const [isContactLoading, setIsContactLoading] = useState(false);
+    const [isDeletingContactMessage, setIsDeletingContactMessage] = useState(false);
+
+    const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+    const [reviewOrder, setReviewOrder] = useState(null);
+    const [selectedProductId, setSelectedProductId] = useState('');
+    const [rating, setRating] = useState(5);
+    const [reviewComment, setReviewComment] = useState('');
+    const [reviewFiles, setReviewFiles] = useState([]);
+    const [isReviewSubmitting, setIsReviewSubmitting] = useState(false);
+    const navigate = useNavigate();
+
+    const fetchOrders = async () => {
+        try {
+            setIsLoadingOrder(true);
+            const res = await requestGetHistoryOrder();
+            setDataOrder(res?.metadata?.orders || []);
+        } catch (error) {
+            console.error(error);
+            message.error('Không thể tải danh sách đơn hàng');
+        } finally {
+            setIsLoadingOrder(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchData = async () => {
-            const res = await requestGetHistoryOrder();
-            setDataOrder(res.metadata.orders.reverse());
-        };
-        fetchData();
+        fetchOrders();
     }, []);
+
+    const handleOpenCancelModal = (orderId) => {
+        setCancelOrderId(orderId);
+        setIsCancelModalOpen(true);
+    };
+
+    const handleCancelOrder = async () => {
+        if (!cancelOrderId) return;
+        try {
+            setIsCancelLoading(true);
+            await requestCancelOrder(cancelOrderId);
+            message.success('Hủy đơn hàng thành công');
+            setIsCancelModalOpen(false);
+            setCancelOrderId('');
+            await fetchOrders();
+        } catch (error) {
+            console.error(error);
+            message.error(error?.response?.data?.message || 'Hủy đơn hàng thất bại');
+        } finally {
+            setIsCancelLoading(false);
+        }
+    };
+
+    const handleReorder = async (orderId) => {
+        try {
+            await requestReorder(orderId);
+            window.dispatchEvent(new Event('cart-updated'));
+            message.success('Đã thêm sản phẩm vào giỏ hàng');
+            navigate('/cart');
+        } catch (error) {
+            console.error(error);
+            message.error(error?.response?.data?.message || 'Mua lại thất bại');
+        }
+    };
+
+    const handleOpenContactModal = async (orderId) => {
+        setContactOrderId(orderId);
+        setIsContactModalOpen(true);
+        setContactInput('');
+        try {
+            setIsContactLoading(true);
+            const res = await requestGetOrderContactMessages(orderId);
+            setContactMessages(res?.metadata?.contactMessages || []);
+        } catch (error) {
+            console.error(error);
+            message.error(error?.response?.data?.message || 'Không thể tải tin nhắn');
+        } finally {
+            setIsContactLoading(false);
+        }
+    };
+
+    const handleSendContactMessage = async () => {
+        if (!contactInput.trim() || !contactOrderId) return;
+        try {
+            setIsContactLoading(true);
+            await requestSendOrderContactMessage({
+                orderId: contactOrderId,
+                message: contactInput.trim(),
+            });
+            setContactInput('');
+            const res = await requestGetOrderContactMessages(contactOrderId);
+            setContactMessages(res?.metadata?.contactMessages || []);
+            message.success('Đã gửi tin nhắn cho shop');
+        } catch (error) {
+            console.error(error);
+            message.error(error?.response?.data?.message || 'Gửi tin nhắn thất bại');
+        } finally {
+            setIsContactLoading(false);
+        }
+    };
+
+    const handleDeleteContactMessage = async (messageId) => {
+        if (!contactOrderId || !messageId) {
+            message.error('Không tìm thấy tin nhắn để xóa');
+            return;
+        }
+
+        try {
+            setIsDeletingContactMessage(true);
+            await requestDeleteOrderContactMessage(contactOrderId, messageId);
+            const res = await requestGetOrderContactMessages(contactOrderId);
+            setContactMessages(res?.metadata?.contactMessages || []);
+            message.success('Xóa tin nhắn thành công');
+        } catch (error) {
+            console.error(error);
+            message.error(error?.response?.data?.message || 'Không thể xóa tin nhắn');
+        } finally {
+            setIsDeletingContactMessage(false);
+        }
+    };
+
+    const canDeleteUserMessage = (item) => {
+        const currentUserId = dataUser?.id || dataUser?._id;
+        if (!currentUserId) return false;
+        return item?.senderType === 'user' && String(item?.senderId || '') === String(currentUserId);
+    };
+
+    const handleOpenReviewModal = (order) => {
+        const reviewedIds = order.reviewedProductIds || [];
+        const firstUnReviewed = order.products.find((item) => !reviewedIds.includes(item.productId));
+        setReviewOrder(order);
+        setSelectedProductId(firstUnReviewed?.productId || order.products?.[0]?.productId || '');
+        setRating(5);
+        setReviewComment('');
+        setReviewFiles([]);
+        setIsReviewModalOpen(true);
+    };
+
+    const handleSubmitReview = async () => {
+        if (!reviewOrder?.orderId || !selectedProductId || rating < 1 || rating > 5) {
+            message.error('Vui lòng chọn sản phẩm và số sao hợp lệ');
+            return;
+        }
+
+        try {
+            setIsReviewSubmitting(true);
+            let imageUrls = [];
+
+            if (reviewFiles.length > 0) {
+                const formData = new FormData();
+                reviewFiles.forEach((file) => {
+                    formData.append('images', file.originFileObj);
+                });
+                const uploadRes = await requestUploadImage(formData);
+                imageUrls = uploadRes?.metadata || [];
+            }
+
+            await requestReviewOrderProduct({
+                orderId: reviewOrder.orderId,
+                productId: selectedProductId,
+                rating,
+                comment: reviewComment,
+                images: imageUrls,
+            });
+
+            message.success('Đánh giá sản phẩm thành công');
+            await fetchOrders();
+            setIsReviewModalOpen(false);
+            setReviewOrder(null);
+        } catch (error) {
+            console.error(error);
+            message.error(error?.response?.data?.message || 'Đánh giá thất bại');
+        } finally {
+            setIsReviewSubmitting(false);
+        }
+    };
+
+    const renderStatus = (status) => {
+        let color = '';
+        let text = '';
+
+        switch (status) {
+            case 'pending':
+                color = 'purple';
+                text = 'Chờ xác nhận';
+                break;
+            case 'completed':
+                color = 'orange';
+                text = 'Đã xác nhận';
+                break;
+            case 'shipping':
+                color = '#1677ff';
+                text = 'Đang giao hàng';
+                break;
+            case 'delivered':
+                color = '#52c41a';
+                text = 'Đã giao hàng';
+                break;
+            case 'cancelled':
+                color = '#ff4d4f';
+                text = 'Đã hủy';
+                break;
+            default:
+                color = '#000000';
+                text = status;
+        }
+
+        return (
+            <span
+                style={{
+                    color,
+                    fontWeight: 600,
+                }}
+            >
+                {text}
+            </span>
+        );
+    };
+
+    const renderActionButton = (record) => {
+        const items = [
+            {
+                key: 'contact',
+                label: 'Liên hệ shop',
+                onClick: () => handleOpenContactModal(record.orderId),
+            },
+        ];
+
+        if (record.statusOrder === 'pending' || record.statusOrder === 'completed') {
+            items.push({
+                key: 'cancel',
+                danger: true,
+                label: <span style={{ color: '#ff4d4f' }}>Hủy Đơn Hàng</span>,
+                onClick: () => handleOpenCancelModal(record.orderId),
+            });
+        }
+
+        if (record.statusOrder === 'delivered') {
+            const reviewedIds = record.reviewedProductIds || [];
+            const allReviewed = (record.products || []).every((item) => reviewedIds.includes(item.productId));
+
+            items.push({
+                key: 'review',
+                label: allReviewed ? 'Đã Đánh Giá' : 'Đánh Giá',
+                disabled: allReviewed,
+                onClick: () => handleOpenReviewModal(record),
+            });
+        }
+
+        if (record.statusOrder === 'cancelled') {
+            items.push({
+                key: 'reorder',
+                label: 'Mua Lại',
+                onClick: () => handleReorder(record.orderId),
+            });
+        }
+
+        return (
+            <Dropdown menu={{ items }} trigger={['click']}>
+                <Button>
+                    Thêm <DownOutlined />
+                </Button>
+            </Dropdown>
+        );
+    };
+
+    const columns = [
+        {
+            title: 'Tên sản phẩm',
+            dataIndex: 'products',
+            key: 'products',
+            render: (products) => (
+                <div style={{ minWidth: '300px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {products.map((p, index) => (
+                        <div key={index} style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
+                            <img
+                                src={p.image}
+                                alt={p.name}
+                                style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+                            />
+                            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                <span>{p.name}</span>
+                                <span style={{ color: '#888', fontSize: 13 }}>
+                                    x{p.quantity} - {p.price?.toLocaleString('vi-VN')} đ
+                                </span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ),
+        },
+        {
+            title: 'Tổng tiền',
+            dataIndex: 'totalPrice',
+            key: 'totalPrice',
+            width: '125px',
+            render: (totalPrice) => <span>{totalPrice?.toLocaleString('vi-VN')} đ</span>,
+        },
+        {
+            title: 'Địa chỉ',
+            dataIndex: 'address',
+            key: 'address',
+        },
+        {
+            title: 'Trạng thái',
+            dataIndex: 'statusOrder',
+            key: 'statusOrder',
+            render: (status) => renderStatus(status),
+        },
+        {
+            title: 'Phương thức',
+            dataIndex: 'typePayments',
+            key: 'typePayments',
+        },
+        {
+            title: 'Ngày đặt',
+            dataIndex: 'createdAt',
+            key: 'createdAt',
+            render: (date) => new Date(date).toLocaleDateString('vi-VN'),
+        },
+        {
+            title: 'Thao tác',
+            key: 'action',
+            align: 'center',
+            render: (_, record) => renderActionButton(record),
+        },
+    ];
+
+    const reviewProduct = reviewOrder?.products?.find((item) => item.productId === selectedProductId);
+    const reviewedIds = reviewOrder?.reviewedProductIds || [];
 
     return (
         <div className={cx('wrapper')}>
@@ -171,8 +417,158 @@ function InfoUser({ isOpen, setIsOpen }) {
             </Button>   
             <h5>Đơn hàng</h5>
             <div className={cx('table')}>
-                <Table bordered dataSource={dataOrder} columns={columns} rowKey="orderId" pagination={false} />
+                <Table
+                    bordered
+                    dataSource={dataOrder}
+                    columns={columns}
+                    rowKey="orderId"
+                    pagination={false}
+                    loading={isLoadingOrder}
+                />
             </div>
+
+            <Modal
+                title="Xác nhận hủy đơn"
+                open={isCancelModalOpen}
+                onCancel={() => setIsCancelModalOpen(false)}
+                onOk={handleCancelOrder}
+                confirmLoading={isCancelLoading}
+                okText="Xác nhận"
+                cancelText="Đóng"
+            >
+                Bạn có chắc muốn hủy đơn hàng này?
+            </Modal>
+
+            <Modal
+                title="Liên hệ shop"
+                open={isContactModalOpen}
+                onCancel={() => setIsContactModalOpen(false)}
+                onOk={handleSendContactMessage}
+                okText="Gửi tin nhắn"
+                cancelText="Đóng"
+                confirmLoading={isContactLoading}
+            >
+                <div className={cx('chatBox')}>
+                    {(contactMessages || []).length === 0 ? (
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có tin nhắn" />
+                    ) : (
+                        contactMessages.map((item, index) => (
+                            <div
+                                key={item._id || `${item.createdAt}-${index}`}
+                                className={cx('chatItem', { me: item.senderType === 'user' })}
+                            >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                                    <div style={{ flex: 1 }}>
+                                        <p>{item.message}</p>
+                                        <span>
+                                            {item.senderType === 'user' ? (
+                                                <span style={{ fontWeight: 600, color: '#1677ff' }}>
+                                                    Bạn
+                                                </span>
+                                            ) : (
+                                                <span style={{ fontWeight: 600, color: '#f5222d' }}>
+                                                    {item.senderName ? `${item.senderName} - Admin` : 'Shop'}
+                                                </span>
+                                            )}
+                                            {' - '}
+                                            {new Date(item.createdAt).toLocaleString('vi-VN')}
+                                        </span>
+                                    </div>
+                                    <Popconfirm
+                                        title="Xóa tin nhắn"
+                                        description="Bạn có chắc muốn xóa tin nhắn này?"
+                                        okText="Xóa"
+                                        cancelText="Hủy"
+                                        onConfirm={() => handleDeleteContactMessage(item._id)}
+                                        disabled={!item._id || !canDeleteUserMessage(item)}
+                                    >
+                                        <Button
+                                            danger
+                                            size="small"
+                                            icon={<DeleteOutlined />}
+                                            loading={isDeletingContactMessage}
+                                            disabled={!item._id || !canDeleteUserMessage(item)}
+                                        />
+                                    </Popconfirm>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+                <Input.TextArea
+                    rows={4}
+                    placeholder="Nhập nội dung cần hỗ trợ..."
+                    value={contactInput}
+                    onChange={(e) => setContactInput(e.target.value)}
+                />
+            </Modal>
+
+            <Modal
+                title="Đánh giá sản phẩm"
+                open={isReviewModalOpen}
+                onCancel={() => setIsReviewModalOpen(false)}
+                onOk={handleSubmitReview}
+                okText="Gửi đánh giá"
+                cancelText="Đóng"
+                confirmLoading={isReviewSubmitting}
+            >
+                <div className={cx('reviewProductList')}>
+                    {(reviewOrder?.products || []).map((item) => {
+                        const isActive = item.productId === selectedProductId;
+                        const reviewed = reviewedIds.includes(item.productId);
+                        return (
+                            <button
+                                key={item.productId}
+                                type="button"
+                                className={cx('reviewProductItem', { active: isActive })}
+                                onClick={() => setSelectedProductId(item.productId)}
+                                disabled={reviewed}
+                            >
+                                <img src={item.image} alt={item.name} />
+                                <div>
+                                    <p>{item.name}</p>
+                                    <span>{reviewed ? 'Đã đánh giá' : 'Chưa đánh giá'}</span>
+                                </div>
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {reviewProduct && (
+                    <div className={cx('reviewEditor')}>
+                        <div className={cx('reviewHeader')}>
+                            <img src={reviewProduct.image} alt={reviewProduct.name} />
+                            <p>{reviewProduct.name}</p>
+                        </div>
+                        <div className={cx('reviewField')}>
+                            <span>Số sao</span>
+                            <Rate value={rating} onChange={setRating} />
+                        </div>
+                        <div className={cx('reviewField')}>
+                            <span>Nhận xét</span>
+                            <Input.TextArea
+                                rows={4}
+                                placeholder="Chia sẻ trải nghiệm sử dụng (không bắt buộc)"
+                                value={reviewComment}
+                                onChange={(e) => setReviewComment(e.target.value)}
+                            />
+                        </div>
+                        <div className={cx('reviewField')}>
+                            <span>Ảnh đính kèm</span>
+                            <Upload
+                                multiple
+                                listType="picture"
+                                beforeUpload={() => false}
+                                fileList={reviewFiles}
+                                onChange={({ fileList }) => setReviewFiles(fileList)}
+                            >
+                                <Button icon={<UploadOutlined />}>Chọn ảnh</Button>
+                            </Upload>
+                        </div>
+                    </div>
+                )}
+            </Modal>
+
             <ModalUpdatePassword isOpen={isOpen} setIsOpen={setIsOpen} />
         </div>
     );

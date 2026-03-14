@@ -157,6 +157,56 @@ export const requestGetOnePayment = async (id) => {
     return res.data;
 };
 
+export const requestCancelOrder = async (orderId) => {
+    const res = await request.post('/api/cancel-order', { orderId });
+    return res.data;
+};
+
+export const requestReorder = async (orderId) => {
+    const res = await request.post('/api/reorder', { orderId });
+    return res.data;
+};
+
+export const requestGetOrderContactMessages = async (orderId) => {
+    const res = await request.get('/api/order-contact', { params: { orderId } });
+    return res.data;
+};
+
+export const requestSendOrderContactMessage = async (data) => {
+    const res = await request.post('/api/order-contact', data);
+    return res.data;
+};
+
+export const requestReplyOrderContactMessage = async (data) => {
+    const res = await request.post('/api/order-contact-reply', data);
+    return res.data;
+};
+
+export const requestDeleteOrderContactMessage = async (orderId, messageId) => {
+    const res = await request.delete('/api/order-contact-message', { params: { orderId, messageId } });
+    return res.data;
+};
+
+export const requestReviewOrderProduct = async (data) => {
+    const res = await request.post('/api/review-order-product', data);
+    return res.data;
+};
+
+export const requestGetAdminReviews = async () => {
+    const res = await request.get('/api/admin/reviews');
+    return res.data;
+};
+
+export const requestReplyAdminReview = async (data) => {
+    const res = await request.post('/api/admin/reviews/reply', data);
+    return res.data;
+};
+
+export const requestDeleteAdminReview = async (productId, reviewId) => {
+    const res = await request.delete('/api/admin/reviews', { params: { productId, reviewId } });
+    return res.data;
+};
+
 export const requestGetOrderAdmin = async () => {
     const res = await request.get('/api/get-order-admin');
     return res.data;

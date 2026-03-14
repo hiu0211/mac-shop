@@ -4,6 +4,8 @@ import {
     HomeOutlined,
     UserOutlined,
     ShoppingCartOutlined,
+    MessageOutlined,
+    CommentOutlined,
     MenuFoldOutlined,
     MenuUnfoldOutlined,
     ProductOutlined,
@@ -17,6 +19,8 @@ import AddProduct from './Pages/AddProduct';
 import OrderManagement from './Components/OrderManagement';
 import EditProduct from './Pages/EditProduct';
 import CouponManagement from './Components/CouponManagement';
+import MessageManagement from './Components/MessageManagement';
+import ReviewManagement from './Components/ReviewManagement';
 import { requestAdmin, requestLogout } from '../../Config/request';
 import { useNavigate } from 'react-router-dom';
 
@@ -50,6 +54,16 @@ const MainLayout = () => {
             label: 'Quản lý người dùng',
         },
         {
+            key: 'messages',
+            icon: <MessageOutlined />,
+            label: 'Tin nhắn',
+        },
+        {
+            key: 'reviews',
+            icon: <CommentOutlined />,
+            label: 'Đánh giá sản phẩm',
+        },
+        {
             key: 'coupons',
             icon: <GiftOutlined />,
             label: 'Quản lý mã giảm giá',
@@ -70,6 +84,10 @@ const MainLayout = () => {
                 return <UserManagement />;
             case 'orders':
                 return <OrderManagement />;
+            case 'messages':
+                return <MessageManagement />;
+            case 'reviews':
+                return <ReviewManagement />;
             case 'coupons':
                 return <CouponManagement />;
             default:

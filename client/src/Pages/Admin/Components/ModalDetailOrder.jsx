@@ -1,4 +1,4 @@
-import { Modal } from 'antd';
+import { Button, Empty, Input, Modal } from 'antd';
 import { useEffect, useState } from 'react';
 import { requestGetOnePayment } from '../../../Config/request';
 import classNames from 'classnames/bind';
@@ -8,17 +8,43 @@ const cx = classNames.bind(styles);
 
 const ModalDetailOrder = ({ isModalVisible, setIsModalVisible, selectedOrder }) => {
     const [order, setOrder] = useState({});
+    // const [adminMessage, setAdminMessage] = useState('');
+    // const [isSending, setIsSending] = useState(false);
+
+    const fetchData = async () => {
+        const res = await requestGetOnePayment(selectedOrder);
+        setOrder(res.metadata);
+    };
 
     useEffect(() => {
-        const fetchData = async () => {
-            const res = await requestGetOnePayment(selectedOrder);
-            setOrder(res.metadata);
-        };
         if (selectedOrder === '') {
             return;
         }
         fetchData();
     }, [isModalVisible, selectedOrder]);
+
+    // const handleReplyMessage = async () => {
+    //     if (!adminMessage.trim()) {
+    //         message.error('Vui lòng nhập nội dung phản hồi');
+    //         return;
+    //     }
+
+    //     try {
+    //         setIsSending(true);
+    //         await requestReplyOrderContactMessage({
+    //             orderId: selectedOrder,
+    //             message: adminMessage.trim(),
+    //         });
+    //         setAdminMessage('');
+    //         await fetchData();
+    //         message.success('Đã gửi phản hồi cho khách hàng');
+    //     } catch (error) {
+    //         console.error(error);
+    //         message.error(error?.response?.data?.message || 'Không thể gửi phản hồi');
+    //     } finally {
+    //         setIsSending(false);
+    //     }
+    // };
 
     return (
         <Modal
@@ -77,6 +103,36 @@ const ModalDetailOrder = ({ isModalVisible, setIsModalVisible, selectedOrder }) 
                         Tổng tiền: <span>{order?.findPayment?.totalPrice?.toLocaleString()} đ</span>
                     </div>
                 </div>
+
+                {/* <div className={cx('section')}>
+                    <h3 className={cx('sectionTitle')}>Trao đổi với khách hàng</h3>
+                    <div className={cx('chatList')}>
+                        {(order?.findPayment?.contactMessages || []).length === 0 ? (
+                            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có tin nhắn" />
+                        ) : (
+                            order?.findPayment?.contactMessages?.map((item, index) => (
+                                <div key={`${item.createdAt}-${index}`} className={cx('chatItem')}>
+                                    <p>{item.message}</p>
+                                    <span>
+                                        {item.senderName || (item.senderType === 'admin' ? 'Shop' : 'Khách hàng')} -{' '}
+                                        {new Date(item.createdAt).toLocaleString('vi-VN')}
+                                    </span>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                    <div className={cx('chatReply')}>
+                        <Input.TextArea
+                            rows={3}
+                            placeholder="Nhập phản hồi cho khách hàng..."
+                            value={adminMessage}
+                            onChange={(e) => setAdminMessage(e.target.value)}
+                        />
+                        <Button type="primary" loading={isSending} onClick={handleReplyMessage}>
+                            Gửi phản hồi
+                        </Button>
+                    </div>
+                </div> */}
             </div>
         </Modal>
     );

@@ -294,7 +294,7 @@ const CouponManagement = () => {
                         name="dateRange"
                         rules={[{ required: true, message: 'Vui lòng chọn thời gian áp dụng' }]}
                     >
-                        <RangePicker style={{ width: '100%' }} placeholder={['Ngày bắt đầu', 'Ngày kết thúc']} />
+                        <RangePicker style={{ width: '100%' }} placeholder={['Từ ngày', 'Đến ngày']} format="DD/MM/YYYY" />
                     </Form.Item>
                     <Form.Item label="Trạng thái" name="status" valuePropName="checked" initialValue={true}>
                         <Switch />

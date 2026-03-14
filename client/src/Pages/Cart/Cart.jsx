@@ -346,7 +346,7 @@ function Cart() {
                 <div className={cx('container')}>
                     <div className={cx('cart-header')}>
                         <h4>Giỏ hàng</h4>
-                        <h4>Tổng giá: {totalPrice.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</h4>
+                        <h4>Thành tiền: {totalPrice.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</h4>
                     </div>
 
                     <div className={cx('cart-content')}>

@@ -7,7 +7,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Provider } from './store/Provider';
 
 createRoot(document.getElementById('root')).render(
-    <StrictMode>
+    // <StrictMode>
         <Provider>
             <Router>
                 <Routes>
@@ -17,5 +17,5 @@ createRoot(document.getElementById('root')).render(
                 </Routes>
             </Router>
         </Provider>
-    </StrictMode>,
+    // </StrictMode>,
 );

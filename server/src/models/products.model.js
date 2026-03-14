@@ -19,6 +19,23 @@ const modelProduct = new Schema(
     camera: { type: String, require: true },
     weight: { type: String, require: true },
     wei: { type: String, require: true },
+    reviews: [
+      {
+        userId: { type: String, required: true, ref: "user" },
+        orderId: { type: String, required: true, ref: "payments" },
+        rating: { type: Number, required: true, min: 1, max: 5 },
+        comment: { type: String, default: "" },
+        images: { type: [String], default: [] },
+        fullName: { type: String, default: "" },
+        adminReply: {
+          adminId: { type: String, default: "", ref: "user" },
+          adminName: { type: String, default: "Shop" },
+          message: { type: String, default: "" },
+          repliedAt: { type: Date, default: null },
+        },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   {
     timestamps: true,

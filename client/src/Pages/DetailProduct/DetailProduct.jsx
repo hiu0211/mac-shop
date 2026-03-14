@@ -14,7 +14,7 @@ import { requestAddToCart, requestGetProductById } from '../../Config/request';
 import { useParams, useNavigate } from 'react-router-dom';
 import cookies from 'js-cookie';
 
-import { message } from 'antd';
+import { Empty, Rate, message } from 'antd';
 
 const cx = classNames.bind(styles);
 
@@ -66,6 +66,10 @@ function DetailProduct() {
             navigate('/cart');
         }
     };
+
+    const reviews = Array.isArray(dataProduct?.reviews) ? dataProduct.reviews : [];
+    const averageRating =
+        reviews.length > 0 ? reviews.reduce((sum, item) => sum + Number(item.rating || 0), 0) / reviews.length : 0;
 
     return (
         <div className={cx('wrapper')}>
@@ -198,6 +202,57 @@ function DetailProduct() {
                                 <h5>Pin</h5>
                                 <p>{dataProduct?.battery}</p>
                             </div>
+                        </div>
+
+                        <div className={cx('reviews')}>
+                            <div className={cx('reviewsHeader')}>
+                                <h4>Đánh giá khách hàng</h4>
+                                {reviews.length > 0 && (
+                                    <div className={cx('ratingOverview')}>
+                                        <Rate disabled allowHalf value={Number(averageRating.toFixed(1))} />
+                                        <span>
+                                            {averageRating.toFixed(1)}/5 ({reviews.length} đánh giá)
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {reviews.length === 0 ? (
+                                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có đánh giá nào" />
+                            ) : (
+                                <div className={cx('reviewList')}>
+                                    {[...reviews]
+                                        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                                        .map((review, index) => (
+                                            <div key={`${review.userId}-${review.createdAt}-${index}`} className={cx('reviewItem')}>
+                                                <div className={cx('reviewTop')}>
+                                                    <strong>{review.fullName || 'Khách hàng'}</strong>
+                                                    <span>{new Date(review.createdAt).toLocaleDateString('vi-VN')}</span>
+                                                </div>
+                                                <Rate disabled value={review.rating} />
+                                                {review.comment && <p>{review.comment}</p>}
+                                                {Array.isArray(review.images) && review.images.length > 0 && (
+                                                    <div className={cx('reviewImages')}>
+                                                        {review.images.map((img, imgIndex) => (
+                                                            <img key={`${img}-${imgIndex}`} src={img} alt="review" />
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {review.adminReply?.message && (
+                                                    <div className={cx('adminReply')}>
+                                                        <strong>{review.adminReply.adminName || 'Quản trị viên'}</strong>
+                                                        <span>
+                                                            {review.adminReply.repliedAt
+                                                                ? new Date(review.adminReply.repliedAt).toLocaleDateString('vi-VN')
+                                                                : ''}
+                                                        </span>
+                                                        <p>{review.adminReply.message}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
