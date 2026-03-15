@@ -8,7 +8,12 @@ const request = axios.create({
 });
 
 export const requestAdmin = async () => {
-    const res = await request.get('/admin');
+    const res = await request.get('/api/admin/auth');
+    return res.data;
+};
+
+export const requestAdminLogin = async (data) => {
+    const res = await request.post('/api/admin/login', data);
     return res.data;
 };
 

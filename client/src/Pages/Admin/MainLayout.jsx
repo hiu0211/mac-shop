@@ -102,7 +102,7 @@ const MainLayout = () => {
             try {
                 await requestAdmin();
             } catch {
-                navigate('/');
+                navigate('/admin/login');
             }
         };
 

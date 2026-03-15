@@ -8,18 +8,31 @@ import InfoUser from '../Pages/InfoUser/index';
 import Cart from '../Pages/Cart/Cart';
 import MainLayout from '../Pages/Admin/MainLayout';
 import Payments from '../Pages/Payments/Payments';
+import AdminLogin from '../Pages/Admin/AdminLogin';
+import ProtectedAdminRoute from './ProtectedAdminRoute';
 
 const publicRoutes = [
     { path: '/', component: <App /> },
     { path: '/login', component: <LoginUser /> },
+    { path: '/admin/login', component: <AdminLogin /> },
     { path: '/register', component: <RegisterUser /> },
     { path: '/product/:id', component: <DetailProduct /> },
     { path: '/category', component: <Category /> },
     { path: '/info-user/:id', component: <InfoUser /> },
     { path: '/cart', component: <Cart /> },
-    { path: '/admin', component: <MainLayout /> },
     { path: '/payment/:id', component: <Payments /> },
     { path: '/compare-product/:id1/:id2', component: <CompareProduct /> },
 ];
 
-export { publicRoutes };
+const privateRoutes = [
+    {
+        path: '/admin',
+        component: (
+            <ProtectedAdminRoute>
+                <MainLayout />
+            </ProtectedAdminRoute>
+        ),
+    },
+];
+
+export { publicRoutes, privateRoutes };

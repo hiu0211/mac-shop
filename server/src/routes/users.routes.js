@@ -9,8 +9,10 @@ const controllerUsers = require("../controllers/users.controller");
 
 router.post("/api/register", asyncHandler(controllerUsers.register));
 router.post("/api/login", asyncHandler(controllerUsers.login));
+router.post("/api/admin/login", asyncHandler(controllerUsers.loginAdmin));
 router.post("/api/login-google", asyncHandler(controllerUsers.loginGoogle));
 router.get("/api/auth", authUser, asyncHandler(controllerUsers.authUser));
+router.get("/api/admin/auth", authAdmin, asyncHandler(controllerUsers.authAdmin));
 router.get("/api/logout", authUser, asyncHandler(controllerUsers.logout));
 router.get("/api/refresh-token", asyncHandler(controllerUsers.refreshToken));
 router.post(

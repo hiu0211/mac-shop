@@ -7,8 +7,10 @@ const couponsRoutes = require("./coupons.routes");
 function routes(app) {
   app.post("/api/register", userRoutes);
   app.post("/api/login", userRoutes);
+  app.post("/api/admin/login", userRoutes);
   app.post("/api/login-google", userRoutes);
   app.get("/api/auth", userRoutes);
+  app.get("/api/admin/auth", userRoutes);
   app.get("/api/logout", userRoutes);
   app.get("/api/refresh-token", userRoutes);
   app.post("/api/change-password", userRoutes);

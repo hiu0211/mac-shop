@@ -3,7 +3,7 @@ const modelPayments = require("../models/payments.model");
 const modelApiKey = require("../models/apiKey.model");
 const modelOtp = require("../models/otp.model");
 
-const { BadRequestError } = require("../core/error.response");
+const { BadRequestError, BadUser2RequestError } = require("../core/error.response");
 const {
   createApiKey,
   createToken,
@@ -19,6 +19,34 @@ const otpGenerator = require("otp-generator");
 const CryptoJS = require("crypto-js");
 const jwt = require("jsonwebtoken");
 const { jwtDecode } = require("jwt-decode");
+
+const getCookieConfig = (req, maxAge, httpOnly = true) => {
+  const isProduction = process.env.NODE_ENV === "production";
+
+  const cookieConfig = {
+    httpOnly,
+    secure: isProduction,
+    sameSite: isProduction ? "None" : "Lax",
+  };
+
+  if (typeof maxAge === "number") {
+    cookieConfig.maxAge = maxAge;
+  }
+
+  return cookieConfig;
+};
+
+const setAuthCookies = (req, res, token, refreshToken) => {
+  res.cookie("token", token, getCookieConfig(req, 15 * 60 * 1000));
+  res.cookie("logged", 1, getCookieConfig(req, 7 * 24 * 60 * 60 * 1000, false));
+  res.cookie("refreshToken", refreshToken, getCookieConfig(req, 7 * 24 * 60 * 60 * 1000));
+};
+
+const clearAuthCookies = (req, res) => {
+  res.clearCookie("token", getCookieConfig(req));
+  res.clearCookie("refreshToken", getCookieConfig(req));
+  res.clearCookie("logged", getCookieConfig(req, undefined, false));
+};
 
 class controllerUsers {
   async register(req, res) {
@@ -45,27 +73,7 @@ class controllerUsers {
       await createApiKey(newUser._id);
       const token = await createToken({ id: newUser._id });
       const refreshToken = await createRefreshToken({ id: newUser._id });
-      res.cookie("token", token, {
-        httpOnly: true, // Chặn truy cập từ JavaScript (bảo mật hơn)
-        secure: true, // Chỉ gửi trên HTTPS (để đảm bảo an toàn)
-        sameSite: "Strict", // Chống tấn công CSRF
-        maxAge: 15 * 60 * 1000, // 15 phút
-      });
-
-      res.cookie("logged", 1, {
-        httpOnly: false, // Chặn truy cập từ JavaScript (bảo mật hơn)
-        secure: true, // Chỉ gửi trên HTTPS (để đảm bảo an toàn)
-        sameSite: "Strict", // Chống tấn công CSRF
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
-      });
-
-      // Đặt cookie HTTP-Only cho refreshToken (tùy chọn)
-      res.cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "Strict",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
-      });
+      setAuthCookies(req, res, token, refreshToken);
       new Created({
         message: "Đăng ký thành công",
         metadata: { token, refreshToken },
@@ -92,28 +100,7 @@ class controllerUsers {
     await createApiKey(user._id);
     const token = await createToken({ id: user._id });
     const refreshToken = await createRefreshToken({ id: user._id });
-
-    res.cookie("token", token, {
-      httpOnly: true, // Chặn truy cập từ JavaScript (bảo mật hơn)
-      secure: true, // Chỉ gửi trên HTTPS (để đảm bảo an toàn)
-      sameSite: "Strict", // Chống tấn công CSRF
-      maxAge: 15 * 60 * 1000, // 15 phút
-    });
-
-    res.cookie("logged", 1, {
-      httpOnly: false, // Chặn truy cập từ JavaScript (bảo mật hơn)
-      secure: true, // Chỉ gửi trên HTTPS (để đảm bảo an toàn)
-      sameSite: "Strict", // Chống tấn công CSRF
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
-    });
-
-    // Đặt cookie HTTP-Only cho refreshToken (tùy chọn)
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "Strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
-    });
+    setAuthCookies(req, res, token, refreshToken);
 
     new OK({
       message: "Đăng nhập thành công",
@@ -129,24 +116,7 @@ class controllerUsers {
       await createApiKey(user._id);
       const token = await createToken({ id: user._id });
       const refreshToken = await createRefreshToken({ id: user._id });
-      res.cookie("token", token, {
-        httpOnly: true, // Chặn truy cập từ JavaScript (bảo mật hơn)
-        secure: true, // Chỉ gửi trên HTTPS (để đảm bảo an toàn)
-        sameSite: "Strict", // Chống tấn công CSRF
-        maxAge: 15 * 60 * 1000, // 15 phút
-      });
-      res.cookie("logged", 1, {
-        httpOnly: false, // Chặn truy cập từ JavaScript (bảo mật hơn)
-        secure: true, // Chỉ gửi trên HTTPS (để đảm bảo an toàn)
-        sameSite: "Strict", // Chống tấn công CSRF
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
-      });
-      res.cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "Strict",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
-      });
+      setAuthCookies(req, res, token, refreshToken);
       new OK({
         message: "Đăng nhập thành công",
         metadata: { token, refreshToken },
@@ -161,29 +131,45 @@ class controllerUsers {
       await createApiKey(newUser._id);
       const token = await createToken({ id: newUser._id });
       const refreshToken = await createRefreshToken({ id: newUser._id });
-      res.cookie("token", token, {
-        httpOnly: true, // Chặn truy cập từ JavaScript (bảo mật hơn)
-        secure: true, // Chỉ gửi trên HTTPS (để đảm bảo an toàn)
-        sameSite: "Strict", // Chống tấn công CSRF
-        maxAge: 15 * 60 * 1000, // 15 phút
-      });
-      res.cookie("logged", 1, {
-        httpOnly: false, // Chặn truy cập từ JavaScript (bảo mật hơn)
-        secure: true, // Chỉ gửi trên HTTPS (để đảm bảo an toàn)
-        sameSite: "Strict", // Chống tấn công CSRF
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
-      });
-      res.cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "Strict",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
-      });
+      setAuthCookies(req, res, token, refreshToken);
       new OK({
         message: "Đăng nhập thành công",
         metadata: { token, refreshToken, message: "Đăng nhập thành công" },
       }).send(res);
     }
+  }
+
+  async loginAdmin(req, res) {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      throw new BadRequestError("Vui lòng nhập đầy đủ thông tin");
+    }
+
+    const user = await modelUser.findOne({ email });
+    if (!user || user.typeLogin !== "email") {
+      throw new BadRequestError("Tài khoản hoặc mật khẩu không chính xác");
+    }
+
+    const isMatch = bcrypt.compareSync(password, user.password);
+    if (!isMatch) {
+      throw new BadRequestError("Tài khoản hoặc mật khẩu không chính xác");
+    }
+
+    if (!user.isAdmin) {
+      throw new BadUser2RequestError("Bạn không có quyền truy cập trang quản trị");
+    }
+
+    await createApiKey(user._id);
+    const token = await createToken({ id: user._id });
+    const refreshToken = await createRefreshToken({ id: user._id });
+
+    setAuthCookies(req, res, token, refreshToken);
+
+    new OK({
+      message: "Đăng nhập admin thành công",
+      metadata: { token, refreshToken },
+    }).send(res);
   }
 
   async authUser(req, res) {
@@ -203,9 +189,7 @@ class controllerUsers {
   async logout(req, res) {
     const user = req.user;
     await modelApiKey.deleteOne({ userId: user.id });
-    res.clearCookie("token");
-    res.clearCookie("refreshToken");
-    res.clearCookie("logged");
+    clearAuthCookies(req, res);
 
     new OK({ message: "Đăng xuất thành công" }).send(res);
   }
@@ -217,19 +201,8 @@ class controllerUsers {
 
     const user = await modelUser.findById(decoded.id);
     const token = await createToken({ id: user._id });
-    res.cookie("token", token, {
-      httpOnly: true, // Chặn truy cập từ JavaScript (bảo mật hơn)
-      secure: true, // Chỉ gửi trên HTTPS (để đảm bảo an toàn)
-      sameSite: "Strict", // Chống tấn công CSRF
-      maxAge: 15 * 60 * 1000, // 15 phút
-    });
-
-    res.cookie("logged", 1, {
-      httpOnly: false, // Chặn truy cập từ JavaScript (bảo mật hơn)
-      secure: true, // Chỉ gửi trên HTTPS (để đảm bảo an toàn)
-      sameSite: "Strict", // Chống tấn công CSRF
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
-    });
+    res.cookie("token", token, getCookieConfig(req, 15 * 60 * 1000));
+    res.cookie("logged", 1, getCookieConfig(req, 7 * 24 * 60 * 60 * 1000, false));
 
     new OK({ message: "Refresh token thành công", metadata: { token } }).send(
       res

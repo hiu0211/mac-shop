@@ -1,0 +1,111 @@
+.wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #ffffff; /* Nền trắng hoàn toàn theo yêu cầu */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.container {
+    width: 100%;
+    max-width: 460px;
+    padding: 20px;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 50px;
+}
+
+.title {
+    margin: 0 0 16px 0 !important;
+    font-size: 28px !important;
+    font-weight: 300 !important; /* Font mỏng thanh lịch */
+    color: #4a63e0 !important; /* Xanh lam giống ảnh */
+    letter-spacing: 0.02em;
+    line-height: 1.3;
+    text-align: center;
+    white-space: normal;
+    word-break: break-word;
+}
+
+.subtitle {
+    color: #a0a0a0;
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.form {
+    width: 100%;
+}
+
+.formItem {
+    margin-bottom: 30px;
+}
+
+.passwordItem {
+    margin-bottom: 30px;
+}
+
+/* Override Ant Design Input để thành dạng Underline */
+.form :global(.ant-input),
+.form :global(.ant-input-affix-wrapper) {
+    min-height: 40px;
+    padding: 8px 0;
+    border: none;
+    border-bottom: 1px solid #e0e0e0;
+    border-radius: 0;
+    box-shadow: none !important;
+    background: transparent;
+    font-size: 16px;
+    color: #333;
+    transition: all 0.3s ease;
+}
+
+.form :global(.ant-input::placeholder) {
+    color: #c0c0c0;
+    font-weight: 300;
+}
+
+/* Hiệu ứng màu hồng (Pink/Magenta) khi Focus */
+.form :global(.ant-input-affix-wrapper-focused),
+.form :global(.ant-input-affix-wrapper:hover),
+.form :global(.ant-input:hover),
+.form :global(.ant-input:focus) {
+    border-bottom-color: #000000;
+}
+
+.buttonWrap {
+    margin-bottom: 0px;
+}
+
+/* Nút Sign In màu hồng, vuông vức */
+.submitBtn {
+    height: 44px;
+    width: 100%;
+    border-radius: 2px;
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    font-size: 15px;
+    font-weight: 500;
+    border: none;
+    box-shadow: none !important;
+    transition: opacity 0.2s ease;
+}
+
+.submitBtn:hover,
+.submitBtn:focus {
+    opacity: 0.85; /* Giảm độ sáng nhẹ khi hover thay vì đổi màu */
+    background-color: #363636 !important;
+}
+
+@media (max-width: 480px) {
+    .title {
+        font-size: 28px !important;
+    }
+    .container {
+        padding: 24px;
+    }
+}
