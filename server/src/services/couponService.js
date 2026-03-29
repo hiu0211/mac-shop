@@ -46,8 +46,13 @@ const validateCouponForCart = async ({ couponCode, userId, cartTotal }) => {
     }
 
     const now = new Date();
-    if (now < coupon.startAt || now > coupon.endAt) {
+    if (now > coupon.endAt) {
+        await modelCoupon.updateOne({ _id: coupon._id }, { $set: { status: 'INACTIVE' } });
         throw new BadRequestError('Mã giảm giá đã hết hạn');
+    }
+
+    if (now < coupon.startAt) {
+        throw new BadRequestError('Mã giảm giá chưa đến thời gian áp dụng');
     }
 
     if (coupon.minOrderValue && cartTotal < coupon.minOrderValue) {

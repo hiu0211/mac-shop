@@ -92,6 +92,31 @@ export const requestGetAllProduct = async () => {
     return res.data;
 };
 
+export const requestGetBrands = async (params = {}) => {
+    const res = await request.get('/api/brands', { params });
+    return res.data;
+};
+
+export const requestGetAdminBrands = async (params = {}) => {
+    const res = await request.get('/api/admin/brands', { params });
+    return res.data;
+};
+
+export const requestCreateBrand = async (data) => {
+    const res = await request.post('/api/admin/brands', data);
+    return res.data;
+};
+
+export const requestUpdateBrand = async (data) => {
+    const res = await request.put('/api/admin/brands', data);
+    return res.data;
+};
+
+export const requestDeleteBrand = async (id) => {
+    const res = await request.delete('/api/admin/brands', { params: { id } });
+    return res.data;
+};
+
 export const requestEditProduct = async (data) => {
     const res = await request.post('/api/edit-product', data);
     return res.data;
@@ -102,8 +127,14 @@ export const requestDeleteProduct = async (id) => {
     return res.data;
 };
 
-export const requestSearchProduct = async (keyword) => {
-    const res = await request.get('/api/search-product', { params: { keyword } });
+export const requestSearchProduct = async (keyword = '', brand = 'all') => {
+    const params = { keyword };
+
+    if (brand && brand !== 'all') {
+        params.brand = brand;
+    }
+
+    const res = await request.get('/api/search-product', { params });
     return res.data;
 };
 

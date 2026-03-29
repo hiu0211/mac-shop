@@ -114,7 +114,7 @@ function DetailProduct() {
                         <ul>
                             <li>
                                 <FontAwesomeIcon icon={faCheckCircle} />
-                                <span>Hãng Sản Xuất: Iphone</span>
+                                <span>Hãng sản xuất: {dataProduct?.brand || 'Đang cập nhật'}</span>
                             </li>
                             <li>
                                 <FontAwesomeIcon icon={faCheckCircle} />

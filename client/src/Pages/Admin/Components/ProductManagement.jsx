@@ -29,6 +29,13 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
             sorter: (a, b) => a.name.localeCompare(b.name),
         },
         {
+            title: 'Hãng',
+            dataIndex: 'brand',
+            key: 'brand',
+            render: (brand) => <Tag color="blue">{brand || 'Chưa cập nhật'}</Tag>,
+            sorter: (a, b) => (a.brand || '').localeCompare(b.brand || ''),
+        },
+        {
             title: 'Giá gốc',
             dataIndex: 'price',
             key: 'price',
@@ -90,6 +97,7 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
         key: product._id,
         id: product._id,
         name: product.name,
+        brand: product.brand,
         price: product.price,
         priceDiscount: product.priceDiscount,
         stock: product.stock,
@@ -101,6 +109,7 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
         const searchLower = searchText.toLowerCase();
         return (
             item.name?.toLowerCase().includes(searchLower) ||
+            item.brand?.toLowerCase().includes(searchLower) ||
             item.price?.toString().includes(searchLower) ||
             item.priceDiscount?.toString().includes(searchLower)
         );
@@ -131,7 +140,7 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
             <Card title="Quản lý sản phẩm">
                 <Space>
                     <Input.Search
-                        placeholder="Tìm kiếm theo tên hoặc giá sản phẩm"
+                        placeholder="Tìm kiếm theo tên, hãng hoặc giá sản phẩm"
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
                         onSearch={(value) => setSearchText(value)}

@@ -3,10 +3,13 @@ const { OK } = require("../core/success.response");
 
 const modelProduct = require("../models/products.model");
 
+const escapeRegex = (keyword = "") => keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 class controllerProducts {
   async addProduct(req, res) {
     const {
       name,
+      brand,
       price,
       images,
       stock,
@@ -23,6 +26,7 @@ class controllerProducts {
     } = req.body;
     if (
       !name ||
+      !brand ||
       !price ||
       !images ||
       !stock ||
@@ -41,6 +45,7 @@ class controllerProducts {
 
     const data = await modelProduct.create({
       name,
+      brand,
       price,
       priceDiscount,
       images,
@@ -92,54 +97,64 @@ class controllerProducts {
   }
 
   async editProduct(req, res) {
-  try {
-    const { _id, name, price, images, stock, cpu, screen, gpu, storage, screenHz, ram, battery, camera, weight, priceDiscount } = req.body;
+    try {
+      const {
+        _id,
+        name,
+        brand,
+        price,
+        images,
+        stock,
+        cpu,
+        screen,
+        gpu,
+        storage,
+        screenHz,
+        ram,
+        battery,
+        camera,
+        weight,
+        priceDiscount,
+      } = req.body;
 
-    // Kiểm tra xem có ID và ít nhất một trường cần sửa không
-    if (!_id) {
-      return new BadRequestError("ID sản phẩm không hợp lệ").send(res);
+      if (!_id) {
+        throw new BadRequestError("ID sản phẩm không hợp lệ");
+      }
+
+      const product = await modelProduct.findById(_id);
+
+      if (!product) {
+        throw new BadRequestError("Không tìm thấy sản phẩm");
+      }
+
+      const updatedData = {
+        name: name || product.name,
+        brand: brand || product.brand,
+        price: price ?? product.price,
+        images: images || product.images,
+        stock: stock ?? product.stock,
+        cpu: cpu || product.cpu,
+        screen: screen || product.screen,
+        gpu: gpu || product.gpu,
+        storage: storage || product.storage,
+        screenHz: screenHz || product.screenHz,
+        ram: ram || product.ram,
+        battery: battery || product.battery,
+        camera: camera || product.camera,
+        weight: weight || product.weight,
+        priceDiscount: priceDiscount ?? product.priceDiscount,
+      };
+
+      const updatedProduct = await modelProduct.findByIdAndUpdate(_id, updatedData, { new: true });
+
+      new OK({
+        message: "Chỉnh sửa thông tin sản phẩm thành công",
+        metadata: updatedProduct,
+      }).send(res);
+    } catch (error) {
+      throw new BadRequestError(error.message || "Lỗi khi chỉnh sửa thông tin sản phẩm");
     }
-
-    // Lấy thông tin sản phẩm cũ
-    const product = await modelProduct.findById(_id);
-
-    if (!product) {
-      throw new BadRequestError("Không tìm thấy sản phẩm");
-    }
-
-    // Tạo object cập nhật với những trường đã thay đổi (không phải trường trống)
-    const updatedData = {
-      name: name || product.name,
-      price: price || product.price,
-      images: images || product.images,
-      stock: stock || product.stock,
-      cpu: cpu || product.cpu,
-      screen: screen || product.screen,
-      gpu: gpu || product.gpu,
-      storage: storage || product.storage,
-      screenHz: screenHz || product.screenHz,
-      ram: ram || product.ram,
-      battery: battery || product.battery,
-      camera: camera || product.camera,
-      weight: weight || product.weight,
-      priceDiscount: priceDiscount || product.priceDiscount,
-    };
-
-    // Cập nhật sản phẩm
-    const updatedProduct = await modelProduct.findByIdAndUpdate(_id, updatedData, { new: true });
-
-    new OK({
-      message: "Chỉnh sửa thông tin sản phẩm thành công",
-      metadata: updatedProduct,
-    }).send(res);
-    
-  } catch (error) {
-    new BadRequestError({
-      message: "Lỗi khi chỉnh sửa thông tin sản phẩm",
-      error: error.message,
-    }).send(res);
   }
-}
 
   async deleteProduct(req, res) {
     const { id } = req.query;
@@ -151,15 +166,32 @@ class controllerProducts {
   }
 
   async searchProduct(req, res) {
-    const { keyword } = req.query;
-    const data = await modelProduct.find({
-      name: { $regex: keyword, $options: "i" },
-    });
+    const keyword = (req.query.keyword || "").trim();
+    const brand = (req.query.brand || "").trim();
+
+    const query = {};
+
+    if (keyword) {
+      const keywordRegex = { $regex: escapeRegex(keyword), $options: "i" };
+      query.$or = [{ name: keywordRegex }, { brand: keywordRegex }];
+    }
+
+    if (brand && brand !== "all") {
+      query.brand = { $regex: `^${escapeRegex(brand)}$`, $options: "i" };
+    }
+
+    if (!query.$or && !query.brand) {
+      new OK({ message: "Tìm kiếm sản phẩm", metadata: [] }).send(res);
+      return;
+    }
+
+    const data = await modelProduct.find(query);
+
     new OK({ message: "Tìm kiếm sản phẩm", metadata: data }).send(res);
   }
 
   async filterProduct(req, res) {
-    const { pricedes, priceRange } = req.query;
+    const { pricedes, priceRange, brand } = req.query;
     let query = {};
     let sortOptions = {};
 
@@ -176,6 +208,10 @@ class controllerProducts {
           query.price = { $gt: 40000000 }; // Above 40 million
           break;
       }
+    }
+
+    if (brand && brand !== "all") {
+      query.brand = { $regex: `^${escapeRegex(brand)}$`, $options: "i" };
     }
 
     // Handle price sorting

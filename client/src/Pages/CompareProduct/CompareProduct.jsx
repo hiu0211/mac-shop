@@ -60,6 +60,10 @@ function CompareProduct() {
                             <ul>
                                 <li>
                                     <FontAwesomeIcon icon={faCheckCircle} />
+                                    <span>Hãng sản xuất: {product1?.brand || 'Đang cập nhật'}</span>
+                                </li>
+                                <li>
+                                    <FontAwesomeIcon icon={faCheckCircle} />
                                     <span>Giao hàng ngày mở bán tại Việt Nam 20/05/2025</span>
                                 </li>
                                 <li>
@@ -148,6 +152,10 @@ function CompareProduct() {
                             <h1>{product2?.name}</h1>
                             <p>{product2?.price?.toLocaleString()} đ</p>
                             <ul>
+                                <li>
+                                    <FontAwesomeIcon icon={faCheckCircle} />
+                                    <span>Hãng sản xuất: {product2?.brand || 'Đang cập nhật'}</span>
+                                </li>
                                 <li>
                                     <FontAwesomeIcon icon={faCheckCircle} />
                                     <span>Giao hàng ngày mở bán tại Việt Nam 20/05/2025</span>

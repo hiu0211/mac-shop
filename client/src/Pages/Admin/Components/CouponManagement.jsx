@@ -58,7 +58,7 @@ const CouponManagement = () => {
                 usedCount: item.usedCount,
                 startAt: item.startAt,
                 endAt: item.endAt,
-                status: item.status,
+                status: item.endAt && dayjs().isAfter(dayjs(item.endAt)) ? 'INACTIVE' : item.status,
             }));
     }, [coupons, searchCode]);
 
@@ -79,7 +79,9 @@ const CouponManagement = () => {
             totalUsageLimit: record.totalUsageLimit,
             perUserUsageLimit: record.perUserUsageLimit,
             dateRange: [record.startAt ? dayjs(record.startAt) : null, record.endAt ? dayjs(record.endAt) : null],
-            status: record.status === 'ACTIVE',
+            status:
+                record.status === 'ACTIVE' &&
+                !(record.endAt && dayjs().isAfter(dayjs(record.endAt))),
         });
         setModalOpen(true);
     };
@@ -108,7 +110,10 @@ const CouponManagement = () => {
                 perUserUsageLimit: values.perUserUsageLimit || 0,
                 startAt: values.dateRange?.[0]?.toDate(),
                 endAt: values.dateRange?.[1]?.toDate(),
-                status: values.status ? 'ACTIVE' : 'INACTIVE',
+                status:
+                    values.status && !(values.dateRange?.[1] && dayjs().isAfter(values.dateRange[1]))
+                        ? 'ACTIVE'
+                        : 'INACTIVE',
             };
 
             if (editingCoupon) {

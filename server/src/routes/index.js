@@ -1,5 +1,6 @@
 const userRoutes = require("./users.routes");
 const productRoutes = require("./products.routes");
+const brandRoutes = require("./brands.routes");
 const cartRoutes = require("./cart.routes");
 const paymentsRoutes = require("./payments.routes");
 const couponsRoutes = require("./coupons.routes");
@@ -32,6 +33,12 @@ function routes(app) {
   app.delete("/api/delete-product", productRoutes);
   app.get("/api/search-product", productRoutes);
   app.get("/api/filter-product", productRoutes);
+
+  app.get("/api/brands", brandRoutes);
+  app.get("/api/admin/brands", brandRoutes);
+  app.post("/api/admin/brands", brandRoutes);
+  app.put("/api/admin/brands", brandRoutes);
+  app.delete("/api/admin/brands", brandRoutes);
 
   app.post("/api/add-to-cart", cartRoutes);
   app.get("/api/get-cart", cartRoutes);

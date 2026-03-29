@@ -61,6 +61,18 @@ class CouponsController {
     async listCoupons(req, res) {
         const { code, status } = req.query;
         const query = {};
+
+        // Auto-deactivate expired coupons before returning list.
+        await modelCoupon.updateMany(
+            {
+                status: 'ACTIVE',
+                endAt: { $lt: new Date() },
+            },
+            {
+                $set: { status: 'INACTIVE' },
+            },
+        );
+
         if (code) {
             query.code = normalizeCode(code);
         }

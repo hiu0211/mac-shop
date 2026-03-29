@@ -1,11 +1,31 @@
-import React, { useEffect } from 'react';
-import { Form, Input, InputNumber, Upload, Button, Card, message, Space } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Form, Input, InputNumber, Upload, Button, Card, message, Space, Select } from 'antd';
 import { UploadOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { requestEditProduct, requestUploadImage, requestGetProductById } from '../../../Config/request';
+import {
+    requestEditProduct,
+    requestGetBrands,
+    requestUploadImage,
+    requestGetProductById,
+} from '../../../Config/request';
 
 const EditProduct = ({ setActiveComponent, productId }) => {
     const [form] = Form.useForm();
+    const [brands, setBrands] = useState([]);
     const uploadCounterRef = React.useRef(0);
+
+    useEffect(() => {
+        const fetchBrands = async () => {
+            try {
+                const res = await requestGetBrands();
+                setBrands(res.metadata || []);
+            } catch (error) {
+                console.error('Khong the tai danh sach hang dien thoai:', error);
+                message.error('Khong the tai danh sach hang dien thoai');
+            }
+        };
+
+        fetchBrands();
+    }, []);
 
     useEffect(() => {
         const fetchProductData = async () => {
@@ -141,6 +161,19 @@ const EditProduct = ({ setActiveComponent, productId }) => {
                     rules={[{ required: true, message: 'Vui lòng nhập tên sản phẩm!' }]}
                 >
                     <Input placeholder="Nhập tên sản phẩm" />
+                </Form.Item>
+
+                <Form.Item
+                    name="brand"
+                    label="Hãng điện thoại"
+                    rules={[{ required: true, message: 'Vui lòng chọn hãng điện thoại!' }]}
+                >
+                    <Select
+                        placeholder="Chọn hãng điện thoại"
+                        options={brands.map((brand) => ({ value: brand.name, label: brand.name }))}
+                        showSearch
+                        optionFilterProp="label"
+                    />
                 </Form.Item>
 
                 <Form.Item 

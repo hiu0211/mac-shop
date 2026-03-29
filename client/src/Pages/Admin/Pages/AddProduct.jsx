@@ -1,12 +1,27 @@
-import React, { useState } from 'react';
-import { Form, Input, InputNumber, Upload, Button, Card, message, Space } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Form, Input, InputNumber, Upload, Button, Card, message, Space, Select } from 'antd';
 import { UploadOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { requestAddProduct, requestUploadImage } from '../../../Config/request';
+import { requestAddProduct, requestGetBrands, requestUploadImage } from '../../../Config/request';
 
 const AddProduct = ({ setActiveComponent }) => {
     const [form] = Form.useForm();
     const [uploading, setUploading] = useState(false);
+    const [brands, setBrands] = useState([]);
     const uploadCounterRef = React.useRef(0);
+
+    useEffect(() => {
+        const fetchBrands = async () => {
+            try {
+                const res = await requestGetBrands({ active: true });
+                setBrands(res.metadata || []);
+            } catch (error) {
+                console.error('Khong the tai danh sach hang dien thoai:', error);
+                message.error('Khong the tai danh sach hang dien thoai');
+            }
+        };
+
+        fetchBrands();
+    }, []);
 
     const handleUpload = async (files) => {
         try {
@@ -51,6 +66,7 @@ const AddProduct = ({ setActiveComponent }) => {
             // Tạo dữ liệu sản phẩm với URLs ảnh
             const productData = {
                 name: values.name,
+                brand: values.brand,
                 price: values.price,
                 priceDiscount: values.priceDiscount,
                 stock: values.stock,
@@ -136,6 +152,20 @@ const AddProduct = ({ setActiveComponent }) => {
                     rules={[{ required: true, message: 'Vui lòng nhập tên sản phẩm!' }]}
                 >
                     <Input placeholder="Nhập tên sản phẩm" />
+                </Form.Item>
+
+                <Form.Item
+                    name="brand"
+                    label="Hãng điện thoại"
+                    rules={[{ required: true, message: 'Vui lòng chọn hãng điện thoại!' }]}
+                >
+                    <Select
+                        placeholder="Chọn hãng điện thoại"
+                        options={brands.map((brand) => ({ value: brand.name, label: brand.name }))}
+                        showSearch
+                        optionFilterProp="label"
+                        notFoundContent="Chưa có hãng điện thoại"
+                    />
                 </Form.Item>
 
                 <Form.Item 

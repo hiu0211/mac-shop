@@ -5,35 +5,81 @@ import Footer from '../../Components/Footer/Footer';
 
 import { Select } from 'antd';
 import CardBody from '../../Components/CardBody/CardBody';
-import { useEffect, useRef, useState } from 'react';
-import { requestFilterProduct } from '../../Config/request';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { requestFilterProduct, requestGetBrands } from '../../Config/request';
 import { useNavigate } from 'react-router-dom';
 
 const cx = classNames.bind(styles);
+const DEFAULT_FILTERS = {
+    priceRange: undefined,
+    pricedes: undefined,
+    brand: 'all',
+};
 
 function Category() {
     const [dataProduct, setDataProduct] = useState([]);
     const [productCompare, setProductCompare] = useState([]);
+    const [brands, setBrands] = useState([]);
+    const [filters, setFilters] = useState(DEFAULT_FILTERS);
 
     const [checkSelectCompare, setCheckSelectCompare] = useState(false);
 
-    const handlePriceRange = async (range) => {
+    const fetchProducts = useCallback(async (nextFilters) => {
         try {
-            const res = await requestFilterProduct({ priceRange: range });
-            setDataProduct(res.metadata);
+            const params = {};
+
+            if (nextFilters?.priceRange) {
+                params.priceRange = nextFilters.priceRange;
+            }
+
+            if (nextFilters?.pricedes) {
+                params.pricedes = nextFilters.pricedes;
+            }
+
+            if (nextFilters?.brand && nextFilters.brand !== 'all') {
+                params.brand = nextFilters.brand;
+            }
+
+            const res = await requestFilterProduct(params);
+            setDataProduct(res.metadata || []);
         } catch (error) {
             console.error('Error filtering products:', error);
         }
+    }, []);
+
+    const fetchBrands = useCallback(async () => {
+        try {
+            const res = await requestGetBrands({ active: true });
+            setBrands(res.metadata || []);
+        } catch (error) {
+            console.error('Error loading brands:', error);
+        }
+    }, []);
+
+    const updateFilters = (partialFilters) => {
+        const nextFilters = {
+            ...filters,
+            ...partialFilters,
+        };
+        setFilters(nextFilters);
+        fetchProducts(nextFilters);
     };
 
-    const handleChange = async (value) => {
-        try {
-            const pricedes = value === 'jack' ? 'desc' : 'asc';
-            const res = await requestFilterProduct({ pricedes });
-            setDataProduct(res.metadata);
-        } catch (error) {
-            console.error('Error sorting products:', error);
-        }
+    const handlePriceRange = (range) => {
+        updateFilters({ priceRange: range });
+    };
+
+    const handleSortChange = (value) => {
+        updateFilters({ pricedes: value === 'default' ? undefined : value });
+    };
+
+    const handleBrandChange = (value) => {
+        updateFilters({ brand: value });
+    };
+
+    const handleResetFilter = () => {
+        setFilters(DEFAULT_FILTERS);
+        fetchProducts(DEFAULT_FILTERS);
     };
 
     const navigate = useNavigate();
@@ -46,7 +92,7 @@ function Category() {
         if (productCompare.length === 2) {
             navigate(`/compare-product/${productCompare[0]}/${productCompare[1]}`);
         }
-    }, [productCompare]);
+    }, [productCompare, navigate]);
 
     const ref = useRef();
 
@@ -55,12 +101,14 @@ function Category() {
     }, []);
 
     useEffect(() => {
-        const fetchData = async () => {
-            const res = await requestFilterProduct();
-            setDataProduct(res.metadata);
-        };
-        fetchData();
-    }, []);
+        fetchBrands();
+        fetchProducts(DEFAULT_FILTERS);
+    }, [fetchBrands, fetchProducts]);
+
+    const brandOptions = [
+        { value: 'all', label: 'Tất cả hãng' },
+        ...brands.map((brand) => ({ value: brand.name, label: brand.name })),
+    ];
 
     return (
         <div className={cx('wrapper')} ref={ref}>
@@ -72,7 +120,7 @@ function Category() {
                 <div className={cx('inner')}>
                     <div className={cx('fillter')}>
                         <div>
-                            <button onClick={() => handlePriceRange()}>Mặc định</button>
+                            <button onClick={handleResetFilter}>Mặc định</button>
                             <button onClick={() => handlePriceRange('under20')}>Dưới 20 triệu</button>
                             <button onClick={() => handlePriceRange('20to40')}>20 - 40 triệu</button>
                             <button onClick={() => handlePriceRange('above40')}>Trên 40 triệu</button>
@@ -80,13 +128,21 @@ function Category() {
 
                         <div>
                             <Select
-                                defaultValue="lucy"
+                                value={filters.pricedes || 'default'}
                                 style={{ width: 200 }}
-                                onChange={handleChange}
+                                onChange={handleSortChange}
                                 options={[
-                                    { value: 'jack', label: 'Giá từ cao đến thấp' },
-                                    { value: 'lucy', label: 'Giá từ thấp đến cao' },
+                                    { value: 'default', label: 'Sắp xếp mặc định' },
+                                    { value: 'desc', label: 'Giá từ cao đến thấp' },
+                                    { value: 'asc', label: 'Giá từ thấp đến cao' },
                                 ]}
+                            />
+
+                            <Select
+                                value={filters.brand}
+                                style={{ width: 200 }}
+                                onChange={handleBrandChange}
+                                options={brandOptions}
                             />
 
                             <button onClick={() => setCheckSelectCompare(!checkSelectCompare)}>

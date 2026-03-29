@@ -1,7 +1,7 @@
 import classNames from 'classnames/bind';
 import styles from './Header.module.scss';
 
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import logoo from '../../assets/images/logoo.png';
 
@@ -10,10 +10,10 @@ import { useStore } from '../../hooks/useStore';
 import useDebounce from '../../hooks/useDebounce';
 
 import { Avatar, Badge, Dropdown, Space } from 'antd';
-import { UserOutlined, LogoutOutlined, ShoppingCartOutlined } from '@ant-design/icons';
-import { requestGetCart, requestLogout, requestSearchProduct } from '../../Config/request';
+import { UserOutlined, LogoutOutlined, ShoppingCartOutlined, CloseOutlined } from '@ant-design/icons';
+import { requestGetBrands, requestGetCart, requestLogout, requestSearchProduct } from '../../Config/request';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const cx = classNames.bind(styles);
 
@@ -25,7 +25,15 @@ function Header() {
     const debouncedValue = useDebounce(keyword, 500);
 
     const [resultSearch, setResultSearch] = useState([]);
+    const [brands, setBrands] = useState([]);
+    const [selectedBrand, setSelectedBrand] = useState('all');
+    const [isSearchResultOpen, setIsSearchResultOpen] = useState(false);
     const [cartCount, setCartCount] = useState(0);
+    const searchRef = useRef(null);
+
+    const navigate = useNavigate();
+    const location = useLocation();
+    const hasSearchTrigger = Boolean(keyword.trim()) || selectedBrand !== 'all';
 
     const fetchCartCount = useCallback(async () => {
         if (!dataUser?._id) {
@@ -44,16 +52,67 @@ function Header() {
     }, [dataUser?._id]);
 
     useEffect(() => {
+        const fetchBrands = async () => {
+            try {
+                const res = await requestGetBrands({ active: true });
+                setBrands(res?.metadata || []);
+            } catch {
+                setBrands([]);
+            }
+        };
+
+        fetchBrands();
+    }, []);
+
+    useEffect(() => {
+        if (location.pathname !== '/') {
+            return;
+        }
+
+        const params = new URLSearchParams(location.search);
+        const queryKeyword = params.get('q') || '';
+        const queryBrand = params.get('brand') || 'all';
+
+        setKeyword(queryKeyword);
+        setSelectedBrand(queryBrand);
+    }, [location.pathname, location.search]);
+
+    useEffect(() => {
+        if (hasSearchTrigger) {
+            setIsSearchResultOpen(true);
+            return;
+        }
+
+        setIsSearchResultOpen(false);
+    }, [hasSearchTrigger]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (searchRef.current && !searchRef.current.contains(event.target)) {
+                setIsSearchResultOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
+    useEffect(() => {
         const fetchData = async () => {
-            if (!debouncedValue.trim()) {
+            const hasKeyword = Boolean(debouncedValue.trim());
+            const hasBrandFilter = selectedBrand !== 'all';
+
+            if (!hasKeyword && !hasBrandFilter) {
                 setResultSearch([]);
                 return;
             }
 
             setIsSearching(true);
             try {
-                const res = await requestSearchProduct(debouncedValue);
-                setResultSearch(res.metadata);
+                const res = await requestSearchProduct(debouncedValue.trim(), selectedBrand);
+                setResultSearch(res?.metadata || []);
             } catch {
                 setResultSearch([]);
             } finally {
@@ -61,7 +120,7 @@ function Header() {
             }
         };
         fetchData();
-    }, [debouncedValue]);
+    }, [debouncedValue, selectedBrand]);
 
     useEffect(() => {
         fetchCartCount();
@@ -75,8 +134,6 @@ function Header() {
         window.addEventListener('cart-updated', handleCartUpdated);
         return () => window.removeEventListener('cart-updated', handleCartUpdated);
     }, [fetchCartCount]);
-
-    const navigate = useNavigate();
 
     const handleLogout = async () => {
         try {
@@ -108,6 +165,50 @@ function Header() {
         },
     ];
 
+    const handleClearSearch = () => {
+        setKeyword('');
+        setSelectedBrand('all');
+        setResultSearch([]);
+        setIsSearching(false);
+        setIsSearchResultOpen(false);
+
+        if (location.pathname === '/' && location.search) {
+            navigate('/', { replace: true });
+        }
+    };
+
+    const handleOpenSearchResult = () => {
+        if (hasSearchTrigger) {
+            setIsSearchResultOpen(true);
+        }
+    };
+
+    const handleSubmitSearch = () => {
+        const trimmedKeyword = keyword.trim();
+        const hasKeyword = Boolean(trimmedKeyword);
+        const hasBrandFilter = selectedBrand !== 'all';
+
+        if (!hasKeyword && !hasBrandFilter) {
+            navigate('/');
+            return;
+        }
+
+        const params = new URLSearchParams();
+
+        if (hasKeyword) {
+            params.set('q', trimmedKeyword);
+        }
+
+        if (hasBrandFilter) {
+            params.set('brand', selectedBrand);
+        }
+
+        setResultSearch([]);
+        setIsSearching(false);
+        setIsSearchResultOpen(false);
+        navigate(`/?${params.toString()}`);
+    };
+
     return (
         <div className={cx('wrapper')}>
             <div className={cx('inner')}>
@@ -117,14 +218,50 @@ function Header() {
                     </div>
                 </Link>
 
-                <div className={cx('search')}>
-                    <input
-                        type="text"
-                        placeholder="Tìm kiếm sản phẩm..."
-                        onChange={(e) => setKeyword(e.target.value)}
-                        value={keyword}
-                    />
-                    {keyword.trim() && (
+                <div className={cx('search')} ref={searchRef}>
+                    <div className={cx('search-input-group')} onClick={handleOpenSearchResult}>
+                        <select
+                            className={cx('brand-filter')}
+                            value={selectedBrand}
+                            onChange={(e) => setSelectedBrand(e.target.value)}
+                            onFocus={handleOpenSearchResult}
+                        >
+                            <option value="all">Tất cả</option>
+                            {brands.map((brand) => (
+                                <option key={brand._id || brand.name} value={brand.name}>
+                                    {brand.name}
+                                </option>
+                            ))}
+                        </select>
+
+                        <input
+                            className={cx({ 'has-clear': hasSearchTrigger })}
+                            type="text"
+                            placeholder="Tìm kiếm sản phẩm hoặc hãng..."
+                            onChange={(e) => setKeyword(e.target.value)}
+                            onFocus={handleOpenSearchResult}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleSubmitSearch();
+                                }
+                            }}
+                            value={keyword}
+                        />
+
+                        {hasSearchTrigger && (
+                            <button
+                                type="button"
+                                className={cx('clear-search')}
+                                onClick={handleClearSearch}
+                                aria-label="Xóa nhanh tìm kiếm và bộ lọc"
+                            >
+                                <CloseOutlined />
+                            </button>
+                        )}
+                    </div>
+
+                    {hasSearchTrigger && isSearchResultOpen && (
                         <div className={cx('result-search')}>
                             {isSearching ? (
                                 <div className={cx('searching')}>
@@ -136,7 +273,8 @@ function Header() {
                                         <img src={item.images[0]} alt={item.name} />
                                         <div className={cx('info')}>
                                             <h4>{item.name}</h4>
-                                            <p>{item.price.toLocaleString('vi-VN')}đ</p>
+                                            <span className={cx('brand')}>{item.brand || 'Khác'}</span>
+                                            <p className={cx('price')}>{item.price.toLocaleString('vi-VN')}đ</p>
                                         </div>
                                     </Link>
                                 ))

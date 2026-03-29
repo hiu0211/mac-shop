@@ -6,12 +6,19 @@
     width: 90%;
     height: 100%;
     margin: 0px auto;
-    padding: 20px 0px;
+    padding: 10px 0px;
     .title {
         h2 {
             text-align: center;
             font-size: 24px;
             margin-bottom: 20px;
+        }
+
+        p {
+            text-align: center;
+            margin: -10px 0 20px;
+            color: #555;
+            font-size: 14px;
         }
     }
 }
@@ -39,4 +46,11 @@
         transition: all 0.3s ease;
         cursor: pointer;
     }
+}
+
+.empty-search {
+    text-align: center;
+    color: #666;
+    margin-top: 20px;
+    font-size: 14px;
 }

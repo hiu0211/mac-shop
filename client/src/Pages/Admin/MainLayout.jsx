@@ -11,6 +11,7 @@ import {
     ProductOutlined,
     GiftOutlined,
     LogoutOutlined,
+    MobileOutlined,
 } from '@ant-design/icons';
 import Dashboard from './Components/Dashboard';
 import ProductManagement from './Components/ProductManagement';
@@ -21,6 +22,7 @@ import EditProduct from './Pages/EditProduct';
 import CouponManagement from './Components/CouponManagement';
 import MessageManagement from './Components/MessageManagement';
 import ReviewManagement from './Components/ReviewManagement';
+import BrandManagement from './Components/BrandManagement';
 import { requestAdmin, requestLogout } from '../../Config/request';
 import { useNavigate } from 'react-router-dom';
 
@@ -39,14 +41,19 @@ const MainLayout = () => {
             label: 'Trang chủ',
         },
         {
-            key: 'orders',
-            icon: <ShoppingCartOutlined />,
-            label: 'Quản lý đơn hàng',
-        },
-        {
             key: 'products',
             icon: <ProductOutlined />,
             label: 'Quản lý sản phẩm',
+        },
+        {
+            key: 'brands',
+            icon: <MobileOutlined />,
+            label: 'Quản lý hãng điện thoại',
+        },
+        {
+            key: 'orders',
+            icon: <ShoppingCartOutlined />,
+            label: 'Quản lý đơn hàng',
         },
         {
             key: 'users',
@@ -90,6 +97,8 @@ const MainLayout = () => {
                 return <ReviewManagement />;
             case 'coupons':
                 return <CouponManagement />;
+            case 'brands':
+                return <BrandManagement />;
             default:
                 return <Dashboard />;
         }
