@@ -13,15 +13,18 @@ import { Avatar, Badge, Dropdown, Space } from 'antd';
 import { UserOutlined, LogoutOutlined, ShoppingCartOutlined, CloseOutlined } from '@ant-design/icons';
 import { requestGetBrands, requestGetCart, requestLogout, requestSearchProduct } from '../../Config/request';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import Context from '../../store/Context';
 
 const cx = classNames.bind(styles);
 
 function Header() {
     const { dataUser } = useStore();
+    const { clearAuth } = useContext(Context);
 
     const [keyword, setKeyword] = useState('');
     const [isSearching, setIsSearching] = useState(false);
+    const [logoutLoading, setLogoutLoading] = useState(false);
     const debouncedValue = useDebounce(keyword, 500);
 
     const [resultSearch, setResultSearch] = useState([]);
@@ -136,14 +139,17 @@ function Header() {
     }, [fetchCartCount]);
 
     const handleLogout = async () => {
+        setLogoutLoading(true);
         try {
             await requestLogout();
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+            clearAuth();
             navigate('/');
         } catch {
-            return;
+            // Logout error - still navigate away
+            clearAuth();
+            navigate('/');
+        } finally {
+            setLogoutLoading(false);
         }
     };
 
@@ -152,6 +158,7 @@ function Header() {
             key: 'profile',
             icon: <UserOutlined />,
             label: <Link to={`/info-user/${dataUser._id}`}>Tài khoản của tôi</Link>,
+            disabled: logoutLoading,
         },
         {
             type: 'divider',
@@ -159,9 +166,10 @@ function Header() {
         {
             key: 'logout',
             icon: <LogoutOutlined />,
-            label: 'Đăng xuất',
+            label: logoutLoading ? 'Đang đăng xuất...' : 'Đăng xuất',
             danger: true,
             onClick: handleLogout,
+            disabled: logoutLoading,
         },
     ];
 

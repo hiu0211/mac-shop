@@ -7,6 +7,44 @@ const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 const modelProduct = require("../models/products.model");
 
+const normalizeAttributes = (attributes) => {
+  if (!attributes) {
+    return {};
+  }
+
+  if (typeof attributes === "string") {
+    try {
+      const parsed = JSON.parse(attributes);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  if (typeof attributes === "object" && !Array.isArray(attributes)) {
+    return { ...attributes };
+  }
+
+  return {};
+};
+
+const buildSpecsForPrompt = (product) => {
+  const dynamicAttributes = normalizeAttributes(product?.attributes);
+  const entries = Object.entries(dynamicAttributes).filter(([, value]) => value != null && String(value).trim() !== "");
+
+  if (entries.length > 0) {
+    return entries.map(([key, value]) => `- ${key}: ${value}`).join("\n      ");
+  }
+
+  return [
+    `- Màn hình: ${product?.screen || "Đang cập nhật"}`,
+    `- Bộ nhớ: ${product?.storage || "Đang cập nhật"}`,
+    `- RAM: ${product?.ram || "Đang cập nhật"}`,
+    `- Camera: ${product?.camera || "Đang cập nhật"}`,
+    `- Pin: ${product?.battery || "Đang cập nhật"}`,
+  ].join("\n      ");
+};
+
 async function compareProducts(productId1, productId2) {
   try {
     const product1 = await modelProduct.findById(productId1);
@@ -16,23 +54,18 @@ async function compareProducts(productId1, productId2) {
       throw new Error("Không tìm thấy một hoặc cả hai sản phẩm");
     }
 
+    const specs1 = buildSpecsForPrompt(product1);
+    const specs2 = buildSpecsForPrompt(product2);
+
     const prompt = `
       Bạn là một chuyên gia về smartphone, đặc biệt là iPhone. Hãy so sánh chi tiết hai iPhone sau và trả về kết quả dưới dạng HTML với các thẻ định dạng phù hợp. Không cần thêm CSS vào HTML.
 
       iPhone 1: ${product1.name}
-      - Màn hình: ${product1.screen}
-      - Bộ nhớ: ${product1.storage}
-      - RAM: ${product1.ram}
-      - Camera: ${product1.camera}
-      - Pin: ${product1.battery}
+      ${specs1}
       - Giá: ${product1.price.toLocaleString("vi-VN")} VND
 
       iPhone 2: ${product2.name}
-      - Màn hình: ${product2.screen}
-      - Bộ nhớ: ${product2.storage}
-      - RAM: ${product2.ram}
-      - Camera: ${product2.camera}
-      - Pin: ${product2.battery}
+      ${specs2}
       - Giá: ${product2.price.toLocaleString("vi-VN")} VND
 
       Hãy phân tích và so sánh các khía cạnh sau:

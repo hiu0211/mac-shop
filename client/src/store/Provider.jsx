@@ -17,6 +17,10 @@ export function Provider({ children }) {
         setDataUser(user);
     };
 
+    const clearAuth = () => {
+        setDataUser({});
+    };
+
     useEffect(() => {
         const token = cookies.get('logged');
 
@@ -31,6 +35,7 @@ export function Provider({ children }) {
             value={{
                 dataUser,
                 fetchAuth,
+                clearAuth,
             }}
         >
             {children}

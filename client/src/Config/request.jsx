@@ -117,6 +117,31 @@ export const requestDeleteBrand = async (id) => {
     return res.data;
 };
 
+export const requestGetAllProductTypes = async () => {
+    const res = await request.get('/api/product-types');
+    return res.data;
+};
+
+export const requestCreateProductType = async (data) => {
+    const res = await request.post('/api/product-types', data);
+    return res.data;
+};
+
+export const requestUpdateProductType = async (id, data) => {
+    const res = await request.put(`/api/product-types/${id}`, data);
+    return res.data;
+};
+
+export const requestDeleteProductType = async (id) => {
+    const res = await request.delete(`/api/product-types/${id}`);
+    return res.data;
+};
+
+export const requestCheckProductTypeCodeExists = async (code) => {
+    const res = await request.get('/api/product-types/check-code', { params: { code } });
+    return Boolean(res?.data?.metadata?.exists);
+};
+
 export const requestEditProduct = async (data) => {
     const res = await request.post('/api/edit-product', data);
     return res.data;

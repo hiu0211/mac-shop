@@ -12,6 +12,61 @@ import { requestGetProductById, requestCompareProduct } from '../../Config/reque
 
 const cx = classNames.bind(styles);
 
+const LEGACY_SPEC_FIELDS = [
+    { key: 'cpu', label: 'Bộ xử lý CPU' },
+    { key: 'ram', label: 'Ram' },
+    { key: 'screen', label: 'Màn hình' },
+    { key: 'gpu', label: 'GPU' },
+    { key: 'storage', label: 'Ổ cứng' },
+    { key: 'weight', label: 'Kích thước' },
+    { key: 'camera', label: 'Camera' },
+    { key: 'battery', label: 'Pin' },
+];
+
+const normalizeAttributes = (attributes) => {
+    if (!attributes) {
+        return {};
+    }
+
+    if (typeof attributes === 'string') {
+        try {
+            const parsed = JSON.parse(attributes);
+            return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch {
+            return {};
+        }
+    }
+
+    if (typeof attributes === 'object' && !Array.isArray(attributes)) {
+        return { ...attributes };
+    }
+
+    return {};
+};
+
+const formatSpecLabel = (key) => {
+    return String(key || '')
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const buildSpecs = (product = {}) => {
+    const dynamicAttributes = normalizeAttributes(product.attributes);
+    const dynamicEntries = Object.entries(dynamicAttributes).filter(([, value]) => value != null && String(value).trim() !== '');
+
+    if (dynamicEntries.length > 0) {
+        return dynamicEntries.map(([key, value]) => ({
+            label: formatSpecLabel(key),
+            value,
+        }));
+    }
+
+    return LEGACY_SPEC_FIELDS.filter((field) => product[field.key] != null && String(product[field.key]).trim() !== '').map((field) => ({
+        label: field.label,
+        value: product[field.key],
+    }));
+};
+
 function CompareProduct() {
     const { id1, id2 } = useParams();
     const [product1, setProduct1] = useState({});
@@ -31,6 +86,9 @@ function CompareProduct() {
         fetchData();
         compareRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [id1, id2]);
+
+    const product1Specs = buildSpecs(product1);
+    const product2Specs = buildSpecs(product2);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -109,40 +167,12 @@ function CompareProduct() {
 
                             <div className={cx('specs')}>
                                 <h4>Thông số kỹ thuật</h4>
-                                <div>
-                                    <h5>Bộ xử lý CPU</h5>
-                                    <p>{product1?.cpu}</p>
-                                </div>
-
-                                <div>
-                                    <h5>Ram</h5>
-                                    <p>{product1?.ram}</p>
-                                </div>
-
-                                <div>
-                                    <h5>Màn hình</h5>
-                                    <p>{product1?.screen}</p>
-                                </div>
-                                <div>
-                                    <h5>GPU</h5>
-                                    <p>{product1?.gpu}</p>
-                                </div>
-                                <div>
-                                    <h5>Ổ cứng</h5>
-                                    <p>{product1?.storage}</p>
-                                </div>
-                                <div>
-                                    <h5>Kích thước</h5>
-                                    <p>{product1?.weight}</p>
-                                </div>
-                                <div>
-                                    <h5>Camera</h5>
-                                    <p>{product1?.camera}</p>
-                                </div>
-                                <div>
-                                    <h5>Pin</h5>
-                                    <p>{product1?.battery}</p>
-                                </div>
+                                {product1Specs.map((item) => (
+                                    <div key={`product1-${item.label}`}>
+                                        <h5>{item.label}</h5>
+                                        <p>{item.value}</p>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>
@@ -203,40 +233,12 @@ function CompareProduct() {
 
                             <div className={cx('specs')}>
                                 <h4>Thông số kỹ thuật</h4>
-                                <div>
-                                    <h5>Bộ xử lý CPU</h5>
-                                    <p>{product2?.cpu}</p>
-                                </div>
-
-                                <div>
-                                    <h5>Ram</h5>
-                                    <p>{product2?.ram}</p>
-                                </div>
-
-                                <div>
-                                    <h5>Màn hình</h5>
-                                    <p>{product2?.screen}</p>
-                                </div>
-                                <div>
-                                    <h5>GPU</h5>
-                                    <p>{product2?.gpu}</p>
-                                </div>
-                                <div>
-                                    <h5>Ổ cứng</h5>
-                                    <p>{product2?.storage}</p>
-                                </div>
-                                <div>
-                                    <h5>Kích thước</h5>
-                                    <p>{product2?.weight}</p>
-                                </div>
-                                <div>
-                                    <h5>Camera</h5>
-                                    <p>{product2?.camera}</p>
-                                </div>
-                                <div>
-                                    <h5>Pin</h5>
-                                    <p>{product2?.battery}</p>
-                                </div>
+                                {product2Specs.map((item) => (
+                                    <div key={`product2-${item.label}`}>
+                                        <h5>{item.label}</h5>
+                                        <p>{item.value}</p>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>

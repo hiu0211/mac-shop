@@ -151,12 +151,12 @@ function RegisterUser() {
                             size="large"
                             loading={loading}
                             onClick={handleRegister}
-                            style={{ width: '100%' }}
+                            style={{ width: '100%', marginTop: '10px' }}
                         >
                             {loading ? 'Đang đăng ký...' : 'Đăng ký'}
                         </Button>
 
-                        <div style={{ margin: '20px 0', textAlign: 'center' }}>
+                        <div style={{ textAlign: 'center' }}>
                             <span style={{ color: '#666' }}>Hoặc</span>
                         </div>
 

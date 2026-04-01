@@ -12,6 +12,7 @@ import {
     GiftOutlined,
     LogoutOutlined,
     MobileOutlined,
+    AppstoreOutlined,
 } from '@ant-design/icons';
 import Dashboard from './Components/Dashboard';
 import ProductManagement from './Components/ProductManagement';
@@ -23,6 +24,8 @@ import CouponManagement from './Components/CouponManagement';
 import MessageManagement from './Components/MessageManagement';
 import ReviewManagement from './Components/ReviewManagement';
 import BrandManagement from './Components/BrandManagement';
+import ManagerProductType from './Components/ManagerProductType/ManagerProductType';
+import ManagerProductTypeEditor from './Components/ManagerProductType/ManagerProductTypeEditor';
 import { requestAdmin, requestLogout } from '../../Config/request';
 import { useNavigate } from 'react-router-dom';
 
@@ -33,6 +36,7 @@ const MainLayout = () => {
     const [activeComponent, setActiveComponent] = useState('dashboard');
 
     const [productId, setProductId] = useState();
+    const [productTypeId, setProductTypeId] = useState();
 
     const menuItems = [
         {
@@ -44,6 +48,11 @@ const MainLayout = () => {
             key: 'products',
             icon: <ProductOutlined />,
             label: 'Quản lý sản phẩm',
+        },
+        {
+            key: 'product-types',
+            icon: <AppstoreOutlined />,
+            label: 'Quản lý loại sản phẩm',
         },
         {
             key: 'brands',
@@ -83,6 +92,22 @@ const MainLayout = () => {
                 return <Dashboard />;
             case 'products':
                 return <ProductManagement setActiveComponent={setActiveComponent} setProductId={setProductId} />;
+            case 'product-types':
+                return (
+                    <ManagerProductType
+                        setActiveComponent={setActiveComponent}
+                        setProductTypeId={setProductTypeId}
+                    />
+                );
+            case 'add-product-type':
+                return <ManagerProductTypeEditor setActiveComponent={setActiveComponent} />;
+            case 'edit-product-type':
+                return (
+                    <ManagerProductTypeEditor
+                        setActiveComponent={setActiveComponent}
+                        productTypeId={productTypeId}
+                    />
+                );
             case 'add-product':
                 return <AddProduct setActiveComponent={setActiveComponent} />;
             case 'edit-product':
@@ -119,14 +144,14 @@ const MainLayout = () => {
     }, [navigate]);
 
     const handleLogout = async () => {
-    try {
-        await requestLogout();
-    } catch {
-        // Best-effort logout
-    } finally {
-        localStorage.clear();
-        window.location.href = '/login';
-    }
+        try {
+            await requestLogout();
+        } catch (error) {
+            console.error('Logout error:', error.response?.data?.message);
+        } finally {
+            localStorage.clear();
+            navigate('/admin/login');
+        }
     };
 
     const handleMenuClick = ({ key }) => {

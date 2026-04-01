@@ -4,31 +4,36 @@ import Header from '../../Components/Header/Header';
 
 import InfoUser from './Components/InfoUser/InfoUser';
 import { useStore } from '../../hooks/useStore';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import { requestLogout } from '../../Config/request';
 import { useNavigate } from 'react-router-dom';
 import { message } from 'antd';
 import userAvatar from '../../assets/images/User.png';
+import Context from '../../store/Context';
 
 const cx = classNames.bind(styles);
 
 function Index() {
     const { dataUser } = useStore();
+    const { clearAuth } = useContext(Context);
 
     const [isOpen, setIsOpen] = useState(false);
     const [avatarPreview, setAvatarPreview] = useState(userAvatar);
+    const [loading, setLoading] = useState(false);
 
     const navigate = useNavigate();
 
     const handleLogOut = async () => {
+        setLoading(true);
         try {
             await requestLogout();
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+            message.success('Đăng xuất thành công');
+            clearAuth();
             navigate('/');
         } catch (error) {
-            message.error(error.response.data.message);
+            message.error(error.response?.data?.message || 'Đăng xuất thất bại');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -74,8 +79,8 @@ function Index() {
                         <h4>{dataUser.fullName}</h4>
                         <ul>
                             {/* <li id={cx('active')}>Trang cá nhân</li> */}
-                            <li onClick={() => setIsOpen(true)}>Đổi mật khẩu</li>
-                            <li onClick={handleLogOut}>Đăng xuất</li>
+                            <li onClick={() => setIsOpen(true)} style={{ pointerEvents: loading ? 'none' : 'auto', opacity: loading ? 0.6 : 1 }}>Đổi mật khẩu</li>
+                            <li onClick={handleLogOut} style={{ pointerEvents: loading ? 'none' : 'auto', opacity: loading ? 0.6 : 1 }}>{loading ? 'Đang đăng xuất...' : 'Đăng xuất'}</li>
                         </ul>
                     </div>
                     <div className={cx('form')}>

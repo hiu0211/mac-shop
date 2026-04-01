@@ -36,6 +36,12 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
             sorter: (a, b) => (a.brand || '').localeCompare(b.brand || ''),
         },
         {
+            title: 'Loại sản phẩm',
+            dataIndex: 'componentType',
+            key: 'componentType',
+            render: (componentType) => <Tag color="purple">{componentType || 'Chưa cập nhật'}</Tag>,
+        },
+        {
             title: 'Giá gốc',
             dataIndex: 'price',
             key: 'price',
@@ -45,8 +51,8 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
         },
         {
             title: 'Giá sản phẩm',
-            dataIndex: 'priceDiscount',
-            key: 'priceDiscount',
+            dataIndex: 'displayPrice',
+            key: 'displayPrice',
             render: (price) => `${price.toLocaleString()} VNĐ`,
         },
         {
@@ -98,8 +104,10 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
         id: product._id,
         name: product.name,
         brand: product.brand,
+        componentType: product.componentType,
         price: product.price,
         priceDiscount: product.priceDiscount,
+        displayPrice: product.priceDiscount > 0 ? product.priceDiscount : product.price,
         stock: product.stock,
         image: product.images[0],
     }));
@@ -110,8 +118,9 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
         return (
             item.name?.toLowerCase().includes(searchLower) ||
             item.brand?.toLowerCase().includes(searchLower) ||
+            item.componentType?.toLowerCase().includes(searchLower) ||
             item.price?.toString().includes(searchLower) ||
-            item.priceDiscount?.toString().includes(searchLower)
+            item.displayPrice?.toString().includes(searchLower)
         );
     });
 

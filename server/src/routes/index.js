@@ -4,6 +4,7 @@ const brandRoutes = require("./brands.routes");
 const cartRoutes = require("./cart.routes");
 const paymentsRoutes = require("./payments.routes");
 const couponsRoutes = require("./coupons.routes");
+const productTypeRoutes = require("./productType.routes");
 
 function routes(app) {
   app.post("/api/register", userRoutes);
@@ -33,6 +34,12 @@ function routes(app) {
   app.delete("/api/delete-product", productRoutes);
   app.get("/api/search-product", productRoutes);
   app.get("/api/filter-product", productRoutes);
+
+  app.post("/api/product-types", productTypeRoutes);
+  app.get("/api/product-types", productTypeRoutes);
+  app.put("/api/product-types/:id", productTypeRoutes);
+  app.delete("/api/product-types/:id", productTypeRoutes);
+  app.get("/api/product-types/check-code", productTypeRoutes);
 
   app.get("/api/brands", brandRoutes);
   app.get("/api/admin/brands", brandRoutes);

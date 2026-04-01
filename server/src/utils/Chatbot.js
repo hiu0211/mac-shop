@@ -7,6 +7,78 @@ const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 const modelProduct = require("../models/products.model");
 
+const LEGACY_SPEC_FIELDS = [
+  { key: "cpu", label: "CPU" },
+  { key: "screen", label: "Màn hình" },
+  { key: "screenHz", label: "Tần số màn hình" },
+  { key: "gpu", label: "GPU" },
+  { key: "ram", label: "RAM" },
+  { key: "storage", label: "Bộ nhớ" },
+  { key: "battery", label: "Pin" },
+  { key: "camera", label: "Camera" },
+  { key: "weight", label: "Trọng lượng" },
+];
+
+const normalizeAttributes = (attributes) => {
+  if (!attributes) {
+    return {};
+  }
+
+  if (typeof attributes === "string") {
+    try {
+      const parsed = JSON.parse(attributes);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  if (typeof attributes === "object" && !Array.isArray(attributes)) {
+    return { ...attributes };
+  }
+
+  return {};
+};
+
+const getDisplayPrice = (product) => {
+  const price = Number(product?.price || 0);
+  const discount = Number(product?.discount || 0);
+  const legacyPriceDiscount = Number(product?.priceDiscount || 0);
+
+  if (discount > 0) {
+    return {
+      hasDiscount: true,
+      finalPrice: Math.round((price * (100 - discount)) / 100),
+    };
+  }
+
+  if (legacyPriceDiscount > 0 && legacyPriceDiscount < price) {
+    return {
+      hasDiscount: true,
+      finalPrice: legacyPriceDiscount,
+    };
+  }
+
+  return {
+    hasDiscount: false,
+    finalPrice: price,
+  };
+};
+
+const getSpecsText = (product) => {
+  const dynamicAttributes = normalizeAttributes(product?.attributes);
+  const entries = Object.entries(dynamicAttributes).filter(([, value]) => value != null && String(value).trim() !== "");
+
+  if (entries.length > 0) {
+    return entries.map(([key, value]) => `${key}: ${value}`).join(" | ");
+  }
+
+  return LEGACY_SPEC_FIELDS
+    .filter((field) => product?.[field.key] != null && String(product[field.key]).trim() !== "")
+    .map((field) => `${field.label}: ${product[field.key]}`)
+    .join(" | ");
+};
+
 async function askQuestion(question) {
   try {
     const products = await modelProduct.find({});
@@ -14,13 +86,15 @@ async function askQuestion(question) {
     // Format gọn nhưng vẫn đầy đủ thông tin
     const productData = products
       .map((p) => {
-        const price = p.priceDiscount 
-          ? `${p.priceDiscount.toLocaleString("vi-VN")}đ (giảm từ ${p.price.toLocaleString("vi-VN")}đ)`
-          : `${p.price.toLocaleString("vi-VN")}đ`;
+        const pricing = getDisplayPrice(p);
+        const price = pricing.hasDiscount
+          ? `${pricing.finalPrice.toLocaleString("vi-VN")}đ (giảm từ ${Number(p.price || 0).toLocaleString("vi-VN")}đ)`
+          : `${Number(p.price || 0).toLocaleString("vi-VN")}đ`;
+        const specsText = getSpecsText(p);
         
         const status = p.stock > 0 ? `Còn ${p.stock} máy` : "HẾT HÀNG";
         
-        return `- ${p.name}: ${price} | ${p.cpu} | ${p.screen} (${p.screenHz}) | ${p.gpu} | ${p.ram} | ${p.storage} | Pin ${p.battery} | Camera ${p.camera} | ${p.weight} | ${status}`;
+        return `- ${p.name}: ${price}${specsText ? ` | ${specsText}` : ""} | ${status}`;
       })
       .join("\n");
 

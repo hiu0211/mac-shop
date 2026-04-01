@@ -1,0 +1,15 @@
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.toolbar {
+    :global(.ant-card-body) {
+        display: flex;
+        justify-content: flex-start;
+        // gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+}

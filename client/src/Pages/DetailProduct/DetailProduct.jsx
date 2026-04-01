@@ -18,6 +18,61 @@ import { Empty, Rate, message } from 'antd';
 
 const cx = classNames.bind(styles);
 
+const LEGACY_SPEC_FIELDS = [
+    { key: 'cpu', label: 'Bộ xử lý CPU' },
+    { key: 'ram', label: 'Ram' },
+    { key: 'screen', label: 'Màn hình' },
+    { key: 'gpu', label: 'GPU' },
+    { key: 'storage', label: 'Ổ cứng' },
+    { key: 'weight', label: 'Kích thước' },
+    { key: 'camera', label: 'Camera' },
+    { key: 'battery', label: 'Pin' },
+];
+
+const normalizeAttributes = (attributes) => {
+    if (!attributes) {
+        return {};
+    }
+
+    if (typeof attributes === 'string') {
+        try {
+            const parsed = JSON.parse(attributes);
+            return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch {
+            return {};
+        }
+    }
+
+    if (typeof attributes === 'object' && !Array.isArray(attributes)) {
+        return { ...attributes };
+    }
+
+    return {};
+};
+
+const formatSpecLabel = (key) => {
+    return String(key || '')
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const buildSpecs = (product = {}) => {
+    const dynamicAttributes = normalizeAttributes(product.attributes);
+    const dynamicEntries = Object.entries(dynamicAttributes).filter(([, value]) => value != null && String(value).trim() !== '');
+
+    if (dynamicEntries.length > 0) {
+        return dynamicEntries.map(([key, value]) => ({
+            label: formatSpecLabel(key),
+            value,
+        }));
+    }
+
+    return LEGACY_SPEC_FIELDS.filter((field) => product[field.key] != null && String(product[field.key]).trim() !== '').map((field) => ({
+        label: field.label,
+        value: product[field.key],
+    }));
+};
+
 function DetailProduct() {
     const ref = useRef();
     const navigate = useNavigate();
@@ -70,6 +125,7 @@ function DetailProduct() {
     const reviews = Array.isArray(dataProduct?.reviews) ? dataProduct.reviews : [];
     const averageRating =
         reviews.length > 0 ? reviews.reduce((sum, item) => sum + Number(item.rating || 0), 0) / reviews.length : 0;
+    const specs = buildSpecs(dataProduct);
 
     return (
         <div className={cx('wrapper')}>
@@ -168,40 +224,12 @@ function DetailProduct() {
 
                         <div className={cx('specs')}>
                             <h4>Thông số kỹ thuật</h4>
-                            <div>
-                                <h5>Bộ xử lý CPU</h5>
-                                <p>{dataProduct?.cpu}</p>
-                            </div>
-
-                            <div>
-                                <h5>Ram</h5>
-                                <p>{dataProduct?.ram}</p>
-                            </div>
-
-                            <div>
-                                <h5>Màn hình</h5>
-                                <p>{dataProduct?.screen}</p>
-                            </div>
-                            <div>
-                                <h5>GPU</h5>
-                                <p>{dataProduct?.gpu}</p>
-                            </div>
-                            <div>
-                                <h5>Ổ cứng</h5>
-                                <p>{dataProduct?.storage}</p>
-                            </div>
-                            <div>
-                                <h5>Kích thước</h5>
-                                <p>{dataProduct?.weight}</p>
-                            </div>
-                            <div>
-                                <h5>Camera</h5>
-                                <p>{dataProduct?.camera}</p>
-                            </div>
-                            <div>
-                                <h5>Pin</h5>
-                                <p>{dataProduct?.battery}</p>
-                            </div>
+                            {specs.map((item) => (
+                                <div key={item.label}>
+                                    <h5>{item.label}</h5>
+                                    <p>{item.value}</p>
+                                </div>
+                            ))}
                         </div>
 
                         <div className={cx('reviews')}>
