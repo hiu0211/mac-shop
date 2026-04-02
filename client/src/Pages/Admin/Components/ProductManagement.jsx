@@ -87,8 +87,16 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
     const fetchData = async () => {
         try {
             const res = await requestGetAllProduct();
-            // Đảo ngược mảng để sản phẩm mới nhất hiển thị đầu tiên
-            setProducts(res.metadata.reverse());
+            // Sort sản phẩm theo createdAt (nếu có) hoặc _id descending
+            const sortedProducts = (res.metadata || []).sort((a, b) => {
+                // Ưu tiên sort theo createdAt nếu có
+                if (a.createdAt && b.createdAt) {
+                    return new Date(b.createdAt) - new Date(a.createdAt);
+                }
+                // Fallback: sort theo _id (MongoDB ObjectId)
+                return b._id.localeCompare(a._id);
+            });
+            setProducts(sortedProducts);
         } catch (error) {
             console.error('Lỗi khi lấy danh sách sản phẩm:', error);
             message.error('Không thể tải danh sách sản phẩm');

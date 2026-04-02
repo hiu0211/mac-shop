@@ -126,7 +126,7 @@ function CompareProduct() {
                                 </li>
                                 <li>
                                     <FontAwesomeIcon icon={faCheckCircle} />
-                                    <span>Sản phẩm chính hãng Apple Việt Nam mới 100% nguyên seal</span>
+                                    <span>Sản phẩm chính hãng Việt Nam mới 100% nguyên seal</span>
                                 </li>
                                 <li>
                                     <FontAwesomeIcon icon={faCheckCircle} />
@@ -192,7 +192,7 @@ function CompareProduct() {
                                 </li>
                                 <li>
                                     <FontAwesomeIcon icon={faCheckCircle} />
-                                    <span>Sản phẩm chính hãng Apple Việt Nam mới 100% nguyên seal</span>
+                                    <span>Sản phẩm chính hãng Việt Nam mới 100% nguyên seal</span>
                                 </li>
                                 <li>
                                     <FontAwesomeIcon icon={faCheckCircle} />

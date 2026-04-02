@@ -170,7 +170,7 @@ function DetailProduct() {
                             <h3 className={cx('boxTitle')}>Ưu đãi dành cho bạn</h3>
                             <ul>
                                 <li><FontAwesomeIcon icon={faCheckCircle} /> Hãng sản xuất: <strong>{dataProduct?.brand || 'Đang cập nhật'}</strong></li>
-                                <li><FontAwesomeIcon icon={faCheckCircle} /> Sản phẩm chính hãng Apple Việt Nam mới 100% nguyên seal</li>
+                                <li><FontAwesomeIcon icon={faCheckCircle} /> Sản phẩm chính hãng Việt Nam mới 100% nguyên seal</li>
                                 <li><FontAwesomeIcon icon={faCheckCircle} /> Giao hàng ngày mở bán tại Việt Nam 27/06/2025</li>
                                 <li><FontAwesomeIcon icon={faCheckCircle} /> <strong>Giảm thêm 10%</strong> khi mua kèm phụ kiện chính hãng</li>
                             </ul>

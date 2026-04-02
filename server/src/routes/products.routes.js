@@ -2,25 +2,9 @@ const express = require("express");
 const router = express.Router();
 
 const multer = require("multer");
-const path = require("path");
-const crypto = require("crypto");
 
-let fileCounter = 0;
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "src/uploads/images");
-  },
-  filename: function (req, file, cb) {
-    // Tạo tên file duy nhất với timestamp + counter + random string
-    fileCounter += 1;
-    const timestamp = Date.now();
-    const randomString = crypto.randomBytes(6).toString('hex');
-    const ext = path.extname(file.originalname);
-    const uniqueFilename = `${timestamp}-${fileCounter}-${randomString}${ext}`;
-    cb(null, uniqueFilename);
-  },
-});
+// Sử dụng memory storage - file sẽ được xử lý bởi Cloudinary
+const storage = multer.memoryStorage();
 
 var upload = multer({
   storage: storage,

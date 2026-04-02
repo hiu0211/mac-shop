@@ -101,6 +101,16 @@
     background-color: #363636 !important;
 }
 
+.googleLoginWrap {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.googleLoginWrap :global(.g_id_signin) {
+    margin: 0 auto;
+}
+
 @media (max-width: 480px) {
     .title {
         font-size: 28px !important;

@@ -3,6 +3,7 @@ const { OK } = require("../core/success.response");
 
 const modelProduct = require("../models/products.model");
 const modelProductType = require("../models/productType.model");
+const { uploadMultipleToCloudinary } = require("../utils/cloudinary");
 
 const escapeRegex = (keyword = "") => keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -438,15 +439,25 @@ class controllerProducts {
   }
 
   async uploadImage(req, res) {
-    if (!req.files) {
-      return;
+    if (!req.files || req.files.length === 0) {
+      throw new BadRequestError("Vui lòng tải lên ít nhất một ảnh");
     }
-    const files = req.files;
-    const data = files.map((file) => {
-      return `http://localhost:3000/uploads/images/${file.filename}`;
-    });
 
-    new OK({ message: "Tạo sản phẩm thông tin", metadata: data }).send(res);
+    try {
+      // Lấy buffers từ files được upload qua multer memory storage
+      const buffers = req.files.map((file) => file.buffer);
+
+      // Upload lên Cloudinary
+      const imageUrls = await uploadMultipleToCloudinary(buffers, 'mac-shop/products');
+
+      new OK({
+        message: "Tải ảnh lên thành công",
+        metadata: imageUrls,
+      }).send(res);
+    } catch (error) {
+      console.error("Upload lên Cloudinary thất bại:", error);
+      throw new BadRequestError("Tải ảnh lên thất bại: " + error.message);
+    }
   }
 
   async getProducts(req, res) {
