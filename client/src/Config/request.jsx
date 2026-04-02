@@ -321,6 +321,11 @@ export const requestRemoveCoupon = async () => {
     return res.data;
 };
 
+export const requestGetAvailableCoupons = async () => {
+    const res = await request.get('/api/coupons');
+    return res.data;
+};
+
 let isRefreshing = false;
 let failedRequestsQueue = [];
 

@@ -1,8 +1,8 @@
 import classNames from 'classnames/bind';
 import styles from './Cart.module.scss';
 import Header from '../../Components/Header/Header';
-import { Button, Table, Form, Input, AutoComplete, InputNumber } from 'antd';
-import { useEffect, useState } from 'react';
+import { Button, Table, Form, Input, AutoComplete, InputNumber, Divider, message, Select, Tag, Space } from 'antd';
+import { useCallback, useEffect, useState } from 'react';
 import {
     requestApplyCoupon,
     requestDeleteCart,
@@ -11,47 +11,107 @@ import {
     requestRemoveCoupon,
     requestUpdateInfoUserCart,
     requestUpdateQuantityCart,
+    requestGetAvailableCoupons,
 } from '../../Config/request';
-import { message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import useDebounce from '../../hooks/useDebounce';
 import useDebounceCallback from '../../hooks/useDebounceCallback';
-import { MinusOutlined, PlusOutlined } from '@ant-design/icons';
+import { MinusOutlined, PlusOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 
 const cx = classNames.bind(styles);
 
 function Cart() {
     const [cart, setCart] = useState([]);
+    const [selectedRowKeys, setSelectedRowKeys] = useState([]);
     const [totalPrice, setTotalPrice] = useState(0);
     const [totalPriceAfterDiscount, setTotalPriceAfterDiscount] = useState(0);
     const [discountAmount, setDiscountAmount] = useState(0);
     const [couponCode, setCouponCode] = useState('');
-    const [couponInput, setCouponInput] = useState('');
+    const [selectedCouponCode, setSelectedCouponCode] = useState(undefined);
+    const [applyingCoupon, setApplyingCoupon] = useState(false);
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
     const [updatingQuantity, setUpdatingQuantity] = useState({});
-    
+    const [availableCoupons, setAvailableCoupons] = useState([]);
+
     // States cho Autocomplete địa chỉ
     const [addressOptions, setAddressOptions] = useState([]);
     const [valueAddress, setValueAddress] = useState('');
-    
+
     // Debounce để tối ưu API calls
     const debounce = useDebounce(valueAddress, 500);
+    const navigate = useNavigate();
 
-    const fetchCart = async () => {
-        const res = await requestGetCart();
-        setCart(res.metadata.newData.data);
-        setTotalPrice(res.metadata.newData.totalPrice);
-        setTotalPriceAfterDiscount(res.metadata.newData.totalPriceAfterDiscount || res.metadata.newData.totalPrice);
-        setDiscountAmount(res.metadata.newData.discountAmount || 0);
-        setCouponCode(res.metadata.newData.couponCode || '');
-        setCouponInput(res.metadata.newData.couponCode || '');
-    };
+    const fetchCart = useCallback(async () => {
+        try {
+            const res = await requestGetCart();
+            const newData = res?.metadata?.newData || {};
+            const cartData = Array.isArray(newData.data) ? newData.data : [];
+            setCart(cartData);
+            setDiscountAmount(Number(newData.discountAmount || 0));
+            setCouponCode(newData.couponCode || '');
+            setSelectedCouponCode(newData.couponCode || undefined);
+            setSelectedRowKeys((prev) => prev.filter((key) => cartData.some((item) => item._id === key)));
+        } catch (error) {
+            console.error(error);
+            setCart([]);
+            setSelectedRowKeys([]);
+            setTotalPrice(0);
+            setTotalPriceAfterDiscount(0);
+            setDiscountAmount(0);
+            setCouponCode('');
+            setSelectedCouponCode(undefined);
+
+            if (error?.response?.status === 401) {
+                message.error('Vui lòng đăng nhập để xem giỏ hàng');
+                navigate('/login');
+                return;
+            }
+
+            message.error(error?.response?.data?.message || 'Không thể tải giỏ hàng');
+        }
+    }, [navigate]);
+
+    // Fetch available coupons
+    const fetchAvailableCoupons = useCallback(async () => {
+        try {
+            const res = await requestGetAvailableCoupons();
+            setAvailableCoupons(res?.metadata || []);
+        } catch (error) {
+            console.error('Error fetching available coupons:', error);
+            setAvailableCoupons([]);
+        }
+    }, []);
+
+    // Cleanup coupon when leaving page
+    useEffect(() => {
+        return () => {
+            // Auto-clear coupon when unmounting (leaving the page)
+            if (couponCode) {
+                requestRemoveCoupon().catch((error) => {
+                    console.error('Lỗi khi xóa mã giảm giá tự động:', error);
+                });
+            }
+        };
+    }, [couponCode]);
 
     useEffect(() => {
         fetchCart();
-    }, []);
+        fetchAvailableCoupons();
+    }, [fetchCart, fetchAvailableCoupons]);
+
+    useEffect(() => {
+        const selectedItems = cart.filter((item) => selectedRowKeys.includes(item._id));
+        const selectedTotal = selectedItems.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
+
+        setTotalPrice(selectedTotal);
+        if (couponCode) {
+            setTotalPriceAfterDiscount(Math.max(selectedTotal - discountAmount, 0));
+        } else {
+            setTotalPriceAfterDiscount(selectedTotal);
+        }
+    }, [cart, selectedRowKeys, couponCode, discountAmount]);
 
     // Fetch địa chỉ từ Goong API
     useEffect(() => {
@@ -63,12 +123,12 @@ function Cart() {
                         api_key: '3HcKy9jen6utmzxno4HwpkN1fJYll5EM90k53N4K',
                     },
                 });
-                
+
                 const options = response.data.predictions.map((item) => ({
                     value: item.description,
                     label: item.description,
                 }));
-                
+
                 setAddressOptions(options);
             } catch (error) {
                 console.error('Lỗi khi lấy địa chỉ:', error);
@@ -116,43 +176,17 @@ function Cart() {
         }
 
         // Update UI ngay lập tức (optimistic update)
-        setCart(prevCart => 
-            prevCart.map(item => 
-                item._id === productId 
+        setCart(prevCart =>
+            prevCart.map(item =>
+                item._id === productId
                     ? { ...item, quantity: newQuantity }
                     : item
             )
         );
-        
-        // Tính lại tổng giá tạm thời
-        const updatedCart = cart.map(item => 
-            item._id === productId 
-                ? { ...item, quantity: newQuantity }
-                : item
-        );
-        const newTotalPrice = updatedCart.reduce((sum, item) => 
-            sum + (item.price * item.quantity), 0
-        );
-        setTotalPrice(newTotalPrice);
-        if (couponCode) {
-            setTotalPriceAfterDiscount(Math.max(newTotalPrice - discountAmount, 0));
-        } else {
-            setTotalPriceAfterDiscount(newTotalPrice);
-        }
 
         // Gọi API với debounce (chờ 800ms sau lần nhấn cuối)
         debouncedUpdateAPI(productId, productId, newQuantity);
     };
-
-    const dataSource = cart.map((item) => ({
-        key: item._id,
-        id: item._id,
-        name: item.name,
-        image: item.images[0],
-        price: item.price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }),
-        quantity: item.quantity,
-        stock: item.stock,
-    }));
 
     const handleDelete = async (productId) => {
         try {
@@ -184,85 +218,6 @@ function Cart() {
             setLoading(false);
         }
     };
-
-    const navigate = useNavigate();
-
-    const columns = [
-        {
-            title: 'ID',
-            dataIndex: 'id',
-            key: 'id',
-            align: 'center',
-            hidden: true,
-        },
-        {
-            title: 'STT',
-            dataIndex: 'stt',
-            key: 'stt',
-            width: '60px',
-            render: (_, __, index) => index + 1,
-        },
-        {
-            title: 'Tên sản phẩm',
-            dataIndex: 'name',
-            key: 'name',
-            align: 'center',
-        },
-        {
-            title: 'Hình ảnh',
-            dataIndex: 'image',
-            key: 'image',
-            align: 'center',
-            render: (image) => <img src={image} alt="product" style={{ width: '100px', height: '100px' }} />,
-        },
-        {
-            title: 'Giá',
-            dataIndex: 'price',
-            key: 'price',
-            align: 'center',
-        },
-        {
-            title: 'Số lượng',
-            dataIndex: 'quantity',
-            key: 'quantity',
-            align: 'center',
-            render: (quantity, record) => (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                    <Button
-                        size="small"
-                        icon={<MinusOutlined />}
-                        onClick={() => handleUpdateQuantity(record.id, quantity - 1)}
-                        disabled={quantity <= 1 || updatingQuantity[record.id]}
-                    />
-                    <InputNumber
-                        min={1}
-                        max={record.stock + quantity}
-                        value={quantity}
-                        onChange={(value) => handleUpdateQuantity(record.id, value)}
-                        disabled={updatingQuantity[record.id]}
-                        style={{ width: '50px' }}
-                    />
-                    <Button
-                        size="small"
-                        icon={<PlusOutlined />}
-                        onClick={() => handleUpdateQuantity(record.id, quantity + 1)}
-                        disabled={updatingQuantity[record.id]}
-                    />
-                </div>
-            ),
-        },
-        {
-            title: 'Hành động',
-            dataIndex: 'action',
-            key: 'action',
-            align: 'center',
-            render: (_, record) => (
-                <Button onClick={() => handleDelete(record.id)} type="primary" danger>
-                    Xóa
-                </Button>
-            ),
-        },
-    ];
 
     const handlePayments = async (typePayment) => {
         try {
@@ -305,20 +260,25 @@ function Cart() {
         form.setFieldsValue({ address: value });
     };
 
-    const handleApplyCoupon = async () => {
+    const handleApplyCoupon = async (code) => {
         try {
-            if (!couponInput.trim()) {
-                message.warning('Vui lòng nhập mã giảm giá');
+            const normalizedCode = code?.trim();
+            if (!normalizedCode) {
                 return;
             }
-            const res = await requestApplyCoupon(couponInput.trim());
+            setApplyingCoupon(true);
+            const res = await requestApplyCoupon(normalizedCode);
             setDiscountAmount(res.metadata.discountAmount || 0);
             setTotalPriceAfterDiscount(res.metadata.totalPriceAfterDiscount || totalPrice);
-            setCouponCode(res.metadata.code || couponInput.trim().toUpperCase());
+            const appliedCode = res.metadata.code || normalizedCode.toUpperCase();
+            setCouponCode(appliedCode);
+            setSelectedCouponCode(appliedCode);
             message.success('Áp dụng mã giảm giá thành công');
         } catch (error) {
             console.error(error);
             message.error(error.response?.data?.message || 'Mã giảm giá không hợp lệ');
+        } finally {
+            setApplyingCoupon(false);
         }
     };
 
@@ -328,12 +288,94 @@ function Cart() {
             setDiscountAmount(0);
             setTotalPriceAfterDiscount(totalPrice);
             setCouponCode('');
-            setCouponInput('');
+            setSelectedCouponCode(undefined);
             message.success('Đã hủy mã giảm giá');
         } catch (error) {
             console.error(error);
             message.error('Không thể hủy mã giảm giá');
         }
+    };
+
+    const dataSource = cart.map((item) => ({
+        key: item._id,
+        id: item._id,
+        name: item.name,
+        image: item.images?.[0],
+        price: item.price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }),
+        quantity: item.quantity,
+        stock: item.stock,
+    }));
+
+    const columns = [
+        {
+            title: 'Hình ảnh',
+            dataIndex: 'image',
+            key: 'image',
+            align: 'center',
+            render: (image) => <img src={image} alt="product" style={{ width: '80px', height: '80px', objectFit: 'contain' }} />,
+        },
+        {
+            title: 'Tên sản phẩm',
+            dataIndex: 'name',
+            key: 'name',
+            align: 'left',
+        },
+        {
+            title: 'Giá',
+            dataIndex: 'price',
+            key: 'price',
+            align: 'center',
+            width: '120px',
+        },
+        {
+            title: 'Số lượng',
+            dataIndex: 'quantity',
+            key: 'quantity',
+            align: 'center',
+            width: '140px',
+            render: (quantity, record) => (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    <Button
+                        size="small"
+                        icon={<MinusOutlined />}
+                        onClick={() => handleUpdateQuantity(record.id, quantity - 1)}
+                        disabled={quantity <= 1 || updatingQuantity[record.id]}
+                    />
+                    <InputNumber
+                        min={1}
+                        max={record.stock + quantity}
+                        value={quantity}
+                        onChange={(value) => handleUpdateQuantity(record.id, value)}
+                        disabled={updatingQuantity[record.id]}
+                        style={{ width: '50px' }}
+                        controls={false}
+                    />
+                    <Button
+                        size="small"
+                        icon={<PlusOutlined />}
+                        onClick={() => handleUpdateQuantity(record.id, quantity + 1)}
+                        disabled={updatingQuantity[record.id]}
+                    />
+                </div>
+            ),
+        },
+        {
+            title: 'Thao tác',
+            dataIndex: 'action',
+            key: 'action',
+            align: 'center',
+            width: '100px',
+            render: (_, record) => (
+                <Button onClick={() => handleDelete(record.id)} type="text" danger>
+                    Xóa
+                </Button>
+            ),
+        },
+    ];
+
+    const rowSelection = {
+        selectedRowKeys,
+        onChange: (newSelectedRowKeys) => setSelectedRowKeys(newSelectedRowKeys),
     };
 
     return (
@@ -344,97 +386,192 @@ function Cart() {
 
             <main className={cx('main')}>
                 <div className={cx('container')}>
-                    <div className={cx('cart-header')}>
-                        <h4>Giỏ hàng</h4>
-                        <h4>Thành tiền: {totalPrice.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</h4>
-                    </div>
+                    <h2 className={cx('page-title')}>Giỏ hàng</h2>
 
-                    <div className={cx('cart-content')}>
-                        <Table bordered dataSource={dataSource} columns={columns} pagination={false} />
-                    </div>
-                    {cart.length > 0 && (
-                        <div className={cx('checkout-form')}>
-                            <h4>Mã giảm giá</h4>
-                            <div className={cx('coupon-row')}>
-                                <Input
-                                    placeholder="Nhập mã giảm giá"
-                                    value={couponInput}
-                                    onChange={(e) => setCouponInput(e.target.value)}
-                                    disabled={!!couponCode}
-                                />
-                                <Button type="primary" onClick={handleApplyCoupon} disabled={!!couponCode}>
-                                    Áp dụng
-                                </Button>
-                                {couponCode && (
-                                    <Button danger onClick={handleRemoveCoupon}>
-                                        Hủy mã
-                                    </Button>
-                                )}
-                            </div>
-                            {couponCode && (
-                                <div className={cx('coupon-info')}>
-                                    <p>Mã đã áp dụng: {couponCode}</p>
-                                    <p>Giảm giá: {discountAmount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</p>
-                                    <p>
-                                        Tổng thanh toán:{' '}
-                                        {totalPriceAfterDiscount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
-                                    </p>
-                                </div>
-                            )}
-                            <h4>Thông tin thanh toán</h4>
-                            <Form form={form} layout="vertical" onFinish={handleSubmit}>
-                                <Form.Item
-                                    label="Họ và tên"
-                                    name="fullName"
-                                    rules={[{ required: true, message: 'Vui lòng nhập họ và tên!' }]}
-                                >
-                                    <Input placeholder="Nhập họ và tên" />
-                                </Form.Item>
-
-                                <Form.Item
-                                    label="Số điện thoại"
-                                    name="phone"
-                                    rules={[
-                                        { required: true, message: 'Vui lòng nhập số điện thoại!' },
-                                        { pattern: /^[0-9]{10}$/, message: 'Số điện thoại không hợp lệ!' },
-                                    ]}
-                                >
-                                    <Input placeholder="Nhập số điện thoại" />
-                                </Form.Item>
-
-                                <Form.Item
-                                    label="Địa chỉ"
-                                    name="address"
-                                    rules={[{ required: true, message: 'Vui lòng nhập địa chỉ!' }]}
-                                >
-                                    <AutoComplete
-                                        options={addressOptions}
-                                        onSearch={handleAddressSearch}
-                                        onSelect={handleAddressSelect}
-                                        placeholder="Nhập địa chỉ"
-                                        filterOption={false}
-                                        notFoundContent={valueAddress ? "Đang tìm kiếm..." : null}
+                    {cart.length === 0 ? (
+                        <div className={cx('empty-cart')}>
+                            <ShoppingCartOutlined className={cx('empty-icon')} />
+                            <p>Không có sản phẩm nào trong giỏ hàng</p>
+                            <Button type="primary" size="large" onClick={() => navigate('/')}>
+                                Tiếp tục mua sắm
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className={cx('cart-layout')}>
+                            {/* CỘT TRÁI: DANH SÁCH SẢN PHẨM */}
+                            <div className={cx('cart-left')}>
+                                <div className={cx('cart-items-card')}>
+                                    <Table
+                                        bordered={false}
+                                        dataSource={dataSource}
+                                        columns={columns}
+                                        rowSelection={rowSelection}
+                                        pagination={false}
+                                        scroll={{ x: 700 }}
                                     />
-                                </Form.Item>
-
-                                <div className={cx('payment-btn')}>
-                                    <Button
-                                        onClick={() => handlePayments('COD')}
-                                        className={cx('submit-btn')}
-                                        loading={loading}
-                                    >
-                                        Thanh toán khi nhận hàng
-                                    </Button>
-                                    
-                                    <Button
-                                        onClick={() => handlePayments('VNPAY')}
-                                        className={cx('payment-btn-vnpay')}
-                                        loading={loading}
-                                    >
-                                        Thanh toán qua VNPAY
-                                    </Button>
                                 </div>
-                            </Form>
+                            </div>
+
+                            {/* CỘT PHẢI: THÔNG TIN THANH TOÁN & ĐẶT HÀNG */}
+                            <div className={cx('cart-right')}>
+                                <div className={cx('summary-card')}>
+                                    <h3 className={cx('summary-title')}>Tổng quan đơn hàng</h3>
+
+                                    <div className={cx('summary-row')}>
+                                        <span>Tạm tính:</span>
+                                        <span>{totalPrice.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</span>
+                                    </div>
+
+                                    {discountAmount > 0 && (
+                                        <div className={cx('summary-row', 'discount-row')}>
+                                            <span>Giảm giá:</span>
+                                            <span>- {discountAmount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</span>
+                                        </div>
+                                    )}
+
+                                    <div className={cx('summary-row', 'total-row')}>
+                                        <span>Thành tiền:</span>
+                                        <span className={cx('total-price')}>
+                                            {totalPriceAfterDiscount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
+                                        </span>
+                                    </div>
+                                    <p className={cx('tax-note')}>(Đã bao gồm VAT)</p>
+
+                                    <Divider />
+
+                                    <div className={cx('coupon-section')}>
+                                        <h4>Mã giảm giá</h4>
+                                        <div className={cx('coupon-row')}>
+                                            {couponCode ? (
+                                                <div className={cx('coupon-info')}>
+                                                    <div className={cx('coupon-info-text')}>
+                                                        <span className={cx('coupon-tag')}>{couponCode}</span>
+                                                        <span className={cx('coupon-desc')}>Đã áp dụng</span>
+                                                    </div>
+                                                    <Button type="text" danger onClick={handleRemoveCoupon}>
+                                                        Hủy
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <Space.Compact style={{ width: '100%' }}>
+                                                    <Select
+                                                        placeholder="Chọn mã giảm giá"
+                                                        style={{ width: '100%' }}
+                                                        value={selectedCouponCode}
+                                                        onChange={(value) => setSelectedCouponCode(value)}
+                                                        optionLabelRender={(option) => {
+                                                            const coupon = availableCoupons.find(c => c.code === option.value);
+                                                            if (!coupon) return option.value;
+                                                            return (
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                                                    <span>{coupon.code}</span>
+                                                                    <Tag color={coupon.type === 'PERCENT' ? 'blue' : 'green'}>
+                                                                        {coupon.type === 'PERCENT'
+                                                                            ? `${coupon.value}%`
+                                                                            : coupon.value.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
+                                                                    </Tag>
+                                                                </div>
+                                                            );
+                                                        }}
+                                                        options={availableCoupons.map((coupon) => ({
+                                                            label: (
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '12px' }}>
+                                                                    <div>
+                                                                        <div style={{ fontWeight: '500' }}>{coupon.code}</div>
+                                                                        {coupon.minOrderValue > 0 && (
+                                                                            <div style={{ fontSize: '12px', color: '#999' }}>
+                                                                                Đơn tối thiểu: {coupon.minOrderValue.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <Tag color={coupon.type === 'PERCENT' ? 'blue' : 'green'}>
+                                                                        {coupon.type === 'PERCENT'
+                                                                            ? `${coupon.value}%`
+                                                                            : coupon.value.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
+                                                                    </Tag>
+                                                                </div>
+                                                            ),
+                                                            value: coupon.code,
+                                                        }))}
+                                                    />
+                                                    <Button
+                                                        type="primary"
+                                                        onClick={() => handleApplyCoupon(selectedCouponCode)}
+                                                        loading={applyingCoupon}
+                                                        disabled={!selectedCouponCode}
+                                                    >
+                                                        Áp dụng
+                                                    </Button>
+                                                </Space.Compact>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <Divider />
+
+                                    <div className={cx('checkout-form')}>
+                                        <h4>Thông tin nhận hàng</h4>
+                                        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+                                            <Form.Item
+                                                label="Họ và tên"
+                                                name="fullName"
+                                                rules={[{ required: true, message: 'Vui lòng nhập họ và tên!' }]}
+                                            >
+                                                <Input placeholder="Nhập họ và tên người nhận" size="large" />
+                                            </Form.Item>
+
+                                            <Form.Item
+                                                label="Số điện thoại"
+                                                name="phone"
+                                                rules={[
+                                                    { required: true, message: 'Vui lòng nhập số điện thoại!' },
+                                                    { pattern: /^[0-9]{10}$/, message: 'Số điện thoại không hợp lệ!' },
+                                                ]}
+                                            >
+                                                <Input placeholder="Nhập số điện thoại liên hệ" size="large" />
+                                            </Form.Item>
+
+                                            <Form.Item
+                                                label="Địa chỉ giao hàng"
+                                                name="address"
+                                                rules={[{ required: true, message: 'Vui lòng nhập địa chỉ!' }]}
+                                            >
+                                                <AutoComplete
+                                                    options={addressOptions}
+                                                    onSearch={handleAddressSearch}
+                                                    onSelect={handleAddressSelect}
+                                                    placeholder="Nhập địa chỉ nhận hàng"
+                                                    filterOption={false}
+                                                    size="large"
+                                                    notFoundContent={valueAddress ? "Đang tìm kiếm..." : null}
+                                                />
+                                            </Form.Item>
+
+                                            <div className={cx('payment-actions')}>
+                                                <Button
+                                                    onClick={() => handlePayments('COD')}
+                                                    className={cx('submit-btn')}
+                                                    loading={loading}
+                                                    size="large"
+                                                    block
+                                                >
+                                                    Thanh toán khi nhận hàng (COD)
+                                                </Button>
+
+                                                <Button
+                                                    onClick={() => handlePayments('VNPAY')}
+                                                    className={cx('payment-btn-vnpay')}
+                                                    loading={loading}
+                                                    size="large"
+                                                    block
+                                                >
+                                                    Thanh toán qua VNPAY
+                                                </Button>
+                                            </div>
+                                        </Form>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>

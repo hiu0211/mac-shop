@@ -14,5 +14,6 @@ router.delete('/api/admin/coupons', authAdmin, asyncHandler(controllerCoupons.de
 router.post('/api/coupons/validate', authUser, asyncHandler(controllerCoupons.validateCoupon));
 router.post('/api/coupons/apply', authUser, asyncHandler(controllerCoupons.applyCoupon));
 router.post('/api/coupons/remove', authUser, asyncHandler(controllerCoupons.removeCoupon));
+router.get('/api/coupons', asyncHandler(controllerCoupons.getAvailableCoupons));
 
 module.exports = router;

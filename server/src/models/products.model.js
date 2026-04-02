@@ -15,15 +15,6 @@ const modelProduct = new Schema(
     stock: { type: Number, required: true, min: 0 },
     componentType: { type: String, trim: true, lowercase: true, default: "" },
     attributes: { type: Schema.Types.Mixed, default: {} },
-    cpu: { type: String, default: "" },
-    screen: { type: String, default: "" },
-    gpu: { type: String, default: "" },
-    storage: { type: String, default: "" },
-    screenHz: { type: String, default: "" },
-    ram: { type: String, default: "" },
-    battery: { type: String, default: "" },
-    camera: { type: String, default: "" },
-    weight: { type: String, default: "" },
     reviews: [
       {
         userId: { type: String, required: true, ref: "user" },

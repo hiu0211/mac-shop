@@ -7,7 +7,7 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { EffectFade, Navigation, Pagination, Autoplay } from 'swiper/modules';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
-import { faCheckCircle } from '@fortawesome/free-regular-svg-icons';
+import { faCheckCircle, faShieldHalved, faTruckFast, faRotateLeft, faPhoneVolume } from '@fortawesome/free-solid-svg-icons';
 
 import { useEffect, useRef, useState } from 'react';
 import { requestAddToCart, requestGetProductById } from '../../Config/request';
@@ -18,35 +18,17 @@ import { Empty, Rate, message } from 'antd';
 
 const cx = classNames.bind(styles);
 
-const LEGACY_SPEC_FIELDS = [
-    { key: 'cpu', label: 'Bộ xử lý CPU' },
-    { key: 'ram', label: 'Ram' },
-    { key: 'screen', label: 'Màn hình' },
-    { key: 'gpu', label: 'GPU' },
-    { key: 'storage', label: 'Ổ cứng' },
-    { key: 'weight', label: 'Kích thước' },
-    { key: 'camera', label: 'Camera' },
-    { key: 'battery', label: 'Pin' },
-];
-
 const normalizeAttributes = (attributes) => {
-    if (!attributes) {
-        return {};
-    }
-
+    if (!attributes) return {};
     if (typeof attributes === 'string') {
         try {
             const parsed = JSON.parse(attributes);
             return parsed && typeof parsed === 'object' ? parsed : {};
-        } catch {
-            return {};
-        }
+        } catch { return {}; }
     }
-
     if (typeof attributes === 'object' && !Array.isArray(attributes)) {
         return { ...attributes };
     }
-
     return {};
 };
 
@@ -56,29 +38,40 @@ const formatSpecLabel = (key) => {
         .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
+const normalizeSpecifications = (specifications) => {
+    if (!Array.isArray(specifications)) return [];
+    return specifications
+        .filter((item) => item && typeof item === 'object')
+        .map((item) => ({
+            key: String(item.key || item.label || '').trim(),
+            label: String(item.label || item.key || '').trim(),
+            value: item.value,
+        }))
+        .filter((item) => item.label && item.value != null && String(item.value).trim() !== '');
+};
+
 const buildSpecs = (product = {}) => {
+    const normalizedSpecs = normalizeSpecifications(product.specifications);
+    if (normalizedSpecs.length > 0) return normalizedSpecs;
+
     const dynamicAttributes = normalizeAttributes(product.attributes);
     const dynamicEntries = Object.entries(dynamicAttributes).filter(([, value]) => value != null && String(value).trim() !== '');
 
     if (dynamicEntries.length > 0) {
         return dynamicEntries.map(([key, value]) => ({
+            key,
             label: formatSpecLabel(key),
             value,
         }));
     }
 
-    return LEGACY_SPEC_FIELDS.filter((field) => product[field.key] != null && String(product[field.key]).trim() !== '').map((field) => ({
-        label: field.label,
-        value: product[field.key],
-    }));
+    return [];
 };
 
 function DetailProduct() {
     const ref = useRef();
     const navigate = useNavigate();
-
     const { id } = useParams();
-
     const [dataProduct, setDataProduct] = useState({});
 
     useEffect(() => {
@@ -90,7 +83,7 @@ function DetailProduct() {
     }, [id]);
 
     useEffect(() => {
-        ref.current.scrollIntoView({ behavior: 'smooth' });
+        ref.current?.scrollIntoView({ behavior: 'smooth' });
     }, [id]);
 
     const handleAddToCart = async () => {
@@ -100,17 +93,14 @@ function DetailProduct() {
             return false;
         }
         try {
-            const data = {
-                productId: id,
-                quantity: 1,
-            };
+            const data = { productId: id, quantity: 1 };
             await requestAddToCart(data);
             window.dispatchEvent(new Event('cart-updated'));
             message.success('Thêm vào giỏ hàng thành công');
             return true;
         } catch (error) {
             console.error(error);
-            message.error('Sản phẩm đã hết hàng');
+            message.error('Sản phẩm đã hết hàng hoặc có lỗi xảy ra');
             return false;
         }
     };
@@ -123,130 +113,119 @@ function DetailProduct() {
     };
 
     const reviews = Array.isArray(dataProduct?.reviews) ? dataProduct.reviews : [];
-    const averageRating =
-        reviews.length > 0 ? reviews.reduce((sum, item) => sum + Number(item.rating || 0), 0) / reviews.length : 0;
+    const averageRating = reviews.length > 0 ? reviews.reduce((sum, item) => sum + Number(item.rating || 0), 0) / reviews.length : 0;
     const specs = buildSpecs(dataProduct);
 
     return (
         <div className={cx('wrapper')}>
-            <header>
-                <Header />
-            </header>
+            <Header />
 
             <main className={cx('main')} ref={ref}>
                 <div className={cx('inner')}>
-                    <div className={cx('swiper')}>
-                        <Swiper
-                            slidesPerView={1}
-                            autoplay={{
-                                delay: 2000,
-                                disableOnInteraction: false,
-                            }}
-                            loop={true}
-                            speed={1000}
-                            spaceBetween={30}
-                            effect={'fade'}
-                            navigation={true}
-                            pagination={{
-                                clickable: true,
-                            }}
-                            modules={[EffectFade, Navigation, Pagination, Autoplay]}
-                            className="mySwiper"
-                        >
-                            {dataProduct?.images?.map((item, index) => (
-                                <SwiperSlide key={index}>
-                                    <img src={item} />
-                                </SwiperSlide>
-                            ))}
-                        </Swiper>
+                    {/* Cột trái: Hình ảnh (Được set sticky trong SCSS) */}
+                    <div className={cx('leftColumn')}>
+                        <div className={cx('swiperWrapper')}>
+                            <Swiper
+                                slidesPerView={1}
+                                autoplay={{ delay: 3000, disableOnInteraction: false }}
+                                loop={true}
+                                speed={800}
+                                spaceBetween={30}
+                                effect={'fade'}
+                                navigation={true}
+                                pagination={{ clickable: true }}
+                                modules={[EffectFade, Navigation, Pagination, Autoplay]}
+                                className="mySwiper"
+                            >
+                                {dataProduct?.images?.map((item, index) => (
+                                    <SwiperSlide key={index}>
+                                        <div className={cx('imageContainer')}>
+                                            <img src={item} alt={`${dataProduct?.name} - Image ${index + 1}`} />
+                                        </div>
+                                    </SwiperSlide>
+                                ))}
+                            </Swiper>
+                        </div>
                     </div>
 
-                    <div className={cx('product-info')}>
-                        <h1>{dataProduct?.name}</h1>
-                        <div className={cx('price-box')}>
-                            <span className={cx('price-text')}>Giá bán:</span>
-                            <h2 className={cx('price-money')}>{dataProduct?.price?.toLocaleString()}đ</h2>
-                        </div>
-                        <ul>
-                            <li>
-                                <FontAwesomeIcon icon={faCheckCircle} />
-                                <span>Hãng sản xuất: {dataProduct?.brand || 'Đang cập nhật'}</span>
-                            </li>
-                            <li>
-                                <FontAwesomeIcon icon={faCheckCircle} />
-                                <span>Giao hàng ngày mở bán tại Việt Nam 27/06/2025</span>
-                            </li>
-                            <li>
-                                <FontAwesomeIcon icon={faCheckCircle} />
-                                <span>Sản phẩm chính hãng Apple Việt Nam mới 100% nguyên seal</span>
-                            </li>
-                            <li>
-                                <FontAwesomeIcon icon={faCheckCircle} />
-                                <span>Giá đã bao gồm VAT</span>
-                            </li>
-                            <li>
-                                <FontAwesomeIcon icon={faCheckCircle} />
-                                <span>Bảo hành 12 tháng chính hãng</span>
-                            </li>
-                            <li>
-                                <FontAwesomeIcon icon={faCheckCircle} />
-                                <span>Giảm giá 10% khi mua phụ kiện kèm theo</span>
-                            </li>
-                        </ul>
-
-                        <div className={cx('button-group')}>
-                            <button onClick={handleBuyNow}>Mua ngay</button>
-                            <button onClick={handleAddToCart}>Thêm vào giỏ hàng</button>
-                        </div>
-
-                        <ul>
-                            <li>
-                                <FontAwesomeIcon icon={faCheckCircle} />
-                                <p> Dùng thử 10 ngày miễn phí đổi máy. </p>
-                            </li>
-                            <li>
-                                <FontAwesomeIcon icon={faCheckCircle} />
-                                <p>Lỗi 1 Đổi 1 trong 30 ngày đầu. </p>
-                            </li>
-                            <li>
-                                <FontAwesomeIcon icon={faCheckCircle} />
-                                <p>Giao hàng tận nhà toàn quốc</p>
-                            </li>
-                            <li>
-                                <FontAwesomeIcon icon={faCheckCircle} />
-                                <p>Thanh toán khi nhận hàng (nội thành)</p>
-                            </li>
-                            <li>
-                                <FontAwesomeIcon icon={faCheckCircle} />
-                                <p>Gọi 0936 096 900 để được tư vấn mua hàng (Miễn phí)</p>
-                            </li>
-                        </ul>
-
-                        <div className={cx('specs')}>
-                            <h4>Thông số kỹ thuật</h4>
-                            {specs.map((item) => (
-                                <div key={item.label}>
-                                    <h5>{item.label}</h5>
-                                    <p>{item.value}</p>
+                    {/* Cột phải: Thông tin sản phẩm */}
+                    <div className={cx('rightColumn')}>
+                        <div className={cx('productHeader')}>
+                            <h1>{dataProduct?.name}</h1>
+                            {reviews.length > 0 && (
+                                <div className={cx('miniRating')}>
+                                    <Rate disabled allowHalf value={Number(averageRating.toFixed(1))} style={{ fontSize: 14 }} />
+                                    <span>({reviews.length} đánh giá)</span>
                                 </div>
-                            ))}
+                            )}
                         </div>
 
-                        <div className={cx('reviews')}>
+                        <div className={cx('priceBox')}>
+                            <span className={cx('priceLabel')}>Giá chính thức:</span>
+                            <h2 className={cx('priceValue')}>{dataProduct?.price?.toLocaleString()}đ</h2>
+                            <span className={cx('vatBadge')}>Đã bao gồm VAT</span>
+                        </div>
+
+                        <div className={cx('promoBox')}>
+                            <h3 className={cx('boxTitle')}>Ưu đãi dành cho bạn</h3>
+                            <ul>
+                                <li><FontAwesomeIcon icon={faCheckCircle} /> Hãng sản xuất: <strong>{dataProduct?.brand || 'Đang cập nhật'}</strong></li>
+                                <li><FontAwesomeIcon icon={faCheckCircle} /> Sản phẩm chính hãng Apple Việt Nam mới 100% nguyên seal</li>
+                                <li><FontAwesomeIcon icon={faCheckCircle} /> Giao hàng ngày mở bán tại Việt Nam 27/06/2025</li>
+                                <li><FontAwesomeIcon icon={faCheckCircle} /> <strong>Giảm thêm 10%</strong> khi mua kèm phụ kiện chính hãng</li>
+                            </ul>
+                        </div>
+
+                        <div className={cx('actionButtons')}>
+                            <button className={cx('btnBuyNow')} onClick={handleBuyNow}>
+                                <strong>MUA NGAY</strong>
+                                <span>Giao hàng tận nơi miễn phí</span>
+                            </button>
+                            <button className={cx('btnAddCart')} onClick={handleAddToCart}>
+                                <strong>THÊM VÀO GIỎ</strong>
+                                <span>Mua tiếp sản phẩm khác</span>
+                            </button>
+                        </div>
+
+                        <div className={cx('policyBox')}>
+                            <ul>
+                                <li><FontAwesomeIcon icon={faRotateLeft} /> Dùng thử 10 ngày miễn phí đổi máy.</li>
+                                <li><FontAwesomeIcon icon={faShieldHalved} /> Lỗi 1 Đổi 1 trong 30 ngày đầu. Bảo hành 12 tháng chính hãng.</li>
+                                <li><FontAwesomeIcon icon={faTruckFast} /> Giao hàng tận nhà toàn quốc. Thanh toán khi nhận hàng.</li>
+                                <li><FontAwesomeIcon icon={faPhoneVolume} /> Gọi <strong>0936 096 900</strong> để được tư vấn (Miễn phí).</li>
+                            </ul>
+                        </div>
+
+                        {specs.length > 0 && (
+                            <div className={cx('specsBox')}>
+                                <h4>Thông số kỹ thuật</h4>
+                                <ul className={cx('specsList')}>
+                                    {specs.map((item, index) => (
+                                        <li key={item.key || item.label} className={cx({ striped: index % 2 !== 0 })}>
+                                            <span className={cx('specLabel')}>{item.label}</span>
+                                            <span className={cx('specValue')}>{item.value}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        <div className={cx('reviewsBox')}>
                             <div className={cx('reviewsHeader')}>
                                 <h4>Đánh giá khách hàng</h4>
                                 {reviews.length > 0 && (
                                     <div className={cx('ratingOverview')}>
-                                        <Rate disabled allowHalf value={Number(averageRating.toFixed(1))} />
-                                        <span>
-                                            {averageRating.toFixed(1)}/5 ({reviews.length} đánh giá)
-                                        </span>
+                                        <h2>{averageRating.toFixed(1)}</h2>
+                                        <div className={cx('stars')}>
+                                            <Rate disabled allowHalf value={Number(averageRating.toFixed(1))} />
+                                            <span>{reviews.length} đánh giá</span>
+                                        </div>
                                     </div>
                                 )}
                             </div>
 
                             {reviews.length === 0 ? (
-                                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có đánh giá nào" />
+                                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chưa có đánh giá nào cho sản phẩm này" />
                             ) : (
                                 <div className={cx('reviewList')}>
                                     {[...reviews]
@@ -257,8 +236,8 @@ function DetailProduct() {
                                                     <strong>{review.fullName || 'Khách hàng'}</strong>
                                                     <span>{new Date(review.createdAt).toLocaleDateString('vi-VN')}</span>
                                                 </div>
-                                                <Rate disabled value={review.rating} />
-                                                {review.comment && <p>{review.comment}</p>}
+                                                <Rate disabled value={review.rating} style={{ fontSize: 12 }} />
+                                                {review.comment && <p className={cx('reviewComment')}>{review.comment}</p>}
                                                 {Array.isArray(review.images) && review.images.length > 0 && (
                                                     <div className={cx('reviewImages')}>
                                                         {review.images.map((img, imgIndex) => (
@@ -269,10 +248,8 @@ function DetailProduct() {
                                                 {review.adminReply?.message && (
                                                     <div className={cx('adminReply')}>
                                                         <strong>{review.adminReply.adminName || 'Quản trị viên'}</strong>
-                                                        <span>
-                                                            {review.adminReply.repliedAt
-                                                                ? new Date(review.adminReply.repliedAt).toLocaleDateString('vi-VN')
-                                                                : ''}
+                                                        <span className={cx('replyDate')}>
+                                                            {review.adminReply.repliedAt ? new Date(review.adminReply.repliedAt).toLocaleDateString('vi-VN') : ''}
                                                         </span>
                                                         <p>{review.adminReply.message}</p>
                                                     </div>
@@ -286,9 +263,7 @@ function DetailProduct() {
                 </div>
             </main>
 
-            <footer>
-                <Footer />
-            </footer>
+            <Footer />
         </div>
     );
 }

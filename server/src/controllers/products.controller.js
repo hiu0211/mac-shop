@@ -168,6 +168,16 @@ const buildAttributesFromLegacyProduct = (product = {}) => {
   return result;
 };
 
+const stripLegacySpecFields = (product = {}) => {
+  const sanitizedProduct = { ...product };
+
+  LEGACY_SPEC_KEYS.forEach((key) => {
+    delete sanitizedProduct[key];
+  });
+
+  return sanitizedProduct;
+};
+
 const normalizeAttributeValueByTemplate = (value, field) => {
   const inputType = String(field?.inputType || "text").trim().toLowerCase();
 
@@ -240,23 +250,95 @@ const normalizeAttributesByTemplate = (attributes, attributesTemplate = []) => {
   return nextAttributes;
 };
 
-const mergeLegacyFieldsFromAttributes = (attributes = {}) => {
-  const legacyFields = {};
+const isDisplayableAttributeValue = (value) => value != null && String(value).trim() !== "";
 
-  LEGACY_SPEC_KEYS.forEach((key) => {
-    if (attributes[key] != null) {
-      legacyFields[key] = String(attributes[key]);
-    }
-  });
+const formatSpecLabel = (key = "") =>
+  String(key || "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 
-  return legacyFields;
+const normalizeAttributesTemplate = (attributesTemplate = []) => {
+  if (!Array.isArray(attributesTemplate)) {
+    return [];
+  }
+
+  return attributesTemplate
+    .filter((field) => field && typeof field === "object" && field.key)
+    .map((field, index) => ({
+      key: String(field.key || "").trim(),
+      label: String(field.label || field.key || "").trim(),
+      inputType: String(field.inputType || "text").trim().toLowerCase(),
+      required: Boolean(field.required),
+      placeholder: String(field.placeholder || "").trim(),
+      options: Array.isArray(field.options)
+        ? field.options.map((option) => String(option || "").trim()).filter(Boolean)
+        : [],
+      order: Number.isFinite(Number(field.order)) ? Number(field.order) : index,
+    }))
+    .filter((field) => field.key)
+    .sort((a, b) => a.order - b.order);
 };
 
-const formatProductOutput = (productDoc) => {
+const buildSpecifications = (attributes = {}, attributesTemplate = []) => {
+  const specs = [];
+  const template = normalizeAttributesTemplate(attributesTemplate);
+  const mappedKeys = new Set();
+
+  template.forEach((field) => {
+    const value = attributes[field.key];
+    if (!isDisplayableAttributeValue(value)) {
+      return;
+    }
+
+    mappedKeys.add(field.key);
+    specs.push({
+      key: field.key,
+      label: field.label || formatSpecLabel(field.key),
+      value,
+    });
+  });
+
+  Object.entries(attributes).forEach(([key, value]) => {
+    const normalizedKey = String(key || "").trim();
+
+    if (!normalizedKey || mappedKeys.has(normalizedKey) || !isDisplayableAttributeValue(value)) {
+      return;
+    }
+
+    specs.push({
+      key: normalizedKey,
+      label: formatSpecLabel(normalizedKey),
+      value,
+    });
+  });
+
+  return specs;
+};
+
+const buildProductTypeMap = async (products = []) => {
+  const typeCodes = [...new Set(products.map((item) => normalizeComponentType(item?.componentType)).filter(Boolean))];
+
+  if (typeCodes.length === 0) {
+    return {};
+  }
+
+  const productTypes = await modelProductType.find({ code: { $in: typeCodes } }).lean();
+
+  return productTypes.reduce((accumulator, item) => {
+    accumulator[item.code] = item;
+    return accumulator;
+  }, {});
+};
+
+const formatProductOutput = (productDoc, productTypeDoc = null) => {
   const product = productDoc?.toObject ? productDoc.toObject() : { ...productDoc };
+  const sanitizedProduct = stripLegacySpecFields(product);
   const attributes = normalizeAttributes(product.attributes || {});
   const legacyAttributes = buildAttributesFromLegacyProduct(product);
   const resolvedAttributes = Object.keys(attributes).length > 0 ? attributes : legacyAttributes;
+  const normalizedComponentType = normalizeComponentType(product.componentType);
+  const attributesTemplate = normalizeAttributesTemplate(productTypeDoc?.attributesTemplate || []);
+  const specifications = buildSpecifications(resolvedAttributes, attributesTemplate);
 
   const discountInfo = resolveDiscountInfo({
     price: product.price,
@@ -264,16 +346,26 @@ const formatProductOutput = (productDoc) => {
     legacyPriceDiscount: product.priceDiscount,
   });
 
-  const mergedLegacyFields = mergeLegacyFieldsFromAttributes(resolvedAttributes);
-
   return {
-    ...product,
-    ...mergedLegacyFields,
+    ...sanitizedProduct,
+    componentType: normalizedComponentType,
     attributes: resolvedAttributes,
+    attributesTemplate,
+    specifications,
     discount: discountInfo.discount,
     priceDiscount: discountInfo.priceDiscount,
     finalPrice: discountInfo.finalPrice,
   };
+};
+
+const formatProductListOutput = async (products = []) => {
+  const productTypeMap = await buildProductTypeMap(products);
+
+  return products.map((item) => {
+    const product = item?.toObject ? item.toObject() : { ...item };
+    const componentType = normalizeComponentType(product.componentType);
+    return formatProductOutput(item, productTypeMap[componentType]);
+  });
 };
 
 class controllerProducts {
@@ -326,8 +418,6 @@ class controllerProducts {
       legacyPriceDiscount: priceDiscount,
     });
 
-    const legacySpecFields = mergeLegacyFieldsFromAttributes(normalizedAttributes);
-
     const data = await modelProduct.create({
       name: normalizedName,
       brand: normalizedBrand,
@@ -339,12 +429,11 @@ class controllerProducts {
       stock: normalizedStock,
       componentType: normalizedComponentType,
       attributes: normalizedAttributes,
-      ...legacySpecFields,
     });
 
     new OK({
       message: "Thêm sản phẩm thành công",
-      metadata: formatProductOutput(data),
+      metadata: formatProductOutput(data, productType),
     }).send(res);
   }
 
@@ -369,8 +458,9 @@ class controllerProducts {
     }
 
     const data = await query.sort({ createdAt: -1 });
+    const formattedData = await formatProductListOutput(data);
 
-    new OK({ message: "Lấy sản phẩm thông tin", metadata: data.map(formatProductOutput) }).send(res);
+    new OK({ message: "Lấy sản phẩm thông tin", metadata: formattedData }).send(res);
   }
 
   async getProductById(req, res) {
@@ -384,12 +474,16 @@ class controllerProducts {
       throw new BadRequestError("Không tìm thấy sản phẩm");
     }
 
-    new OK({ message: "Lấy sản phẩm thông tin", metadata: formatProductOutput(data) }).send(res);
+    const componentType = normalizeComponentType(data.componentType);
+    const productType = componentType ? await modelProductType.findOne({ code: componentType }) : null;
+
+    new OK({ message: "Lấy sản phẩm thông tin", metadata: formatProductOutput(data, productType) }).send(res);
   }
 
   async getAllProduct(req, res) {
     const data = await modelProduct.find().sort({ createdAt: -1 });
-    new OK({ message: "Lấy sản phẩm thông tin", metadata: data.map(formatProductOutput) }).send(res);
+    const formattedData = await formatProductListOutput(data);
+    new OK({ message: "Lấy sản phẩm thông tin", metadata: formattedData }).send(res);
   }
 
   async editProduct(req, res) {
@@ -459,7 +553,6 @@ class controllerProducts {
       const normalizedImages = images !== undefined ? normalizeImages(images) : product.images;
       const nextStock = toNullableNumber(stock);
       const nextCostPrice = toNullableNumber(costPrice);
-      const legacySpecFields = mergeLegacyFieldsFromAttributes(nextAttributes);
 
       const updatedData = {
         name: String(name || "").trim() || product.name,
@@ -472,7 +565,6 @@ class controllerProducts {
         costPrice: nextCostPrice == null ? Number(product.costPrice || 0) : nextCostPrice,
         discount: discountInfo.discount,
         priceDiscount: discountInfo.priceDiscount,
-        ...legacySpecFields,
       };
 
       if (!Array.isArray(updatedData.images) || updatedData.images.length === 0) {
@@ -495,7 +587,7 @@ class controllerProducts {
 
       new OK({
         message: "Chỉnh sửa thông tin sản phẩm thành công",
-        metadata: formatProductOutput(updatedProduct),
+        metadata: formatProductOutput(updatedProduct, productType),
       }).send(res);
     } catch (error) {
       throw new BadRequestError(error.message || "Lỗi khi chỉnh sửa thông tin sản phẩm");
@@ -508,7 +600,8 @@ class controllerProducts {
     if (!product) {
       throw new BadRequestError("Không tìm thấy sản phẩm");
     }
-    new OK({ message: "Xoá sản phẩm thành công", metadata: product }).send(res);
+    const productData = product?.toObject ? product.toObject() : { ...product };
+    new OK({ message: "Xoá sản phẩm thành công", metadata: stripLegacySpecFields(productData) }).send(res);
   }
 
   async searchProduct(req, res) {
@@ -532,8 +625,9 @@ class controllerProducts {
     }
 
     const data = await modelProduct.find(query).sort({ createdAt: -1 });
+    const formattedData = await formatProductListOutput(data);
 
-    new OK({ message: "Tìm kiếm sản phẩm", metadata: data.map(formatProductOutput) }).send(res);
+    new OK({ message: "Tìm kiếm sản phẩm", metadata: formattedData }).send(res);
   }
 
   async filterProduct(req, res) {
@@ -545,7 +639,7 @@ class controllerProducts {
     }
 
     let products = await modelProduct.find(query);
-    let data = products.map(formatProductOutput);
+    let data = await formatProductListOutput(products);
 
     if (priceRange) {
       data = data.filter((item) => {

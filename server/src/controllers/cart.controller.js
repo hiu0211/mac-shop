@@ -3,6 +3,7 @@ const modelCart = require("../models/cart.model");
 const { BadRequestError } = require("../core/error.response");
 const { OK } = require("../core/success.response");
 const { recalculateCartTotals } = require("../services/couponService");
+const mongoose = require("mongoose");
 
 class controllerCart {
   async addToCart(req, res) {
@@ -92,25 +93,54 @@ class controllerCart {
     const { id } = req.user;
     const cart = await modelCart.findOne({ userId: id });
     if (!cart) {
-      throw new BadRequestError("Không tìm thấy giỏ hàng");
+      const newData = {
+        data: [],
+        totalPrice: 0,
+        totalPriceAfterDiscount: 0,
+        discountAmount: 0,
+        couponCode: "",
+      };
+      new OK({ message: "Thành công", metadata: { newData } }).send(res);
+      return;
     }
 
     if (!cart.totalPriceAfterDiscount) {
       cart.totalPriceAfterDiscount = cart.totalPrice;
     }
 
-    const data = await Promise.all(
+    const resolvedProducts = await Promise.all(
       cart.product.map(async (item) => {
-        const product = await modelProduct.findById(item.productId);
-        return {
-          ...product._doc,
-          quantity: item.quantity,
-          price: product.price,
-          // price: product.priceDiscount > 0 ? product.priceDiscount : product.price,
+        const product = await modelProduct.findById(item.productId).catch(() => null);
+        if (!product) {
+          return null;
+        }
 
+        return {
+          product,
+          productId: String(item.productId),
+          quantity: item.quantity,
         };
       })
     );
+
+    const validProducts = resolvedProducts.filter(Boolean);
+
+    if (validProducts.length !== cart.product.length) {
+      const validProductIds = new Set(validProducts.map((item) => item.productId));
+      cart.product = cart.product.filter((item) => validProductIds.has(String(item.productId)));
+      cart.totalPrice = validProducts.reduce(
+        (sum, item) => sum + item.product.price * item.quantity,
+        0
+      );
+      await recalculateCartTotals({ cart, userId: id });
+      await cart.save();
+    }
+
+    const data = validProducts.map((item) => ({
+      ...item.product.toObject(),
+      quantity: item.quantity,
+      price: item.product.price,
+    }));
 
     const newData = {
       data,
@@ -166,7 +196,11 @@ class controllerCart {
 
       new OK({ message: "Xoá thành công", metadata: cart }).send(res);
     } catch (error) {
-      new BadRequestError(error.message).send(res);
+      if (error instanceof BadRequestError) {
+        throw error;
+      }
+
+      throw new BadRequestError(error.message || "Lỗi khi xoá sản phẩm khỏi giỏ hàng");
     }
   }
 
@@ -187,8 +221,14 @@ class controllerCart {
   async updateQuantity(req, res) {
   const { id } = req.user;
   const { productId, quantity } = req.body;
+  const normalizedProductId = String(productId || "").trim();
+  const normalizedQuantity = Number(quantity);
 
-  if (quantity < 1) {
+  if (!normalizedProductId || !mongoose.Types.ObjectId.isValid(normalizedProductId)) {
+    throw new BadRequestError("Mã sản phẩm không hợp lệ");
+  }
+
+  if (!Number.isFinite(normalizedQuantity) || normalizedQuantity < 1) {
     throw new BadRequestError("Số lượng phải lớn hơn 0");
   }
 
@@ -197,13 +237,13 @@ class controllerCart {
     throw new BadRequestError("Không tìm thấy giỏ hàng");
   }
 
-  const product = await modelProduct.findById(productId);
+  const product = await modelProduct.findById(normalizedProductId);
   if (!product) {
     throw new BadRequestError("Không tìm thấy sản phẩm");
   }
 
   const productIndex = cart.product.findIndex(
-    (item) => item.productId.toString() === productId
+    (item) => item.productId.toString() === normalizedProductId
   );
 
   if (productIndex === -1) {
@@ -211,7 +251,7 @@ class controllerCart {
   }
 
   const currentQuantity = cart.product[productIndex].quantity;
-  const quantityDiff = quantity - currentQuantity;
+  const quantityDiff = normalizedQuantity - currentQuantity;
 
   // Kiểm tra stock nếu tăng số lượng
   if (quantityDiff > 0 && quantityDiff > product.stock) {
@@ -223,11 +263,11 @@ class controllerCart {
   cart.totalPrice += pricePerItem * quantityDiff;
 
   // Cập nhật số lượng trong giỏ hàng
-  cart.product[productIndex].quantity = quantity;
+  cart.product[productIndex].quantity = normalizedQuantity;
 
   // Cập nhật stock
   await modelProduct.updateOne(
-    { _id: productId },
+    { _id: normalizedProductId },
     { $inc: { stock: -quantityDiff } }
   );
 

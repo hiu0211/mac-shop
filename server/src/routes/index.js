@@ -77,6 +77,7 @@ function routes(app) {
   app.patch("/api/admin/coupons/status", couponsRoutes);
   app.delete("/api/admin/coupons", couponsRoutes);
 
+  app.get("/api/coupons", couponsRoutes);
   app.post("/api/coupons/validate", couponsRoutes);
   app.post("/api/coupons/apply", couponsRoutes);
   app.post("/api/coupons/remove", couponsRoutes);

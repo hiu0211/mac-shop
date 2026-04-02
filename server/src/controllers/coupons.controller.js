@@ -222,6 +222,31 @@ class CouponsController {
         new OK({ message: 'Đã hủy mã giảm giá', metadata: cart }).send(res);
     }
 
+    async getAvailableCoupons(req, res) {
+        // Auto-deactivate expired coupons
+        await modelCoupon.updateMany(
+            {
+                status: 'ACTIVE',
+                endAt: { $lt: new Date() },
+            },
+            {
+                $set: { status: 'INACTIVE' },
+            },
+        );
+
+        // Get available coupons (ACTIVE and not expired)
+        const coupons = await modelCoupon.find({
+            status: 'ACTIVE',
+            startAt: { $lte: new Date() },
+            endAt: { $gte: new Date() },
+        }).select('code type value minOrderValue maxDiscount startAt endAt').sort({ createdAt: -1 });
+
+        new OK({
+            message: 'Thành công',
+            metadata: coupons,
+        }).send(res);
+    }
+
     async recordCouponUsage({ couponId, userId, orderId, discountAmount }) {
         if (!couponId) return;
         await modelCouponUsage.create({
