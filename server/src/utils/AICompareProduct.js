@@ -28,21 +28,55 @@ const normalizeAttributes = (attributes) => {
   return {};
 };
 
-const buildSpecsForPrompt = (product) => {
-  const dynamicAttributes = normalizeAttributes(product?.attributes);
-  const entries = Object.entries(dynamicAttributes).filter(([, value]) => value != null && String(value).trim() !== "");
+const formatSpecLabel = (key = "") =>
+  String(key || "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 
-  if (entries.length > 0) {
-    return entries.map(([key, value]) => `- ${key}: ${value}`).join("\n      ");
+const toDisplayValue = (value) => {
+  if (value == null) {
+    return "";
   }
 
-  return [
-    `- Màn hình: ${product?.screen || "Đang cập nhật"}`,
-    `- Bộ nhớ: ${product?.storage || "Đang cập nhật"}`,
-    `- RAM: ${product?.ram || "Đang cập nhật"}`,
-    `- Camera: ${product?.camera || "Đang cập nhật"}`,
-    `- Pin: ${product?.battery || "Đang cập nhật"}`,
-  ].join("\n      ");
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item ?? "").trim())
+      .filter(Boolean)
+      .join(", ");
+  }
+
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "";
+    }
+  }
+
+  return String(value).trim();
+};
+
+const buildSpecsForPrompt = (product) => {
+  const dynamicAttributes = normalizeAttributes(product?.attributes);
+
+  const brandFromProduct = String(product?.brand || product?.manufacturer || "").trim();
+  const brandFromAttributes = toDisplayValue(dynamicAttributes?.brand || dynamicAttributes?.manufacturer);
+  const brand = brandFromProduct || brandFromAttributes;
+  const brandSpec = brand ? [`- Hãng: ${brand}`] : [];
+
+  const entries = Object.entries(dynamicAttributes)
+    .filter(([key]) => !["brand", "manufacturer"].includes(String(key || "").trim().toLowerCase()))
+    .map(([key, value]) => [formatSpecLabel(key), toDisplayValue(value)])
+    .filter(([key, value]) => key && value)
+    .map(([key, value]) => `- ${key}: ${value}`);
+
+  const specs = [...brandSpec, ...entries];
+
+  if (specs.length > 0) {
+    return specs.join("\n      ");
+  }
+
+  return "- Thông số attributes: Đang cập nhật";
 };
 
 async function compareProducts(productId1, productId2) {
@@ -58,27 +92,28 @@ async function compareProducts(productId1, productId2) {
     const specs2 = buildSpecsForPrompt(product2);
 
     const prompt = `
-      Bạn là một chuyên gia về smartphone, đặc biệt là iPhone. Hãy so sánh chi tiết hai iPhone sau và trả về kết quả dưới dạng HTML với các thẻ định dạng phù hợp. Không cần thêm CSS vào HTML.
+      Bạn là một chuyên gia về smartphone đa hãng. Hãy so sánh chi tiết hai smartphone sau và trả về kết quả dưới dạng HTML với các thẻ định dạng phù hợp. Không cần thêm CSS vào HTML.
 
-      iPhone 1: ${product1.name}
+      Sản phẩm 1: ${product1.name}
       ${specs1}
       - Giá: ${product1.price.toLocaleString("vi-VN")} VND
 
-      iPhone 2: ${product2.name}
+      Sản phẩm 2: ${product2.name}
       ${specs2}
       - Giá: ${product2.price.toLocaleString("vi-VN")} VND
 
       Hãy phân tích và so sánh các khía cạnh sau:
       1. Thiết kế và màn hình
-      2. Hiệu năng và RAM
-      3. Camera và khả năng chụp ảnh/quay video
-      4. Thời lượng pin
-      5. Giá trị đồng tiền
-      6. Đối tượng người dùng phù hợp với từng sản phẩm
-      7. Các tính năng đặc biệt của mỗi model (nếu có)
+      2. Hệ điều hành và hệ sinh thái
+      3. Hiệu năng và RAM
+      4. Camera và khả năng chụp ảnh/quay video
+      5. Thời lượng pin
+      6. Giá trị đồng tiền
+      7. Đối tượng người dùng phù hợp với từng sản phẩm
+      8. Các tính năng đặc biệt của mỗi model (nếu có)
       
       Hãy trả lời một cách chuyên nghiệp, dễ hiểu và đưa ra lời khuyên cụ thể cho người dùng dựa trên nhu cầu sử dụng khác nhau.
-      Nếu có thông tin về các tính năng độc quyền của iPhone hoặc những điểm nổi bật của từng model, hãy bổ sung vào phần so sánh.`;
+      Nếu có thông tin về các tính năng nổi bật/độc quyền của từng hãng hoặc những điểm nổi bật của từng model, hãy bổ sung vào phần so sánh.`;
 
     const result = await model.generateContent(prompt);
     const comparison = result.response.text();

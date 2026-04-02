@@ -4,13 +4,48 @@ import { Link } from 'react-router-dom';
 
 const cx = classNames.bind(styles);
 
+const toPriceNumber = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+};
+
+const buildPricing = (product = {}) => {
+    const originalPrice = toPriceNumber(product?.price);
+    const rawDiscount = Number(product?.discount);
+    const discountPercent = Number.isFinite(rawDiscount)
+        ? Math.min(Math.max(Math.round(rawDiscount), 0), 100)
+        : 0;
+
+    const hasDiscount = originalPrice > 0 && discountPercent > 0;
+    const discountedPrice = hasDiscount
+        ? Math.max(0, Math.round((originalPrice * (100 - discountPercent)) / 100))
+        : originalPrice;
+
+    return {
+        originalPrice,
+        discountPercent,
+        hasDiscount,
+        discountedPrice,
+    };
+};
+
+const formatPrice = (value) => Number(value || 0).toLocaleString('vi-VN');
+
 function CardBody({ item, checkSelectCompare, handleCompare }) {
     if (!item) {
         return <div className={cx('wrapper')}>Loading...</div>;
     }
 
+    const {
+        originalPrice,
+        discountPercent,
+        hasDiscount,
+        discountedPrice,
+    } = buildPricing(item);
+
     return (
         <div className={cx('wrapper')}>
+            {hasDiscount && <span className={cx('discountBadge')}>-{discountPercent}%</span>}
             {checkSelectCompare && (
                 <button onClick={() => handleCompare(item._id)} className={cx('compare')}>
                     So sánh
@@ -22,14 +57,13 @@ function CardBody({ item, checkSelectCompare, handleCompare }) {
             <div className={cx('content')}>
                 <h4>{item?.name}</h4>
                 <div className={cx('price')}>
-                    {item?.priceDiscount > 0 ? (
+                    {hasDiscount ? (
                         <>
-                            {/* <p className={cx('price-old')}>{item?.price?.toLocaleString()}đ</p>
-                            <p className={cx('price-new')}>{item?.priceDiscount?.toLocaleString()}đ</p> */}
-                            <p className={cx('price-demo')}>{item?.price?.toLocaleString()}đ</p>
+                            <p className={cx('priceNew')}>{formatPrice(discountedPrice)}đ</p>
+                            <p className={cx('priceOld')}>{formatPrice(originalPrice)} VNĐ</p>
                         </>
                     ) : (
-                        <p>{item?.price?.toLocaleString()}đ</p>
+                        <p className={cx('priceNormal')}>{formatPrice(originalPrice)}đ</p>
                     )}
                 </div>
             </div>
@@ -38,3 +72,4 @@ function CardBody({ item, checkSelectCompare, handleCompare }) {
 }
 
 export default CardBody;
+

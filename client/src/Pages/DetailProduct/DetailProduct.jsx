@@ -68,6 +68,31 @@ const buildSpecs = (product = {}) => {
     return [];
 };
 
+const clampDiscountPercent = (value) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 0;
+    return Math.min(Math.max(Math.round(numeric), 0), 100);
+};
+
+const buildPricingData = (product = {}) => {
+    const originalPrice = Number(product?.price) || 0;
+    const discountPercent = clampDiscountPercent(product?.discount);
+    const hasDiscount = originalPrice > 0 && discountPercent > 0;
+    const discountedPrice = hasDiscount
+        ? Math.max(0, Math.round((originalPrice * (100 - discountPercent)) / 100))
+        : originalPrice;
+
+    return {
+        originalPrice,
+        discountPercent,
+        hasDiscount,
+        discountedPrice,
+        savingAmount: Math.max(0, originalPrice - discountedPrice),
+    };
+};
+
+const formatCurrency = (value) => Number(value || 0).toLocaleString('vi-VN');
+
 function DetailProduct() {
     const ref = useRef();
     const navigate = useNavigate();
@@ -115,6 +140,12 @@ function DetailProduct() {
     const reviews = Array.isArray(dataProduct?.reviews) ? dataProduct.reviews : [];
     const averageRating = reviews.length > 0 ? reviews.reduce((sum, item) => sum + Number(item.rating || 0), 0) / reviews.length : 0;
     const specs = buildSpecs(dataProduct);
+    const {
+        originalPrice,
+        hasDiscount,
+        discountedPrice,
+        savingAmount,
+    } = buildPricingData(dataProduct);
 
     return (
         <div className={cx('wrapper')}>
@@ -122,7 +153,6 @@ function DetailProduct() {
 
             <main className={cx('main')} ref={ref}>
                 <div className={cx('inner')}>
-                    {/* Cột trái: Hình ảnh (Được set sticky trong SCSS) */}
                     <div className={cx('leftColumn')}>
                         <div className={cx('swiperWrapper')}>
                             <Swiper
@@ -148,7 +178,6 @@ function DetailProduct() {
                         </div>
                     </div>
 
-                    {/* Cột phải: Thông tin sản phẩm */}
                     <div className={cx('rightColumn')}>
                         <div className={cx('productHeader')}>
                             <h1>{dataProduct?.name}</h1>
@@ -161,8 +190,25 @@ function DetailProduct() {
                         </div>
 
                         <div className={cx('priceBox')}>
-                            <span className={cx('priceLabel')}>Giá chính thức:</span>
-                            <h2 className={cx('priceValue')}>{dataProduct?.price?.toLocaleString()}đ</h2>
+                            {hasDiscount ? (
+                                <div className={cx('priceBanner')}>
+                                    <div className={cx('bannerSaleValue')}>
+                                        {formatCurrency(discountedPrice)}<sup><u>đ</u></sup>
+                                    </div>
+                                    <div className={cx('bannerBaseValue')}>
+                                        <span className={cx('strikeThrough')}>{formatCurrency(originalPrice)}</span>
+                                        <sup><u>VNĐ</u></sup>
+                                    </div>
+                                    <div className={cx('bannerSaving')}>
+                                        Tiết kiệm: {formatCurrency(savingAmount)} <u>VNĐ</u>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <span className={cx('priceLabel')}>Giá chính thức:</span>
+                                    <h2 className={cx('priceValue')}>{formatCurrency(originalPrice)}đ</h2>
+                                </>
+                            )}
                             <span className={cx('vatBadge')}>Đã bao gồm VAT</span>
                         </div>
 

@@ -145,11 +145,11 @@ function CompareProduct() {
                             <ul>
                                 <li>
                                     <FontAwesomeIcon icon={faCheckCircle} />
-                                    <p> Dùng thử 10 ngày miễn phí đổi máy. (MacBook Like New)</p>
+                                    <p> Dùng thử 10 ngày miễn phí đổi máy.</p>
                                 </li>
                                 <li>
                                     <FontAwesomeIcon icon={faCheckCircle} />
-                                    <p>Lỗi 1 Đổi 1 trong 30 ngày đầu. (MacBook Like New)</p>
+                                    <p>Lỗi 1 Đổi 1 trong 30 ngày đầu.</p>
                                 </li>
                                 <li>
                                     <FontAwesomeIcon icon={faCheckCircle} />
@@ -211,11 +211,11 @@ function CompareProduct() {
                             <ul>
                                 <li>
                                     <FontAwesomeIcon icon={faCheckCircle} />
-                                    <p> Dùng thử 10 ngày miễn phí đổi máy. (MacBook Like New)</p>
+                                    <p> Dùng thử 10 ngày miễn phí đổi máy.</p>
                                 </li>
                                 <li>
                                     <FontAwesomeIcon icon={faCheckCircle} />
-                                    <p>Lỗi 1 Đổi 1 trong 30 ngày đầu. (MacBook Like New)</p>
+                                    <p>Lỗi 1 Đổi 1 trong 30 ngày đầu.</p>
                                 </li>
                                 <li>
                                     <FontAwesomeIcon icon={faCheckCircle} />

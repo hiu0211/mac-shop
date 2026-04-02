@@ -445,7 +445,7 @@ const EditProduct = ({ setActiveComponent, productId }) => {
                     </Col>
 
                     <Col span={24}>
-                        <Divider>Thông số theo loại sản phẩm</Divider>
+                        <Divider orientation='start' style={{ textTransform: 'uppercase' }}>Thông số kỹ thuật</Divider>
                     </Col>
 
                     <Col span={24}>

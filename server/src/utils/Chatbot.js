@@ -7,18 +7,6 @@ const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 const modelProduct = require("../models/products.model");
 
-const LEGACY_SPEC_FIELDS = [
-  { key: "cpu", label: "CPU" },
-  { key: "screen", label: "Màn hình" },
-  { key: "screenHz", label: "Tần số màn hình" },
-  { key: "gpu", label: "GPU" },
-  { key: "ram", label: "RAM" },
-  { key: "storage", label: "Bộ nhớ" },
-  { key: "battery", label: "Pin" },
-  { key: "camera", label: "Camera" },
-  { key: "weight", label: "Trọng lượng" },
-];
-
 const normalizeAttributes = (attributes) => {
   if (!attributes) {
     return {};
@@ -65,18 +53,51 @@ const getDisplayPrice = (product) => {
   };
 };
 
-const getSpecsText = (product) => {
-  const dynamicAttributes = normalizeAttributes(product?.attributes);
-  const entries = Object.entries(dynamicAttributes).filter(([, value]) => value != null && String(value).trim() !== "");
+const formatSpecLabel = (key = "") =>
+  String(key || "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 
-  if (entries.length > 0) {
-    return entries.map(([key, value]) => `${key}: ${value}`).join(" | ");
+const toDisplayValue = (value) => {
+  if (value == null) {
+    return "";
   }
 
-  return LEGACY_SPEC_FIELDS
-    .filter((field) => product?.[field.key] != null && String(product[field.key]).trim() !== "")
-    .map((field) => `${field.label}: ${product[field.key]}`)
-    .join(" | ");
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item ?? "").trim())
+      .filter(Boolean)
+      .join(", ");
+  }
+
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "";
+    }
+  }
+
+  return String(value).trim();
+};
+
+const getSpecsText = (product) => {
+  const dynamicAttributes = normalizeAttributes(product?.attributes);
+  const brandFromProduct = String(product?.brand || product?.manufacturer || "").trim();
+  const brandFromAttributes = toDisplayValue(dynamicAttributes?.brand || dynamicAttributes?.manufacturer);
+  const brand = brandFromProduct || brandFromAttributes;
+
+  const entries = Object.entries(dynamicAttributes)
+    .filter(([key]) => !["brand", "manufacturer"].includes(String(key || "").trim().toLowerCase()))
+    .map(([key, value]) => [formatSpecLabel(key), toDisplayValue(value)])
+    .filter(([key, value]) => key && value);
+
+  const specs = [
+    ...(brand ? [`Hãng: ${brand}`] : []),
+    ...entries.map(([key, value]) => `${key}: ${value}`),
+  ];
+
+  return specs.join(" | ");
 };
 
 async function askQuestion(question) {
@@ -94,7 +115,7 @@ async function askQuestion(question) {
         
         const status = p.stock > 0 ? `Còn ${p.stock} máy` : "HẾT HÀNG";
         
-        return `- ${p.name}: ${price}${specsText ? ` | ${specsText}` : ""} | ${status}`;
+        return `- ${p.name}: ${price}${specsText ? ` | ${specsText}` : " | Chưa có thông số attributes"} | ${status}`;
       })
       .join("\n");
 

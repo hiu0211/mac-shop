@@ -2,7 +2,7 @@
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    margin-top: 80px; /* Căn chỉnh lại khoảng cách header nếu cần */
+    margin-top: 80px; 
     background-color: #f5f5f7;
 }
 
@@ -18,7 +18,7 @@
     display: grid;
     grid-template-columns: 45% 55%;
     gap: 40px;
-    align-items: start; /* Rất quan trọng để sticky hoạt động */
+    align-items: start; 
 
     @media (max-width: 900px) {
         grid-template-columns: 1fr;
@@ -29,7 +29,7 @@
 /* CỘT TRÁI - ẢNH SẢN PHẨM */
 .leftColumn {
     position: sticky;
-    top: 100px; /* Cách đỉnh màn hình khi cuộn xuống */
+    top: 100px; 
     z-index: 10;
 }
 
@@ -99,8 +99,61 @@
     border: 1px solid #e5e5e5;
 
     .priceLabel { font-size: 14px; color: #86868b; display: block; margin-bottom: 4px; }
-    .priceValue { font-size: 32px; color: #D70018; font-weight: 700; margin: 0; line-height: 1; }
+    .priceValue { font-size: 24px; color: #D70018; font-weight: 700; margin: 0; line-height: 1; }
+
+    /* BANNER GIÁ SALE GIỐNG HÌNH ẢNH YÊU CẦU */
+    .priceBanner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        /* Dải màu Gradient: Đỏ -> Tím -> Xanh đậm -> Xanh lam sáng */
+        background: linear-gradient(90deg, #d0021b 0%, #693060 45%, #2a6192 75%, #008cc9 100%);
+        border-radius: 8px;
+        padding: 14px 20px;
+        color: #fff;
+        margin-bottom: 12px;
+    }
+
+    .bannerSaleValue {
+        font-size: 24px;
+        font-weight: 700;
+        sup {
+            font-size: 16px;
+            font-weight: 700;
+            margin-left: 2px;
+            u { text-decoration: underline; }
+        }
+    }
+
+    .bannerBaseValue {
+        font-size: 20px;
+        font-weight: 400;
+        .strikeThrough {
+            text-decoration: line-through;
+        }
+        sup {
+            font-size: 12px;
+            margin-left: 4px;
+            u { text-decoration: underline; }
+        }
+    }
+
+    .bannerSaving {
+        font-size: 15px;
+        font-weight: 400;
+        u { text-decoration: underline; }
+    }
+
     .vatBadge { display: inline-block; margin-top: 8px; font-size: 12px; color: #1d1d1f; background: #f5f5f7; padding: 4px 8px; border-radius: 4px;}
+
+    @media (max-width: 900px) {
+        .priceBanner {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+            background: #005bb5; /* Chuyển màu trơn cho gọn trên mobile hoặc giữ nguyên tùy bạn */
+        }
+    }
 }
 
 .promoBox {
