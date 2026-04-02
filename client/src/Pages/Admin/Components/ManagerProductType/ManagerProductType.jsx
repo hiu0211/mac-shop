@@ -131,7 +131,7 @@ function ManagerProductType({ setActiveComponent, setProductTypeId }) {
                     value={searchValue}
                     onChange={(event) => setSearchValue(event.target.value)}
                     onSearch={(value) => setSearchValue(value)}
-                    style={{ maxWidth: 360 }}
+                    style={{ width: 350 }}
                 />
             </Card>
 

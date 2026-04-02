@@ -168,19 +168,21 @@ const BrandManagement = () => {
 
     return (
         <div>
-            <Card title="Quản lý hãng điện thoại">
-                <Space>
-                    <Search
-                        placeholder="Tìm theo tên hãng"
-                        allowClear
-                        value={searchText}
-                        onChange={(event) => setSearchText(event.target.value)}
-                        style={{ minWidth: 320 }}
-                    />
+            <Card
+                title="Quản lý hãng điện thoại"
+                extra={
                     <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>
                         Thêm hãng
                     </Button>
-                </Space>
+                }
+            >
+                <Search
+                    placeholder="Tìm theo tên hãng"
+                    allowClear
+                    value={searchText}
+                    onChange={(event) => setSearchText(event.target.value)}
+                    style={{ width: 350 }}
+                />
             </Card>
 
             <Table columns={columns} dataSource={dataSource} loading={loading} />

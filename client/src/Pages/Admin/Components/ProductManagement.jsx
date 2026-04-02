@@ -154,20 +154,22 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
 
     return (
         <div>
-            <Card title="Quản lý sản phẩm">
-                <Space>
-                    <Input.Search
-                        placeholder="Tìm kiếm theo tên, hãng hoặc giá sản phẩm"
-                        value={searchText}
-                        onChange={(e) => setSearchText(e.target.value)}
-                        onSearch={(value) => setSearchText(value)}
-                        allowClear
-                        style={{ width: 350 }}
-                    />
+            <Card
+                title="Quản lý sản phẩm"
+                extra={
                     <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
                         Thêm sản phẩm
                     </Button>
-                </Space>
+                }
+            >
+                <Input.Search
+                    placeholder="Tìm kiếm theo tên, hãng hoặc giá sản phẩm"
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    onSearch={(value) => setSearchText(value)}
+                    allowClear
+                    style={{ width: 350 }}
+                />
             </Card>
 
             <Table

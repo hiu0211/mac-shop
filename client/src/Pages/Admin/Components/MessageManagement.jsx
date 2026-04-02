@@ -1,5 +1,5 @@
 import { Button, Empty, Input, Modal, Popconfirm, Space, Table, Tag, message } from 'antd';
-import { DeleteOutlined, MessageOutlined, ReloadOutlined } from '@ant-design/icons';
+import { DeleteOutlined, MessageOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { useStore } from '../../../hooks/useStore';
 import {
@@ -29,6 +29,7 @@ function MessageManagement() {
     const { dataUser } = useStore();
     const [loading, setLoading] = useState(false);
     const [orders, setOrders] = useState([]);
+    const [searchText, setSearchText] = useState('');
     const [selectedOrderId, setSelectedOrderId] = useState('');
     const [selectedOrderInfo, setSelectedOrderInfo] = useState(null);
     const [orderProducts, setOrderProducts] = useState([]);
@@ -100,6 +101,15 @@ function MessageManagement() {
         fetchOrders();
     }, []);
 
+    const filteredOrders = orders.filter((order) => {
+        const keyword = searchText.trim().toLowerCase();
+        if (!keyword) return true;
+        return (
+            order.customer?.toLowerCase().includes(keyword) ||
+            order.lastMessageText?.toLowerCase().includes(keyword)
+        );
+    });
+
     const openConversation = async (record) => {
         setSelectedOrderId(record.orderId);
         setReplyValue('');
@@ -159,12 +169,6 @@ function MessageManagement() {
     };
 
     const columns = [
-        // {
-        //     title: 'Mã đơn',
-        //     dataIndex: 'orderId',
-        //     key: 'orderId',
-        //     width: 240,
-        // },
         {
             title: 'Khách hàng',
             dataIndex: 'customer',
@@ -188,6 +192,7 @@ function MessageManagement() {
             title: 'Số tin nhắn',
             dataIndex: 'totalMessages',
             key: 'totalMessages',
+            align: 'center',
             width: 120,
         },
         {
@@ -211,7 +216,22 @@ function MessageManagement() {
                 </Button>
             </Space>
 
-            <Table columns={columns} dataSource={orders} loading={loading} pagination={{ pageSize: 8 }} />
+            {/* Search */}
+            <Input
+                allowClear
+                prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+                placeholder="Tìm theo tên khách hàng, nội dung tin nhắn ..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                style={{ marginBottom: 16, maxWidth: 380 }}
+            />
+
+            <Table
+                columns={columns}
+                dataSource={filteredOrders}
+                loading={loading}
+                pagination={{ pageSize: 8 }}
+            />
 
             <Modal
                 title="Chi tiết tin nhắn"
@@ -257,14 +277,7 @@ function MessageManagement() {
                                         style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }}
                                     />
                                 ) : (
-                                    <div
-                                        style={{
-                                            width: 48,
-                                            height: 48,
-                                            borderRadius: 6,
-                                            background: '#f5f5f5',
-                                        }}
-                                    />
+                                    <div style={{ width: 48, height: 48, borderRadius: 6, background: '#f5f5f5' }} />
                                 )}
                                 <div style={{ flex: 1 }}>
                                     <div style={{ fontWeight: 500 }}>{item.name}</div>

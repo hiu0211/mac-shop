@@ -146,15 +146,16 @@ const OrderManagement = () => {
         <div>
             <Space style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
                 <h2>Quản lý đơn hàng</h2>
-                <Input
-                    placeholder="Tìm kiếm đơn hàng"
-                    prefix={<SearchOutlined />}
-                    value={searchText}
-                    onChange={(e) => setSearchText(e.target.value)}
-                    allowClear
-                    style={{ width: 350 }}
-                />
             </Space>
+
+            <Input
+                placeholder="Tìm kiếm đơn hàng"
+                prefix={<SearchOutlined />}
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                allowClear
+                style={{ marginBottom: 16,width: 350 }}
+            />
             <Table columns={columns} dataSource={filteredOrders} loading={loading} />
             <ModalDetailOrder
                 isModalVisible={isModalVisible}

@@ -1,5 +1,5 @@
 import { Button, Empty, Image, Input, Modal, Popconfirm, Rate, Space, Table, Tag, message } from 'antd';
-import { DeleteOutlined, MessageOutlined, ReloadOutlined } from '@ant-design/icons';
+import { DeleteOutlined, MessageOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import {
     requestDeleteAdminReview,
@@ -10,6 +10,7 @@ import {
 function ReviewManagement() {
     const [loading, setLoading] = useState(false);
     const [reviews, setReviews] = useState([]);
+    const [searchText, setSearchText] = useState('');
     const [isReplyModalOpen, setIsReplyModalOpen] = useState(false);
     const [replyValue, setReplyValue] = useState('');
     const [selectedReview, setSelectedReview] = useState(null);
@@ -37,6 +38,16 @@ function ReviewManagement() {
     useEffect(() => {
         fetchReviews();
     }, []);
+
+    const filteredReviews = reviews.filter((review) => {
+        const keyword = searchText.trim().toLowerCase();
+        if (!keyword) return true;
+        return (
+            review.productName?.toLowerCase().includes(keyword) ||
+            review.fullName?.toLowerCase().includes(keyword) ||
+            review.comment?.toLowerCase().includes(keyword)
+        );
+    });
 
     const openReplyModal = (record) => {
         setSelectedReview(record);
@@ -117,12 +128,6 @@ function ReviewManagement() {
             key: 'rating',
             render: (rating) => <Rate disabled value={rating} />,
         },
-        // {
-        //     title: 'Nội dung',
-        //     dataIndex: 'comment',
-        //     key: 'comment',
-        //     render: (comment) => comment || 'Không có nhận xét',
-        // },
         {
             title: 'Phản hồi',
             dataIndex: 'adminReply',
@@ -145,8 +150,7 @@ function ReviewManagement() {
             key: 'action',
             render: (_, record) => (
                 <Space>
-                    <Button title='Phản hồi' icon={<MessageOutlined />} onClick={() => openReplyModal(record)}>
-                    </Button>
+                    <Button title='Phản hồi' icon={<MessageOutlined />} onClick={() => openReplyModal(record)} />
                     <Popconfirm
                         title='Xóa đánh giá'
                         description='Bạn có chắc muốn xóa đánh giá này?'
@@ -154,8 +158,7 @@ function ReviewManagement() {
                         cancelText='Hủy'
                         onConfirm={() => handleDeleteReview(record)}
                     >
-                        <Button title='Xóa' danger icon={<DeleteOutlined />}>
-                        </Button>
+                        <Button title='Xóa' danger icon={<DeleteOutlined />} />
                     </Popconfirm>
                 </Space>
             ),
@@ -171,9 +174,19 @@ function ReviewManagement() {
                 </Button>
             </Space>
 
+            {/* Search */}
+            <Input
+                allowClear
+                prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+                placeholder='Tìm theo tên sản phẩm, người đánh giá, ...'
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                style={{ marginBottom: 16, width: 380 }}
+            />
+
             <Table
                 columns={columns}
-                dataSource={reviews}
+                dataSource={filteredReviews}
                 loading={loading}
                 pagination={{ pageSize: 8 }}
                 locale={{

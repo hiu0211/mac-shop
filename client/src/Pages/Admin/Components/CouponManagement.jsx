@@ -214,7 +214,7 @@ const CouponManagement = () => {
                     <Button icon={<EditOutlined />} onClick={() => handleOpenEdit(record)}>
                     </Button>
                     <Popconfirm
-                        title="Bạn có chắc muốn xóa mã giảm giá này?"
+                        title="Bạn có chắc muốn xóa mã này?"
                         onConfirm={() => handleDelete(record.id)}
                         okText="Có"
                         cancelText="Không"
@@ -228,18 +228,22 @@ const CouponManagement = () => {
 
     return (
         <div>
-            <Card title="Quản lý mã giảm giá">
+            <Card title="Quản lý mã giảm giá"
+                extra={
+                    <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>
+                        Thêm mới
+                    </Button>
+                }
+            >
                 <Space>
                     <Search
                         placeholder="Tìm theo mã giảm giá"
                         allowClear
                         onChange={(event) => setSearchCode(event.target.value)}
                         value={searchCode}
-                        style={{ minWidth: 350 }}
+                        style={{ width: 350 }}
                     />
-                    <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>
-                        Thêm mới
-                    </Button>
+
                 </Space>
             </Card>
 
@@ -280,19 +284,19 @@ const CouponManagement = () => {
                         name="value"
                         rules={[{ required: true, message: 'Vui lòng nhập giá trị' }]}
                     >
-                        <InputNumber min={1} style={{ width: '100%' }} placeholder='Nhập giá trị giảm giá'/>
+                        <InputNumber min={1} style={{ width: '100%' }} placeholder='Nhập giá trị giảm giá' />
                     </Form.Item>
                     <Form.Item label="Giá trị đơn hàng tối thiểu" name="minOrderValue" initialValue={0} hidden>
-                        <InputNumber min={0} style={{ width: '100%' }} placeholder='Nhập giá trị đơn hàng tối thiểu'/>
+                        <InputNumber min={0} style={{ width: '100%' }} placeholder='Nhập giá trị đơn hàng tối thiểu' />
                     </Form.Item>
                     <Form.Item label="Giá trị giảm tối đa" name="maxDiscount" initialValue={0} hidden>
-                        <InputNumber min={0} style={{ width: '100%' }} placeholder='Nhập giá trị giảm tối đa'/>
+                        <InputNumber min={0} style={{ width: '100%' }} placeholder='Nhập giá trị giảm tối đa' />
                     </Form.Item>
                     <Form.Item label="Giới hạn tổng số lần sử dụng" name="totalUsageLimit" initialValue={0} hidden>
-                        <InputNumber min={0} style={{ width: '100%' }} placeholder='Nhập giới hạn tổng số lần sử dụng'/>
+                        <InputNumber min={0} style={{ width: '100%' }} placeholder='Nhập giới hạn tổng số lần sử dụng' />
                     </Form.Item>
                     <Form.Item label="Giới hạn người dùng" name="perUserUsageLimit" initialValue={0} hidden>
-                        <InputNumber min={0} style={{ width: '100%' }} placeholder='Nhập số lượng giới hạn'/>
+                        <InputNumber min={0} style={{ width: '100%' }} placeholder='Nhập số lượng giới hạn' />
                     </Form.Item>
                     <Form.Item
                         label="Thời gian áp dụng"

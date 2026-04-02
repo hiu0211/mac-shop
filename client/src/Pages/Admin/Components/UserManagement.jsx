@@ -58,7 +58,7 @@ const UserManagement = () => {
             ],
             onFilter: (value, record) => record.typeLogin === value,
         },
-        
+
     ];
 
     const [dataUsers, setDataUsers] = useState([]);
@@ -101,15 +101,16 @@ const UserManagement = () => {
         <div>
             <Space style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
                 <h2>Quản lý người dùng</h2>
-                <Input
-                    placeholder="Tìm kiếm người dùng"
-                    prefix={<SearchOutlined />}
-                    value={searchText}
-                    onChange={(e) => setSearchText(e.target.value)}
-                    allowClear
-                    style={{ width: 350 }}
-                />
             </Space>
+
+            <Input
+                placeholder="Tìm kiếm người dùng"
+                prefix={<SearchOutlined />}
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                allowClear
+                style={{ marginBottom: 16, width: 350 }}
+            />
             <Table columns={columns} dataSource={filteredData} />
         </div>
     );
