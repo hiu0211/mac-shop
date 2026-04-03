@@ -5,6 +5,7 @@ const cartRoutes = require("./cart.routes");
 const paymentsRoutes = require("./payments.routes");
 const couponsRoutes = require("./coupons.routes");
 const productTypeRoutes = require("./productType.routes");
+const revenueRoutes = require("./revenue.route");
 
 function routes(app) {
   app.post("/api/register", userRoutes);
@@ -81,6 +82,8 @@ function routes(app) {
   app.post("/api/coupons/validate", couponsRoutes);
   app.post("/api/coupons/apply", couponsRoutes);
   app.post("/api/coupons/remove", couponsRoutes);
+
+  app.use("/api/revenue", revenueRoutes);
 }
 
 module.exports = routes;

@@ -57,6 +57,11 @@ export const requestGetAdminStats = async () => {
     return res.data;
 };
 
+export const requestGetRevenueStatistics = async (params) => {
+    const res = await request.get('/api/revenue/statistics', { params });
+    return res.data;
+};
+
 export const requestGetAllUser = async () => {
     const res = await request.get('/api/get-all-users');
     return res.data;
