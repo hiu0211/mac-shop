@@ -27,22 +27,23 @@ const getDefaultAttributeField = () => ({
     optionsText: [],
 });
 
-const generateKeyFromLabel = (label) => {
-    return String(label || '')
+const removeVietnamese = (str) => {
+    return String(str || '')
         .trim()
         .toLowerCase()
+        .replace(/[đĐ]/g, 'd')
         .normalize('NFD')
-        .replace(/[\u0300-\u036f\u1ab0-\u1dff\ufe20-\ufe2f]/g, '')
+        .replace(/[\u0300-\u036f\u1ab0-\u1dff\ufe20-\ufe2f]/g, '');
+};
+
+const generateKeyFromLabel = (label) => {
+    return removeVietnamese(label)
         .replace(/[^a-z0-9]+/g, '_')
         .replace(/^_+|_+$/g, '');
 };
 
 const generateCodeFromName = (name) => {
-    return String(name || '')
-        .trim()
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f\u1ab0-\u1dff\ufe20-\ufe2f]/g, '')
+    return removeVietnamese(name)
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
 };
@@ -252,7 +253,7 @@ function ManagerProductTypeEditor({ setActiveComponent, productTypeId }) {
                 <div className={cx('row')}>
                     <Form.Item
                         name="name"
-                        label="Tên hiển thị"
+                        label="Tên loại sản phẩm"
                         rules={[{ required: true, message: 'Vui lòng nhập tên loại sản phẩm' }]}
                     >
                         <Input placeholder="Ví dụ: Smartphone" />

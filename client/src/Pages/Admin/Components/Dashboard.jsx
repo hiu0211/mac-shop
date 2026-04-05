@@ -419,7 +419,7 @@ const Dashboard = () => {
 
                     {/* Biểu đồ doanh thu */}
                     <Col span={24}>
-                        <Card title="Xu hướng doanh thu">
+                        <Card title="Thông kê doanh thu">
                             {revenueLoading ? (
                                 <Spin />
                             ) : revenueDataState.chart_data.length > 0 ? (
