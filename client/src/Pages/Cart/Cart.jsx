@@ -35,11 +35,9 @@ function Cart() {
     const [updatingQuantity, setUpdatingQuantity] = useState({});
     const [availableCoupons, setAvailableCoupons] = useState([]);
 
-    // States cho Autocomplete địa chỉ
     const [addressOptions, setAddressOptions] = useState([]);
     const [valueAddress, setValueAddress] = useState('');
 
-    // Debounce để tối ưu API calls
     const debounce = useDebounce(valueAddress, 500);
     const navigate = useNavigate();
 
@@ -73,7 +71,6 @@ function Cart() {
         }
     }, [navigate]);
 
-    // Fetch available coupons
     const fetchAvailableCoupons = useCallback(async () => {
         try {
             const res = await requestGetAvailableCoupons();
@@ -84,10 +81,8 @@ function Cart() {
         }
     }, []);
 
-    // Cleanup coupon when leaving page
     useEffect(() => {
         return () => {
-            // Auto-clear coupon when unmounting (leaving the page)
             if (couponCode) {
                 requestRemoveCoupon().catch((error) => {
                     console.error('Lỗi khi xóa mã giảm giá tự động:', error);
@@ -113,7 +108,6 @@ function Cart() {
         }
     }, [cart, selectedRowKeys, couponCode, discountAmount]);
 
-    // Fetch địa chỉ từ Goong API
     useEffect(() => {
         const fetchAddressData = async () => {
             try {
@@ -143,7 +137,6 @@ function Cart() {
         }
     }, [debounce]);
 
-    // Hàm cập nhật số lượng
     const updateQuantityAPI = async (record, newQuantity) => {
         try {
             const updatingKey = record.cartItemKey || record.id;
@@ -162,11 +155,9 @@ function Cart() {
         }
     };
 
-    // Tạo debounced version
     const debouncedUpdateAPI = useDebounceCallback(updateQuantityAPI, 800);
 
     const handleUpdateQuantity = (record, newQuantity) => {
-        // Validate input
         if (!newQuantity || newQuantity < 1) {
             message.warning('Số lượng phải lớn hơn 0');
             return;
@@ -177,7 +168,6 @@ function Cart() {
             return;
         }
 
-        // Update UI ngay lập tức (optimistic update)
         setCart(prevCart =>
             prevCart.map(item =>
                 item.cartItemKey === record.cartItemKey
@@ -186,7 +176,6 @@ function Cart() {
             )
         );
 
-        // Gọi API với debounce (chờ 800ms sau lần nhấn cuối)
         debouncedUpdateAPI(record, newQuantity);
     };
 
@@ -413,8 +402,8 @@ function Cart() {
                         </div>
                     ) : (
                         <div className={cx('cart-layout')}>
-                            {/* CỘT TRÁI: DANH SÁCH SẢN PHẨM */}
-                            <div className={cx('cart-left')}>
+                            {/* HÀNG TRÊN: Danh sách sản phẩm 100% */}
+                            <div className={cx('cart-top-section')}>
                                 <div className={cx('cart-items-card')}>
                                     <Table
                                         bordered={false}
@@ -427,35 +416,77 @@ function Cart() {
                                 </div>
                             </div>
 
-                            {/* CỘT PHẢI: THÔNG TIN THANH TOÁN & ĐẶT HÀNG */}
-                            <div className={cx('cart-right')}>
-                                <div className={cx('summary-card')}>
-                                    <h3 className={cx('summary-title')}>Tổng quan đơn hàng</h3>
+                            {/* HÀNG DƯỚI: Chia layout 70 - 30 */}
+                            <div className={cx('cart-bottom-section')}>
+                                {/* 70% Trái: Thông tin nhận hàng */}
+                                <div className={cx('checkout-info-card')}>
+                                    <h4 className={cx('section-title')}>Thông tin nhận hàng</h4>
+                                    <Form form={form} layout="vertical" onFinish={handleSubmit}>
+                                        <Form.Item
+                                            label="Họ và tên"
+                                            name="fullName"
+                                            rules={[{ required: true, message: 'Vui lòng nhập họ và tên!' }]}
+                                        >
+                                            <Input placeholder="Nhập họ và tên người nhận" size="large" />
+                                        </Form.Item>
 
-                                    <div className={cx('summary-row')}>
-                                        <span>Tạm tính:</span>
-                                        <span>{totalPrice.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</span>
-                                    </div>
+                                        <Form.Item
+                                            label="Số điện thoại"
+                                            name="phone"
+                                            rules={[
+                                                { required: true, message: 'Vui lòng nhập số điện thoại!' },
+                                                { pattern: /^[0-9]{10}$/, message: 'Số điện thoại không hợp lệ!' },
+                                            ]}
+                                        >
+                                            <Input placeholder="Nhập số điện thoại liên hệ" size="large" />
+                                        </Form.Item>
 
-                                    {discountAmount > 0 && (
-                                        <div className={cx('summary-row', 'discount-row')}>
-                                            <span>Giảm giá:</span>
-                                            <span>- {discountAmount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</span>
+                                        <Form.Item
+                                            label="Địa chỉ giao hàng"
+                                            name="address"
+                                            rules={[{ required: true, message: 'Vui lòng nhập địa chỉ!' }]}
+                                        >
+                                            <AutoComplete
+                                                options={addressOptions}
+                                                onSearch={handleAddressSearch}
+                                                onSelect={handleAddressSelect}
+                                                placeholder="Nhập địa chỉ nhận hàng"
+                                                filterOption={false}
+                                                size="large"
+                                                notFoundContent={valueAddress ? "Đang tìm kiếm..." : null}
+                                            />
+                                        </Form.Item>
+
+                                        <div className={cx('payment-actions')}>
+                                            <Button
+                                                onClick={() => handlePayments('COD')}
+                                                className={cx('submit-btn')}
+                                                loading={loading}
+                                                size="large"
+                                                block
+                                            >
+                                                Thanh toán khi nhận hàng (COD)
+                                            </Button>
+
+                                            <Button
+                                                onClick={() => handlePayments('VNPAY')}
+                                                className={cx('payment-btn-vnpay')}
+                                                loading={loading}
+                                                size="large"
+                                                block
+                                            >
+                                                Thanh toán qua VNPAY
+                                            </Button>
                                         </div>
-                                    )}
+                                    </Form>
+                                </div>
 
-                                    <div className={cx('summary-row', 'total-row')}>
-                                        <span>Thành tiền:</span>
-                                        <span className={cx('total-price')}>
-                                            {totalPriceAfterDiscount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
-                                        </span>
-                                    </div>
-                                    <p className={cx('tax-note')}>(Đã bao gồm VAT)</p>
-
-                                    <Divider />
+                                {/* 30% Phải: Tổng quan đơn hàng */}
+                                <div className={cx('summary-card')}>
+                                    <h3 className={cx('section-title')}>Tổng quan đơn hàng</h3>
 
                                     <div className={cx('coupon-section')}>
-                                        <h4>Mã giảm giá</h4>
+                                        {/* <h4 style={{ marginBottom: 10 }}>Mã giảm giá</h4> */}
                                         <div className={cx('coupon-row')}>
                                             {couponCode ? (
                                                 <div className={cx('coupon-info')}>
@@ -524,67 +555,25 @@ function Cart() {
 
                                     <Divider />
 
-                                    <div className={cx('checkout-form')}>
-                                        <h4>Thông tin nhận hàng</h4>
-                                        <Form form={form} layout="vertical" onFinish={handleSubmit}>
-                                            <Form.Item
-                                                label="Họ và tên"
-                                                name="fullName"
-                                                rules={[{ required: true, message: 'Vui lòng nhập họ và tên!' }]}
-                                            >
-                                                <Input placeholder="Nhập họ và tên người nhận" size="large" />
-                                            </Form.Item>
-
-                                            <Form.Item
-                                                label="Số điện thoại"
-                                                name="phone"
-                                                rules={[
-                                                    { required: true, message: 'Vui lòng nhập số điện thoại!' },
-                                                    { pattern: /^[0-9]{10}$/, message: 'Số điện thoại không hợp lệ!' },
-                                                ]}
-                                            >
-                                                <Input placeholder="Nhập số điện thoại liên hệ" size="large" />
-                                            </Form.Item>
-
-                                            <Form.Item
-                                                label="Địa chỉ giao hàng"
-                                                name="address"
-                                                rules={[{ required: true, message: 'Vui lòng nhập địa chỉ!' }]}
-                                            >
-                                                <AutoComplete
-                                                    options={addressOptions}
-                                                    onSearch={handleAddressSearch}
-                                                    onSelect={handleAddressSelect}
-                                                    placeholder="Nhập địa chỉ nhận hàng"
-                                                    filterOption={false}
-                                                    size="large"
-                                                    notFoundContent={valueAddress ? "Đang tìm kiếm..." : null}
-                                                />
-                                            </Form.Item>
-
-                                            <div className={cx('payment-actions')}>
-                                                <Button
-                                                    onClick={() => handlePayments('COD')}
-                                                    className={cx('submit-btn')}
-                                                    loading={loading}
-                                                    size="large"
-                                                    block
-                                                >
-                                                    Thanh toán khi nhận hàng (COD)
-                                                </Button>
-
-                                                <Button
-                                                    onClick={() => handlePayments('VNPAY')}
-                                                    className={cx('payment-btn-vnpay')}
-                                                    loading={loading}
-                                                    size="large"
-                                                    block
-                                                >
-                                                    Thanh toán qua VNPAY
-                                                </Button>
-                                            </div>
-                                        </Form>
+                                    <div className={cx('summary-row')}>
+                                        <span>Tạm tính:</span>
+                                        <span>{totalPrice.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</span>
                                     </div>
+
+                                    {discountAmount > 0 && (
+                                        <div className={cx('summary-row', 'discount-row')}>
+                                            <span>Giảm giá:</span>
+                                            <span>- {discountAmount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</span>
+                                        </div>
+                                    )}
+
+                                    <div className={cx('summary-row', 'total-row')}>
+                                        <span>Thành tiền:</span>
+                                        <span className={cx('total-price')}>
+                                            {totalPriceAfterDiscount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
+                                        </span>
+                                    </div>
+                                    <p className={cx('tax-note')}>(Đã bao gồm VAT)</p>
                                 </div>
                             </div>
                         </div>

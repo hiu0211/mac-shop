@@ -46,46 +46,53 @@
     }
 }
 
-/* Layout 2 Cột */
+/* --- BỐ CỤC CHÍNH (LAYOUT MỚI) --- */
 .cart-layout {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 24px;
-    align-items: start; /* Giúp cột phải không bị kéo dài bằng cột trái */
 }
 
-/* --- CỘT TRÁI: DANH SÁCH --- */
-.cart-items-card {
-    background-color: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-    overflow: hidden;
+/* Hàng trên 100% */
+.cart-top-section {
+    width: 100%;
 }
 
-/* --- CỘT PHẢI: SUMMARY --- */
+/* Hàng dưới chia tỷ lệ  */
+.cart-bottom-section {
+    display: grid;
+    grid-template-columns: 6fr 4fr;
+    gap: 24px;
+    align-items: start;
+}
+
+/* --- ĐỊNH DẠNG CÁC THẺ (CARDS) --- */
+.cart-items-card,
+.checkout-info-card,
 .summary-card {
     background-color: white;
     border-radius: 12px;
     padding: 24px;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-    position: sticky;
-    top: 80px; /* Ghim cột phải khi cuộn trang */
-
-    .summary-title {
-        font-size: 18px;
-        font-weight: 600;
-        margin-bottom: 20px;
-        color: #333;
-    }
-
-    h4 {
-        font-size: 16px;
-        font-weight: 600;
-        color: #333;
-        margin-bottom: 16px;
-    }
 }
 
+.cart-items-card {
+    overflow: hidden;
+    padding: 12px 24px;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 24px;
+    color: #333;
+}
+
+.summary-card {
+    position: static;
+}
+
+/* --- CHI TIẾT TỔNG QUAN ĐƠN HÀNG --- */
 .summary-row {
     display: flex;
     justify-content: space-between;
@@ -106,7 +113,7 @@
 
         .total-price {
             font-size: 22px;
-            color: #ff4d4f; /* Màu nhấn cho tổng tiền */
+            color: #ff4d4f;
         }
     }
 }
@@ -130,7 +137,6 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-top: 12px;
         background: #f6ffed;
         border: 1px dashed #b7eb8f;
         padding: 8px 12px;
@@ -230,11 +236,7 @@
 
 /* --- RESPONSIVE MOBILE & TABLET --- */
 @media (max-width: 992px) {
-    .cart-layout {
-        grid-template-columns: 1fr; /* Chuyển thành 1 cột trên màn hình nhỏ */
-    }
-
-    .summary-card {
-        position: static; /* Tắt ghim cố định trên mobile */
+    .cart-bottom-section {
+        grid-template-columns: 1fr; /* Gập thông tin nhận hàng và tổng quan thành 1 cột trên màn hình nhỏ */
     }
 }
