@@ -83,14 +83,15 @@ function Payments() {
 
                         <div className={cx('list__products')}>
                             <ul>
-                                {dataPayment?.dataProduct?.map((item) => (
-                                    <li key={item?.product?._id}>
+                                {dataPayment?.dataProduct?.map((item, index) => (
+                                    <li key={`${item?.product?._id || 'missing'}-${item?.selectedColorKey || 'default'}-${index}`}>
                                         <div id={cx('product')}>
-                                            <img src={item?.product.images[0]} alt="" />
+                                            <img src={item?.selectedColorImage || item?.product?.images?.[0]} alt="" />
                                             <h4>{item?.product?.name}</h4>
                                         </div>
+                                        {item?.selectedColorName && <p id={cx('price')}>Màu: {item.selectedColorName}</p>}
                                         <p id={cx('price')}>Số lượng : x{item?.quantity} </p>
-                                        <p id={cx('price')}>{item?.product?.price.toLocaleString()} đ</p>
+                                        <p id={cx('price')}>{Number(item?.price || item?.unitPrice || item?.product?.price || 0).toLocaleString()} đ</p>
                                     </li>
                                 ))}
                             </ul>

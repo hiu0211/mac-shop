@@ -9,6 +9,11 @@ const modelCart = new Schema(
       {
         productId: { type: String, required: true, ref: "product" },
         quantity: { type: Number, required: true },
+        selectedColorKey: { type: String, default: "", trim: true, lowercase: true },
+        selectedColorName: { type: String, default: "", trim: true },
+        selectedColorHex: { type: String, default: "", trim: true },
+        selectedColorImage: { type: String, default: "", trim: true },
+        unitPrice: { type: Number, default: 0, min: 0 },
       },
     ],
     totalPrice: { type: Number, require: true },

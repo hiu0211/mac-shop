@@ -101,6 +101,7 @@ const Dashboard = () => {
         summary: defaultRevenueSummary,
         chart_data: [],
         top_products: [],
+        top_customers: [],
     });
 
     const fetchRevenueStats = useCallback(async ({ range, nextGroupBy } = {}) => {
@@ -133,6 +134,7 @@ const Dashboard = () => {
                 },
                 chart_data: response?.metadata?.chart_data || [],
                 top_products: response?.metadata?.top_products || [],
+                top_customers: response?.metadata?.top_customers || [],
             });
         } catch (error) {
             const errorMessage = error?.response?.data?.message || 'Không thể tải thống kê doanh thu';
@@ -453,10 +455,22 @@ const Dashboard = () => {
                                             </Space>
                                         ),
                                     },
+                                    // {
+                                    //     title: 'Màu doanh thu cao',
+                                    //     dataIndex: 'best_color_name',
+                                    //     key: 'best_color_name',
+                                    //     render: (value) => value || <Text type="secondary">Mặc định</Text>,
+                                    // },
                                     {
                                         title: 'Số lượng bán',
                                         dataIndex: 'quantity_sold',
                                         key: 'quantity_sold',
+                                    },
+                                    {
+                                        title: 'Giá bán TB',
+                                        dataIndex: 'average_unit_price',
+                                        key: 'average_unit_price',
+                                        render: (value) => formatCurrency(value),
                                     },
                                     {
                                         title: 'Doanh thu',
@@ -473,6 +487,46 @@ const Dashboard = () => {
                                                 {formatCurrency(value || 0)}
                                             </span>
                                         ),
+                                    },
+                                ]}
+                            />
+                        </Card>
+                    </Col>
+
+                    <Col span={24}>
+                        <Card title="Top 10 khách hàng theo doanh thu">
+                            <Table
+                                rowKey={(record, index) => record.customer_id || `customer-${index}`}
+                                dataSource={revenueDataState.top_customers}
+                                pagination={false}
+                                columns={[
+                                    {
+                                        title: 'Khách hàng',
+                                        dataIndex: 'customer_name',
+                                        key: 'customer_name',
+                                        render: (value) => value || 'Khách hàng',
+                                    },
+                                    {
+                                        title: 'Số đơn',
+                                        dataIndex: 'order_count',
+                                        key: 'order_count',
+                                    },
+                                    {
+                                        title: 'SL đã mua',
+                                        dataIndex: 'items_sold',
+                                        key: 'items_sold',
+                                    },
+                                    {
+                                        title: 'Doanh thu',
+                                        dataIndex: 'revenue',
+                                        key: 'revenue',
+                                        render: (value) => formatCurrency(value),
+                                    },
+                                    {
+                                        title: 'Giá trị đơn TB',
+                                        dataIndex: 'average_order_value',
+                                        key: 'average_order_value',
+                                        render: (value) => formatCurrency(value),
                                     },
                                 ]}
                             />

@@ -7,9 +7,9 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { EffectFade, Navigation, Pagination, Autoplay } from 'swiper/modules';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
-import { faCheckCircle, faShieldHalved, faTruckFast, faRotateLeft, faPhoneVolume } from '@fortawesome/free-solid-svg-icons';
+import { faCheckCircle, faShieldHalved, faTruckFast, faRotateLeft, faPhoneVolume, faCheck } from '@fortawesome/free-solid-svg-icons';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { requestAddToCart, requestGetProductById } from '../../Config/request';
 import { useParams, useNavigate } from 'react-router-dom';
 import cookies from 'js-cookie';
@@ -74,8 +74,46 @@ const clampDiscountPercent = (value) => {
     return Math.min(Math.max(Math.round(numeric), 0), 100);
 };
 
-const buildPricingData = (product = {}) => {
-    const originalPrice = Number(product?.price) || 0;
+const normalizeColorOptions = (colorOptions) => {
+    if (!Array.isArray(colorOptions)) return [];
+
+    return colorOptions
+        .filter((item) => item && typeof item === 'object')
+        .map((item, index) => {
+            const name = String(item.name || '').trim();
+            const key = String(item.key || name || `color-${index + 1}`).trim().toLowerCase();
+            const image = String(item.image || '').trim();
+            const price = Number(item.price);
+
+            if (!name || !key || !Number.isFinite(price) || price < 0) {
+                return null;
+            }
+
+            return {
+                key,
+                name,
+                image,
+                price,
+                isDefault: Boolean(item.isDefault),
+            };
+        })
+        .filter(Boolean);
+};
+
+const resolveInitialColorKey = (product = {}, colorOptions = []) => {
+    if (!Array.isArray(colorOptions) || colorOptions.length === 0) return '';
+
+    const normalizedDefaultColorKey = String(product?.defaultColorKey || '').trim().toLowerCase();
+    if (normalizedDefaultColorKey && colorOptions.some((item) => item.key === normalizedDefaultColorKey)) {
+        return normalizedDefaultColorKey;
+    }
+
+    const defaultOption = colorOptions.find((item) => item.isDefault);
+    return defaultOption?.key || colorOptions[0]?.key || '';
+};
+
+const buildPricingData = (product = {}, selectedColorOption = null) => {
+    const originalPrice = selectedColorOption ? Number(selectedColorOption.price || 0) : Number(product?.price) || 0;
     const discountPercent = clampDiscountPercent(product?.discount);
     const hasDiscount = originalPrice > 0 && discountPercent > 0;
     const discountedPrice = hasDiscount
@@ -98,11 +136,16 @@ function DetailProduct() {
     const navigate = useNavigate();
     const { id } = useParams();
     const [dataProduct, setDataProduct] = useState({});
+    const [selectedColorKey, setSelectedColorKey] = useState('');
 
     useEffect(() => {
         const fetchData = async () => {
             const res = await requestGetProductById(id);
-            setDataProduct(res.metadata);
+            const nextProduct = res?.metadata || {};
+            setDataProduct(nextProduct);
+
+            const nextColorOptions = normalizeColorOptions(nextProduct?.colorOptions);
+            setSelectedColorKey(resolveInitialColorKey(nextProduct, nextColorOptions));
         };
         fetchData();
     }, [id]);
@@ -117,8 +160,19 @@ function DetailProduct() {
             navigate('/login');
             return false;
         }
+
+        const availableColorOptions = normalizeColorOptions(dataProduct?.colorOptions);
+        if (availableColorOptions.length > 0 && !selectedColorKey) {
+            message.warning('Vui lòng chọn màu sắc trước khi thêm vào giỏ');
+            return false;
+        }
+
         try {
-            const data = { productId: id, quantity: 1 };
+            const data = {
+                productId: id,
+                quantity: 1,
+                selectedColorKey: selectedColorKey || undefined,
+            };
             await requestAddToCart(data);
             window.dispatchEvent(new Event('cart-updated'));
             message.success('Thêm vào giỏ hàng thành công');
@@ -140,12 +194,27 @@ function DetailProduct() {
     const reviews = Array.isArray(dataProduct?.reviews) ? dataProduct.reviews : [];
     const averageRating = reviews.length > 0 ? reviews.reduce((sum, item) => sum + Number(item.rating || 0), 0) / reviews.length : 0;
     const specs = buildSpecs(dataProduct);
+    const colorOptions = normalizeColorOptions(dataProduct?.colorOptions);
+    const selectedColorOption = colorOptions.find((item) => item.key === selectedColorKey) || null;
+    const displayImages = useMemo(() => {
+        const productImages = Array.isArray(dataProduct?.images)
+            ? dataProduct.images.map((item) => String(item || '').trim()).filter(Boolean)
+            : [];
+
+        const selectedColorImage = String(selectedColorOption?.image || '').trim();
+        if (!selectedColorImage) {
+            return productImages;
+        }
+
+        const remainingImages = productImages.filter((item) => item !== selectedColorImage);
+        return [selectedColorImage, ...remainingImages];
+    }, [dataProduct?.images, selectedColorOption?.image]);
     const {
         originalPrice,
         hasDiscount,
         discountedPrice,
         savingAmount,
-    } = buildPricingData(dataProduct);
+    } = buildPricingData(dataProduct, selectedColorOption);
 
     return (
         <div className={cx('wrapper')}>
@@ -156,6 +225,7 @@ function DetailProduct() {
                     <div className={cx('leftColumn')}>
                         <div className={cx('swiperWrapper')}>
                             <Swiper
+                                key={`gallery-${id}-${selectedColorKey || 'default'}`}
                                 slidesPerView={1}
                                 autoplay={{ delay: 3000, disableOnInteraction: false }}
                                 loop={true}
@@ -167,7 +237,7 @@ function DetailProduct() {
                                 modules={[EffectFade, Navigation, Pagination, Autoplay]}
                                 className="mySwiper"
                             >
-                                {dataProduct?.images?.map((item, index) => (
+                                {displayImages.map((item, index) => (
                                     <SwiperSlide key={index}>
                                         <div className={cx('imageContainer')}>
                                             <img src={item} alt={`${dataProduct?.name} - Image ${index + 1}`} />
@@ -211,6 +281,47 @@ function DetailProduct() {
                             )}
                             <span className={cx('vatBadge')}>Đã bao gồm VAT</span>
                         </div>
+
+                        {colorOptions.length > 0 && (
+                            <div className={cx('colorSection')}>
+                                <h3>Chọn màu sắc</h3>
+                                <div className={cx('colorList')}>
+                                    {colorOptions.map((option) => {
+                                        const isActive = selectedColorKey === option.key;
+                                        const optionDisplayPrice = buildPricingData(dataProduct, option).discountedPrice;
+                                        return (
+                                            <button
+                                                key={option.key}
+                                                type="button"
+                                                className={cx('colorOption', { colorOptionActive: isActive })}
+                                                onClick={() => setSelectedColorKey(option.key)}
+                                            >
+                                                {option.image ? (
+                                                    <img
+                                                        className={cx('colorPreviewImage')}
+                                                        src={option.image}
+                                                        alt={option.name}
+                                                    />
+                                                ) : (
+                                                    <span className={cx('colorPreviewImagePlaceholder')} aria-hidden="true" />
+                                                )}
+
+                                                <span className={cx('colorMeta')}>
+                                                    <span className={cx('colorLabel')}>{option.name}</span>
+                                                    <span className={cx('colorPrice')}>{formatCurrency(optionDisplayPrice)}đ</span>
+                                                </span>
+
+                                                {isActive && (
+                                                    <span className={cx('colorTick')}>
+                                                        <FontAwesomeIcon icon={faCheck} />
+                                                    </span>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
 
                         <div className={cx('promoBox')}>
                             <h3 className={cx('boxTitle')}>Ưu đãi dành cho bạn</h3>

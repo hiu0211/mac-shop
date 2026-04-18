@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Form, Input, InputNumber, Upload, Button, Card, message, Space, Select, Divider, Empty, Row, Col } from 'antd';
-import { UploadOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { Form, Input, InputNumber, Upload, Button, Card, message, Space, Select, Divider, Empty, Row, Col, Checkbox } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
 import {
     requestEditProduct,
     requestGetAllProductTypes,
@@ -59,6 +59,145 @@ const extractLegacyAttributes = (product = {}) => {
 };
 
 const isEmptyValue = (value) => value == null || String(value).trim() === '';
+
+const normalizeColorKey = (value = '') =>
+    String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+const normalizeColorOptions = (colorOptions = []) => {
+    if (!Array.isArray(colorOptions)) {
+        return [];
+    }
+
+    const seenNames = new Set();
+
+    const normalized = colorOptions
+        .filter((item) => item && typeof item === 'object')
+        .map((item, index) => {
+            const name = String(item.name || '').trim();
+            const nameKey = name.toLowerCase();
+            const price = Number(item.price);
+
+            if (!name || !Number.isFinite(price) || price < 0 || seenNames.has(nameKey)) {
+                return null;
+            }
+
+            seenNames.add(nameKey);
+
+            const image = typeof item.image === 'string' ? item.image.trim() : '';
+
+            const option = {
+                key: normalizeColorKey(item.key || name || `color-${index + 1}`) || `color-${index + 1}`,
+                name,
+                image,
+                price,
+                isDefault: Boolean(item.isDefault),
+            };
+
+            return option;
+        })
+        .filter(Boolean);
+
+    if (normalized.length === 0) {
+        return [];
+    }
+
+    const defaultIndex = normalized.findIndex((item) => item.isDefault);
+
+    if (defaultIndex === -1) {
+        normalized[0].isDefault = true;
+    } else {
+        normalized.forEach((item, index) => {
+            item.isDefault = index === defaultIndex;
+        });
+    }
+
+    return normalized;
+};
+
+const mapColorOptionsToFormValues = (colorOptions = []) => {
+    return normalizeColorOptions(colorOptions).map((item, index) => ({
+        ...item,
+        image: item.image
+            ? [
+                {
+                    uid: `color-image-${item.key || index}`,
+                    name: item.name || `color-${index + 1}`,
+                    status: 'done',
+                    url: item.image,
+                },
+            ]
+            : [],
+    }));
+};
+
+const resolveColorImageUrlFromValue = (imageValue) => {
+    if (typeof imageValue === 'string') {
+        return imageValue.trim();
+    }
+
+    if (Array.isArray(imageValue)) {
+        const existingFile = imageValue.find((file) => file?.url && !file?.originFileObj);
+        return String(existingFile?.url || '').trim();
+    }
+
+    return '';
+};
+
+const uploadColorOptionImages = async (colorOptions = []) => {
+    if (!Array.isArray(colorOptions) || colorOptions.length === 0) {
+        return [];
+    }
+
+    const filesToUpload = [];
+
+    colorOptions.forEach((option) => {
+        const imageFileList = Array.isArray(option?.image) ? option.image : [];
+        const newImageFile = imageFileList.find((file) => file?.originFileObj);
+
+        if (newImageFile?.originFileObj) {
+            filesToUpload.push(newImageFile.originFileObj);
+        }
+    });
+
+    let uploadedUrls = [];
+
+    if (filesToUpload.length > 0) {
+        const formData = new FormData();
+        filesToUpload.forEach((file) => {
+            formData.append('images', file);
+        });
+
+        const uploadResponse = await requestUploadImage(formData);
+        uploadedUrls = Array.isArray(uploadResponse?.metadata) ? uploadResponse.metadata : [];
+
+        if (uploadedUrls.length !== filesToUpload.length) {
+            throw new Error('Không thể tải đầy đủ ảnh màu, vui lòng thử lại');
+        }
+    }
+
+    let uploadCursor = 0;
+
+    return colorOptions.map((option) => {
+        const imageFileList = Array.isArray(option?.image) ? option.image : [];
+        const hasNewImage = imageFileList.some((file) => file?.originFileObj);
+        const existingImageUrl = resolveColorImageUrlFromValue(option?.image);
+
+        const image = hasNewImage
+            ? String(uploadedUrls[uploadCursor++] || '').trim()
+            : existingImageUrl;
+
+        return {
+            ...option,
+            image,
+        };
+    });
+};
 
 const EditProduct = ({ setActiveComponent, productId }) => {
     const [form] = Form.useForm();
@@ -168,6 +307,7 @@ const EditProduct = ({ setActiveComponent, productId }) => {
                     discount: Number(product?.discount || 0),
                     costPrice: Number(product?.costPrice || 0),
                     attributes: mergedAttributes,
+                    colorOptions: mapColorOptionsToFormValues(product?.colorOptions || []),
                     image: imageFileList,
                 });
             } catch (error) {
@@ -219,6 +359,18 @@ const EditProduct = ({ setActiveComponent, productId }) => {
 
             imageUrls = [...oldImageUrls, ...newImageUrls];
 
+            const rawColorOptions = Array.isArray(values.colorOptions)
+                ? values.colorOptions.filter((item) => item && typeof item === 'object')
+                : [];
+            const colorOptionsWithUploadedImages = await uploadColorOptionImages(rawColorOptions);
+            const normalizedColorOptions = normalizeColorOptions(colorOptionsWithUploadedImages);
+
+            if (normalizedColorOptions.length !== rawColorOptions.length) {
+                message.error('Danh sách màu có dữ liệu không hợp lệ hoặc bị trùng tên');
+                setSubmitting(false);
+                return;
+            }
+
             const productData = {
                 _id: productId,
                 name: values.name,
@@ -230,6 +382,7 @@ const EditProduct = ({ setActiveComponent, productId }) => {
                 images: imageUrls,
                 componentType: values.componentType,
                 attributes: values.attributes || {},
+                colorOptions: normalizedColorOptions,
             };
 
             await requestEditProduct(productData);
@@ -275,6 +428,19 @@ const EditProduct = ({ setActiveComponent, productId }) => {
         file.uid = `upload-${timestamp}-${uploadCounterRef.current}-${file.size}-${file.name.replace(/[^a-zA-Z0-9]/g, '')}`;
 
         return false; // Ngăn upload tự động
+    };
+
+    const handleSelectDefaultColor = (targetIndex, checked) => {
+        const currentColorOptions = Array.isArray(form.getFieldValue('colorOptions'))
+            ? form.getFieldValue('colorOptions')
+            : [];
+
+        const nextColorOptions = currentColorOptions.map((item, index) => ({
+            ...(item || {}),
+            isDefault: checked ? index === targetIndex : false,
+        }));
+
+        form.setFieldsValue({ colorOptions: nextColorOptions });
     };
 
     const renderAttributeInput = (field) => {
@@ -445,8 +611,96 @@ const EditProduct = ({ setActiveComponent, productId }) => {
                     </Col>
 
                     <Col span={24}>
+                        <Divider orientation='start' style={{ textTransform: 'uppercase' }}>Tùy chọn màu sắc</Divider>
+                        <Form.List name="colorOptions">
+                            {(fields, { add, remove }) => (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                    {fields.map((field) => (
+                                        <Row key={field.key} gutter={[12, 0]} align="middle">
+                                            <Col xs={24} md={7}>
+                                                <Form.Item
+                                                    {...field}
+                                                    name={[field.name, 'image']}
+                                                    label="Hình ảnh"
+                                                    valuePropName="fileList"
+                                                    getValueFromEvent={normFile}
+                                                >
+                                                    <Upload
+                                                        name="color-image"
+                                                        listType="picture"
+                                                        maxCount={1}
+                                                        beforeUpload={beforeUpload}
+                                                        accept="image/*"
+                                                    >
+                                                        <Button icon={<UploadOutlined />}>Tải ảnh</Button>
+                                                    </Upload>
+                                                </Form.Item>
+                                            </Col>
+
+                                            <Col xs={24} md={7}>
+                                                <Form.Item
+                                                    {...field}
+                                                    name={[field.name, 'name']}
+                                                    label="Tên màu"
+                                                    rules={[{ required: true, message: 'Nhập tên màu' }]}
+                                                >
+                                                    <Input placeholder="Ví dụ: Titan Tự Nhiên" />
+                                                </Form.Item>
+                                            </Col>
+
+                                            <Col xs={24} md={5}>
+                                                <Form.Item
+                                                    {...field}
+                                                    name={[field.name, 'price']}
+                                                    label="Giá"
+                                                    rules={[
+                                                        { required: true, message: 'Nhập giá' },
+                                                        { type: 'number', min: 0, message: 'Giá phải >= 0' },
+                                                    ]}
+                                                >
+                                                    <InputNumber
+                                                        style={{ width: '100%' }}
+                                                        formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                                        parser={(value) => (value || '').replace(/\$\s?|(,*)/g, '')}
+                                                        placeholder="Giá"
+                                                        min={0}
+                                                    />
+                                                </Form.Item>
+                                            </Col>
+
+                                            <Col xs={24} md={2}>
+                                                <Form.Item
+                                                    {...field}
+                                                    name={[field.name, 'isDefault']}
+                                                    label="Mặc định"
+                                                    valuePropName="checked"
+                                                >
+                                                    <Checkbox onChange={(event) => handleSelectDefaultColor(field.name, event.target.checked)} />
+                                                </Form.Item>
+                                            </Col>
+
+                                            <Col xs={24} md={3}>
+                                                <Form.Item label=" ">
+                                                    <Button danger onClick={() => remove(field.name)} block>
+                                                        Xóa
+                                                    </Button>
+                                                </Form.Item>
+                                            </Col>
+                                        </Row>
+                                    ))}
+
+                                    <Button type="dashed" onClick={() => add({ name: '', image: [], price: 0, isDefault: fields.length === 0 })}>
+                                        + Thêm màu
+                                    </Button>
+                                </div>
+                            )}
+                        </Form.List>
+                    </Col>
+
+                    <Col span={24}>
                         <Divider orientation='start' style={{ textTransform: 'uppercase' }}>Thông số kỹ thuật</Divider>
                     </Col>
+
 
                     <Col span={24}>
                         {selectedTypeTemplate.length === 0 ? (

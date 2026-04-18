@@ -85,9 +85,10 @@ function MessageManagement() {
                 detailProducts.map((item) => ({
                     productId: item?.product?._id || '',
                     name: item?.product?.name || 'Sản phẩm',
-                    image: item?.product?.images?.[0] || '',
+                    image: item?.selectedColorImage || item?.product?.images?.[0] || '',
                     quantity: item?.quantity || 0,
-                    price: item?.product?.price || 0,
+                    price: Number(item?.price || item?.unitPrice || item?.product?.price || 0),
+                    selectedColorName: item?.selectedColorName || '',
                 }))
             );
             setMessages(data?.contactMessages || []);
@@ -281,6 +282,9 @@ function MessageManagement() {
                                 )}
                                 <div style={{ flex: 1 }}>
                                     <div style={{ fontWeight: 500 }}>{item.name}</div>
+                                    {item.selectedColorName && (
+                                        <div style={{ fontSize: 12, color: '#666' }}>Màu: {item.selectedColorName}</div>
+                                    )}
                                     <div style={{ fontSize: 12, color: '#888' }}>
                                         x{item.quantity} - {item.price?.toLocaleString?.('vi-VN') || item.price} đ
                                     </div>

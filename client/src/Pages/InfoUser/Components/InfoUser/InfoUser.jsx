@@ -345,6 +345,11 @@ function InfoUser({ isOpen, setIsOpen }) {
                             />
                             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                                 <span>{p.name}</span>
+                                {p.selectedColorName && (
+                                    <span style={{ color: '#666', fontSize: 12 }}>
+                                        Màu: {p.selectedColorName}
+                                    </span>
+                                )}
                                 <span style={{ color: '#888', fontSize: 13 }}>
                                     x{p.quantity} - {p.price?.toLocaleString('vi-VN')} đ
                                 </span>
@@ -414,7 +419,7 @@ function InfoUser({ isOpen, setIsOpen }) {
             </div>
             <Button onClick={handleUpdateInfoUser} className={cx('btn')} type="primary" size="large">
                 Cập nhật
-            </Button>   
+            </Button>
             <h5>Đơn hàng</h5>
             <div className={cx('table')}>
                 <Table

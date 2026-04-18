@@ -1,10 +1,89 @@
 const modelPayments = require("../models/payments.model");
 const modelProduct = require("../models/products.model");
+const modelUser = require("../models/users.model");
 
 const { BadRequestError } = require("../core/error.response");
 const { OK } = require("../core/success.response");
 
-const MAX_DATE_RANGE_DAYS = 366;
+const MAX_DATE_RANGE_DAYS = 366 * 5;
+
+const normalizeColorKey = (value = "") =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
+
+const toNonNegativeNumber = (value, fallback = 0) => {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue) || numericValue < 0) {
+    return fallback;
+  }
+  return numericValue;
+};
+
+const normalizeProductColorOptions = (colorOptions = []) => {
+  if (!Array.isArray(colorOptions)) {
+    return [];
+  }
+
+  return colorOptions
+    .filter((item) => item && typeof item === "object")
+    .map((item) => ({
+      key: normalizeColorKey(item.key || ""),
+      name: String(item.name || "").trim(),
+      image: String(item.image || "").trim(),
+      price: toNonNegativeNumber(item.price, -1),
+    }))
+    .filter((item) => item.key && item.name);
+};
+
+const resolveFallbackProductImage = (product = null) => {
+  if (!Array.isArray(product?.images)) {
+    return "";
+  }
+
+  return product.images.map((item) => String(item || "").trim()).find(Boolean) || "";
+};
+
+const resolveOrderItemUnitPrice = ({ orderItem = {}, product = null }) => {
+  const snapshotUnitPrice = toNonNegativeNumber(orderItem?.unitPrice, -1);
+  if (snapshotUnitPrice >= 0) {
+    return snapshotUnitPrice;
+  }
+
+  const snapshotPrice = toNonNegativeNumber(orderItem?.price, -1);
+  if (snapshotPrice >= 0) {
+    return snapshotPrice;
+  }
+
+  const selectedColorKey = normalizeColorKey(orderItem?.selectedColorKey);
+  const normalizedColorOptions = normalizeProductColorOptions(product?.colorOptions);
+  if (selectedColorKey && normalizedColorOptions.length > 0) {
+    const matchedColor = normalizedColorOptions.find((item) => item.key === selectedColorKey);
+    if (matchedColor && matchedColor.price >= 0) {
+      return matchedColor.price;
+    }
+  }
+
+  return toNonNegativeNumber(product?.price, 0);
+};
+
+const resolveOrderItemColorInfo = ({ orderItem = {}, product = null }) => {
+  const selectedColorKey = normalizeColorKey(orderItem?.selectedColorKey);
+  const selectedColorName = String(orderItem?.selectedColorName || "").trim();
+  const selectedColorImage = String(orderItem?.selectedColorImage || "").trim();
+
+  const normalizedColorOptions = normalizeProductColorOptions(product?.colorOptions);
+  const matchedColor =
+    selectedColorKey && normalizedColorOptions.length > 0
+      ? normalizedColorOptions.find((item) => item.key === selectedColorKey)
+      : null;
+
+  return {
+    colorKey: selectedColorKey || normalizeColorKey(matchedColor?.key) || "default",
+    colorName: selectedColorName || matchedColor?.name || "Mặc định",
+    colorImage: selectedColorImage || String(matchedColor?.image || "").trim() || resolveFallbackProductImage(product),
+  };
+};
 
 const isValidDateString = (value) => {
   if (typeof value !== "string") {
@@ -100,7 +179,7 @@ class RevenueController {
 
     const diffDays = Math.floor((endDateObj - startDateObj) / 86400000);
     if (diffDays > MAX_DATE_RANGE_DAYS) {
-      throw new BadRequestError("Khoảng thời gian tối đa là 1 năm");
+      throw new BadRequestError("Khoảng thời gian tối đa là 5 năm");
     }
 
     // Assumption: date filtering is evaluated in UTC by using Z-suffixed boundaries.
@@ -125,11 +204,12 @@ class RevenueController {
     };
 
     const chartMap = new Map();
-    const productQuantityMap = new Map();
+    const productIdSet = new Set();
+    const customerRevenueMap = new Map();
 
     for (const order of orders) {
-      const orderTotalPrice = Number(order.totalPrice) || 0;
-      const orderDiscount = Number(order.discountAmount) || 0;
+      const orderTotalPrice = toNonNegativeNumber(order.totalPrice, 0);
+      const orderDiscount = toNonNegativeNumber(order.discountAmount, 0);
       const paymentType = order.typePayments;
 
       summary.total_revenue += orderTotalPrice;
@@ -154,19 +234,44 @@ class RevenueController {
       currentPoint.orders += 1;
 
       const orderProducts = Array.isArray(order.products) ? order.products : [];
+      let orderItemsSold = 0;
+
       for (const item of orderProducts) {
-        const productId = item?.productId;
+        const productId = String(item?.productId || "").trim();
         const quantity = Number(item?.quantity) || 0;
 
         if (!productId || quantity <= 0) {
           continue;
         }
 
-        const productKey = productId.toString();
-        const currentQuantity = productQuantityMap.get(productKey) || 0;
-        productQuantityMap.set(productKey, currentQuantity + quantity);
-
+        productIdSet.add(productId);
+        orderItemsSold += quantity;
         summary.total_items_sold += quantity;
+      }
+
+      const customerId = String(order?.userId || "").trim();
+      if (customerId) {
+        const currentCustomer = customerRevenueMap.get(customerId) || {
+          customer_id: customerId,
+          customer_name: String(order?.fullName || "").trim(),
+          customer_phone: String(order?.phone || "").trim(),
+          order_count: 0,
+          items_sold: 0,
+          revenue: 0,
+        };
+
+        currentCustomer.order_count += 1;
+        currentCustomer.items_sold += orderItemsSold;
+        currentCustomer.revenue += orderTotalPrice;
+
+        if (!currentCustomer.customer_name) {
+          currentCustomer.customer_name = String(order?.fullName || "").trim();
+        }
+        if (!currentCustomer.customer_phone) {
+          currentCustomer.customer_phone = String(order?.phone || "").trim();
+        }
+
+        customerRevenueMap.set(customerId, currentCustomer);
       }
     }
 
@@ -175,12 +280,12 @@ class RevenueController {
         ? Math.round(summary.total_revenue / summary.total_orders)
         : 0;
 
-    const productIds = [...productQuantityMap.keys()];
+    const productIds = [...productIdSet];
     const productDocs =
       productIds.length > 0
         ? await modelProduct
             .find({ _id: { $in: productIds } })
-            .select("_id name images brand price costPrice")
+            .select("_id name images brand price costPrice colorOptions")
             .lean()
         : [];
 
@@ -189,12 +294,114 @@ class RevenueController {
     );
 
     let costOfGoods = 0;
+    const productRevenueMap = new Map();
 
-    // Duyet lai product quantity map de tinh chi phi hang ban (COGS).
-    for (const [productId, quantity] of productQuantityMap.entries()) {
-      const product = productMap.get(productId);
-      const costPrice = Number(product?.costPrice) || 0;
-      costOfGoods += costPrice * quantity;
+    // Tinh doanh thu theo tung dong san pham (line item) de dam bao dung gia theo mau.
+    // Neu don hang co giam gia, doanh thu dong duoc phan bo theo ti le line gross.
+    for (const order of orders) {
+      const createdAt = new Date(order.createdAt);
+      const { period } = buildPeriodInfo(createdAt, groupBy);
+      const point = chartMap.get(period);
+
+      if (!point) {
+        continue;
+      }
+
+      const orderProducts = Array.isArray(order.products) ? order.products : [];
+      const resolvedLines = [];
+
+      for (const item of orderProducts) {
+        const productId = String(item?.productId || "").trim();
+        const quantity = Number(item?.quantity) || 0;
+
+        if (!productId || quantity <= 0) {
+          continue;
+        }
+
+        const product = productMap.get(productId) || null;
+        const unitPrice = resolveOrderItemUnitPrice({ orderItem: item, product });
+        const grossRevenue = unitPrice * quantity;
+        const costPrice = toNonNegativeNumber(product?.costPrice, 0);
+        const { colorKey, colorName, colorImage } = resolveOrderItemColorInfo({
+          orderItem: item,
+          product,
+        });
+
+        resolvedLines.push({
+          productId,
+          quantity,
+          unitPrice,
+          grossRevenue,
+          costPrice,
+          colorKey,
+          colorName,
+          colorImage,
+        });
+      }
+
+      const grossOrderRevenue = resolvedLines.reduce(
+        (sum, line) => sum + line.grossRevenue,
+        0
+      );
+      const totalLineQuantity = resolvedLines.reduce(
+        (sum, line) => sum + line.quantity,
+        0
+      );
+      const orderNetRevenue = toNonNegativeNumber(order.totalPrice, 0);
+
+      for (const line of resolvedLines) {
+        let lineRevenue = 0;
+
+        if (grossOrderRevenue > 0) {
+          lineRevenue = line.grossRevenue * (orderNetRevenue / grossOrderRevenue);
+        } else if (totalLineQuantity > 0) {
+          lineRevenue = orderNetRevenue * (line.quantity / totalLineQuantity);
+        }
+
+        const lineCost = line.costPrice * line.quantity;
+        costOfGoods += lineCost;
+        point.cost = (point.cost || 0) + lineCost;
+
+        if (!productRevenueMap.has(line.productId)) {
+          const product = productMap.get(line.productId);
+
+          productRevenueMap.set(line.productId, {
+            product_id: line.productId,
+            product_name: product?.name || "Sản phẩm không tồn tại",
+            product_image: resolveFallbackProductImage(product),
+            brand: product?.brand || "",
+            quantity_sold: 0,
+            revenue: 0,
+            cost_amount: 0,
+            color_breakdown: new Map(),
+          });
+        }
+
+        const productEntry = productRevenueMap.get(line.productId);
+        productEntry.quantity_sold += line.quantity;
+        productEntry.revenue += lineRevenue;
+        productEntry.cost_amount += lineCost;
+
+        const colorBucket = productEntry.color_breakdown.get(line.colorKey) || {
+          color_key: line.colorKey,
+          color_name: line.colorName,
+          color_image: line.colorImage,
+          quantity_sold: 0,
+          revenue: 0,
+        };
+
+        colorBucket.quantity_sold += line.quantity;
+        colorBucket.revenue += lineRevenue;
+
+        if (!colorBucket.color_name && line.colorName) {
+          colorBucket.color_name = line.colorName;
+        }
+        if (!colorBucket.color_image && line.colorImage) {
+          colorBucket.color_image = line.colorImage;
+        }
+
+        productEntry.color_breakdown.set(line.colorKey, colorBucket);
+      }
     }
 
     const grossProfit = summary.total_revenue - costOfGoods;
@@ -207,31 +414,6 @@ class RevenueController {
     summary.gross_profit = grossProfit;
     summary.profit_margin = profitMargin;
 
-    // Sau khi co product map, tinh chi phi theo tung ky de suy ra loi nhuan chart.
-    for (const order of orders) {
-      const createdAt = new Date(order.createdAt);
-      const { period } = buildPeriodInfo(createdAt, groupBy);
-      const point = chartMap.get(period);
-
-      if (!point) {
-        continue;
-      }
-
-      const orderProducts = Array.isArray(order.products) ? order.products : [];
-      for (const item of orderProducts) {
-        const productId = item?.productId?.toString();
-        const quantity = Number(item?.quantity) || 0;
-
-        if (!productId || quantity <= 0) {
-          continue;
-        }
-
-        const product = productMap.get(productId);
-        const costPrice = Number(product?.costPrice) || 0;
-        point.cost = (point.cost || 0) + costPrice * quantity;
-      }
-    }
-
     const chartData = [...chartMap.values()]
       .sort((a, b) => a.sortValue - b.sortValue)
       .map(({ period, revenue, orders: orderCount, cost }) => ({
@@ -241,23 +423,72 @@ class RevenueController {
         profit: revenue - (cost || 0),
       }));
 
-    const topProducts = productIds
-      .map((productId) => {
-        const product = productMap.get(productId);
-        const quantitySold = productQuantityMap.get(productId) || 0;
-        const unitPrice = Number(product?.price) || 0;
-        const costPrice = Number(product?.costPrice) || 0;
-        const revenue = quantitySold * unitPrice;
+    const topProducts = [...productRevenueMap.values()]
+      .map((item) => {
+        const colorBreakdown = [...item.color_breakdown.values()]
+          .sort((a, b) => b.revenue - a.revenue)
+          .map((colorItem) => ({
+            ...colorItem,
+            revenue: Math.round(colorItem.revenue),
+          }));
+
+        const bestColor = colorBreakdown[0] || null;
+        const averageUnitPrice =
+          item.quantity_sold > 0
+            ? Math.round(item.revenue / item.quantity_sold)
+            : 0;
 
         return {
-          product_id: productId,
-          product_name: product?.name || "Sản phẩm không tồn tại",
-          product_image: Array.isArray(product?.images) ? product.images[0] || "" : "",
-          brand: product?.brand || "",
-          quantity_sold: quantitySold,
+          product_id: item.product_id,
+          product_name: item.product_name,
+          product_image: item.product_image,
+          brand: item.brand,
+          quantity_sold: item.quantity_sold,
+          average_unit_price: averageUnitPrice,
+          revenue: Math.round(item.revenue),
+          profit: Math.round(item.revenue - item.cost_amount),
+          best_color_key: bestColor?.color_key || "",
+          best_color_name: bestColor?.color_name || "",
+          best_color_image: bestColor?.color_image || "",
+          color_breakdown: colorBreakdown.slice(0, 3),
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+
+    const customerIds = [...customerRevenueMap.keys()];
+    const customerDocs =
+      customerIds.length > 0
+        ? await modelUser
+            .find({ _id: { $in: customerIds } })
+            .select("_id fullName email phone")
+            .lean()
+        : [];
+
+    const customerMap = new Map(
+      customerDocs.map((item) => [item._id.toString(), item])
+    );
+
+    const topCustomers = [...customerRevenueMap.values()]
+      .map((item) => {
+        const customerProfile = customerMap.get(item.customer_id);
+        const revenue = Math.round(item.revenue);
+        const orderCount = Number(item.order_count) || 0;
+
+        return {
+          customer_id: item.customer_id,
+          customer_name:
+            String(customerProfile?.fullName || "").trim() ||
+            item.customer_name ||
+            "Khách hàng",
+          customer_email: String(customerProfile?.email || "").trim(),
+          customer_phone:
+            String(customerProfile?.phone || "").trim() || item.customer_phone || "",
+          order_count: orderCount,
+          items_sold: Number(item.items_sold) || 0,
           revenue,
-          cost_price: costPrice,
-          profit: revenue - costPrice * quantitySold,
+          average_order_value:
+            orderCount > 0 ? Math.round(revenue / orderCount) : 0,
         };
       })
       .sort((a, b) => b.revenue - a.revenue)
@@ -269,6 +500,7 @@ class RevenueController {
         summary,
         chart_data: chartData,
         top_products: topProducts,
+        top_customers: topCustomers,
       },
     }).send(res);
   }

@@ -5,7 +5,23 @@ const Schema = mongoose.Schema;
 const modelPayments = new Schema(
     {
         userId: { type: String, require: true, ref: 'user' },
-        products: { type: Array, require: true, ref: 'cart' },
+        products: {
+            type: [
+                {
+                    _id: false,
+                    productId: { type: String, required: true, ref: 'product' },
+                    quantity: { type: Number, required: true, min: 1 },
+                    selectedColorKey: { type: String, default: '', trim: true, lowercase: true },
+                    selectedColorName: { type: String, default: '', trim: true },
+                    selectedColorHex: { type: String, default: '', trim: true },
+                    selectedColorImage: { type: String, default: '', trim: true },
+                    unitPrice: { type: Number, default: 0, min: 0 },
+                },
+            ],
+            default: [],
+            require: true,
+            ref: 'cart',
+        },
         fullName: { type: String, require: true },
         phone: { type: Number, require: true },
         address: { type: String, require: true },

@@ -74,18 +74,28 @@ const ModalDetailOrder = ({ isModalVisible, setIsModalVisible, selectedOrder }) 
                 <div className={cx('section')}>
                     <h3 className={cx('sectionTitle')}>Danh sách sản phẩm</h3>
                     <div className={cx('productList')}>
-                        {order?.dataProduct?.map((item) => (
-                            <div key={item?.product?._id} className={cx('productItem')}>
+                        {order?.dataProduct?.map((item, index) => (
+                            <div
+                                key={`${item?.product?._id || 'missing'}-${item?.selectedColorKey || 'default'}-${index}`}
+                                className={cx('productItem')}
+                            >
                                 <img
                                     className={cx('productImage')}
-                                    src={item?.product.images[0]}
+                                    src={item?.selectedColorImage || item?.product?.images?.[0]}
                                     alt={item?.product?.name}
                                 />
                                 <div className={cx('productDetails')}>
                                     <h4 className={cx('productName')}>{item?.product?.name}</h4>
+                                    {item?.selectedColorName && (
+                                        <div className={cx('productMeta')}>
+                                            <span className={cx('quantity')}>Màu: {item.selectedColorName}</span>
+                                        </div>
+                                    )}
                                     <div className={cx('productMeta')}>
                                         <span className={cx('quantity')}>Số lượng: x{item?.quantity}</span>
-                                        <span className={cx('price')}>{item?.product?.price.toLocaleString()} đ</span>
+                                        <span className={cx('price')}>
+                                            {Number(item?.price || item?.unitPrice || item?.product?.price || 0).toLocaleString('vi-VN')} đ
+                                        </span>
                                     </div>
                                 </div>
                             </div>

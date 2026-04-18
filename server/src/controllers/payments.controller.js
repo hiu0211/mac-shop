@@ -40,6 +40,102 @@ const SUPPORTED_ORDER_STATUSES = [
   "cancelled",
 ];
 
+const normalizeColorKey = (value = "") =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
+
+const toNonNegativeNumber = (value, fallback = 0) => {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue) || numericValue < 0) {
+    return fallback;
+  }
+  return numericValue;
+};
+
+const normalizeProductColorOptions = (colorOptions = []) => {
+  if (!Array.isArray(colorOptions)) {
+    return [];
+  }
+
+  return colorOptions
+    .filter((item) => item && typeof item === "object")
+    .map((item) => ({
+      key: normalizeColorKey(item.key || ""),
+      name: String(item.name || "").trim(),
+      hex: String(item.hex || "").trim(),
+      image: String(item.image || "").trim(),
+      price: toNonNegativeNumber(item.price, 0),
+      isDefault: Boolean(item.isDefault),
+    }))
+    .filter((item) => item.key && item.name);
+};
+
+const resolveFallbackProductImage = (product = null) => {
+  if (!Array.isArray(product?.images)) {
+    return "";
+  }
+
+  return product.images.map((item) => String(item || "").trim()).find(Boolean) || "";
+};
+
+const resolveOrderItemSnapshot = ({ orderItem = {}, product = null }) => {
+  const snapshotUnitPrice = toNonNegativeNumber(orderItem?.unitPrice, -1);
+  const snapshotColorKey = normalizeColorKey(orderItem?.selectedColorKey);
+  const snapshotColorName = String(orderItem?.selectedColorName || "").trim();
+  const snapshotColorHex = String(orderItem?.selectedColorHex || "").trim();
+  const snapshotColorImage = String(orderItem?.selectedColorImage || "").trim();
+
+  const fallbackProductPrice = toNonNegativeNumber(product?.price, 0);
+  const fallbackProductImage = resolveFallbackProductImage(product);
+  const normalizedOptions = normalizeProductColorOptions(product?.colorOptions);
+
+  if (normalizedOptions.length === 0) {
+    return {
+      selectedColorKey: snapshotColorKey,
+      selectedColorName: snapshotColorName,
+      selectedColorHex: snapshotColorHex,
+      selectedColorImage: snapshotColorImage || fallbackProductImage,
+      unitPrice: snapshotUnitPrice >= 0 ? snapshotUnitPrice : fallbackProductPrice,
+    };
+  }
+
+  if (snapshotColorKey) {
+    const matchedColor = normalizedOptions.find((item) => item.key === snapshotColorKey);
+    if (matchedColor) {
+      const matchedColorImage = String(matchedColor.image || "").trim();
+      return {
+        selectedColorKey: matchedColor.key,
+        selectedColorName: snapshotColorName || matchedColor.name,
+        selectedColorHex: snapshotColorHex || matchedColor.hex,
+        selectedColorImage: snapshotColorImage || matchedColorImage || fallbackProductImage,
+        unitPrice: snapshotUnitPrice >= 0 ? snapshotUnitPrice : toNonNegativeNumber(matchedColor.price, fallbackProductPrice),
+      };
+    }
+  }
+
+  if (snapshotUnitPrice >= 0) {
+    return {
+      selectedColorKey: snapshotColorKey,
+      selectedColorName: snapshotColorName,
+      selectedColorHex: snapshotColorHex,
+      selectedColorImage: snapshotColorImage || fallbackProductImage,
+      unitPrice: snapshotUnitPrice,
+    };
+  }
+
+  const defaultColor = normalizedOptions.find((item) => item.isDefault) || normalizedOptions[0];
+  const defaultColorImage = String(defaultColor?.image || "").trim();
+
+  return {
+    selectedColorKey: defaultColor?.key || "",
+    selectedColorName: defaultColor?.name || "",
+    selectedColorHex: defaultColor?.hex || "",
+    selectedColorImage: snapshotColorImage || defaultColorImage || fallbackProductImage,
+    unitPrice: toNonNegativeNumber(defaultColor?.price, fallbackProductPrice),
+  };
+};
+
 class PaymentsController {
   async payment(req, res) {
     const { id } = req.user;
@@ -96,7 +192,9 @@ class PaymentsController {
     if (typePayment === "COD") {
       const newPayment = new modelPayments({
         userId: id,
-        products: findCart.product,
+        products: (findCart.product || []).map((item) => ({
+          ...(item?.toObject ? item.toObject() : item),
+        })),
         address: findCart.address,
         phone: findCart.phone,
         fullName: findCart.fullName,
@@ -186,7 +284,9 @@ class PaymentsController {
 
       const newPayment = new modelPayments({
         userId: findCart.userId,
-        products: findCart.product,
+        products: (findCart.product || []).map((item) => ({
+          ...(item?.toObject ? item.toObject() : item),
+        })),
         address: findCart.address,
         phone: findCart.phone,
         typePayments: "VNPAY",
@@ -217,25 +317,38 @@ class PaymentsController {
 
     const orders = await Promise.all(
       payments.map(async (order) => {
+        const orderProducts = Array.isArray(order.products) ? order.products : [];
         const products = await Promise.all(
-          order.products.map(async (item) => {
-            const product = await modelProduct.findById(item.productId);
+          orderProducts.map(async (item) => {
+            const product = await modelProduct.findById(item.productId).catch(() => null);
+            const snapshot = resolveOrderItemSnapshot({ orderItem: item, product });
+
             if (!product) {
               return {
                 productId: item.productId,
                 name: "Sản phẩm không tồn tại",
-                image: "",
-                price: 0,
+                image: snapshot.selectedColorImage,
+                price: snapshot.unitPrice,
+                unitPrice: snapshot.unitPrice,
                 quantity: item.quantity,
+                selectedColorKey: snapshot.selectedColorKey,
+                selectedColorName: snapshot.selectedColorName,
+                selectedColorHex: snapshot.selectedColorHex,
+                selectedColorImage: snapshot.selectedColorImage,
               };
             }
 
             return {
               productId: product._id,
               name: product.name,
-              image: product.images[0],
-              price: product.price,
+              image: snapshot.selectedColorImage,
+              price: snapshot.unitPrice,
+              unitPrice: snapshot.unitPrice,
               quantity: item.quantity,
+              selectedColorKey: snapshot.selectedColorKey,
+              selectedColorName: snapshot.selectedColorName,
+              selectedColorHex: snapshot.selectedColorHex,
+              selectedColorImage: snapshot.selectedColorImage,
             };
           })
         );
@@ -275,12 +388,26 @@ class PaymentsController {
         throw new BadRequestError("Không tìm thấy đơn hàng");
       }
 
+      const orderProducts = Array.isArray(findPayment.products) ? findPayment.products : [];
+
       const dataProduct = await Promise.all(
-        findPayment.products.map(async (item) => {
-          const product = await modelProduct.findById(item.productId);
+        orderProducts.map(async (item) => {
+          const product = await modelProduct.findById(item.productId).catch(() => null);
+          const snapshot = resolveOrderItemSnapshot({ orderItem: item, product });
+
           return {
-            product: product,
+            product: product || {
+              _id: item.productId,
+              name: "Sản phẩm không tồn tại",
+              images: [],
+            },
             quantity: item.quantity,
+            price: snapshot.unitPrice,
+            unitPrice: snapshot.unitPrice,
+            selectedColorKey: snapshot.selectedColorKey,
+            selectedColorName: snapshot.selectedColorName,
+            selectedColorHex: snapshot.selectedColorHex,
+            selectedColorImage: snapshot.selectedColorImage,
           };
         })
       );
@@ -336,7 +463,7 @@ class PaymentsController {
       throw new BadRequestError("Chỉ có thể mua lại đơn hàng đã hủy");
     }
 
-    const products = order.products || [];
+    const products = Array.isArray(order.products) ? order.products : [];
     if (!products.length) {
       throw new BadRequestError("Đơn hàng không có sản phẩm để mua lại");
     }
@@ -372,20 +499,43 @@ class PaymentsController {
     for (let i = 0; i < products.length; i += 1) {
       const orderItem = products[i];
       const product = productDocs[i];
+      const snapshot = resolveOrderItemSnapshot({ orderItem, product });
+      const normalizedSelectedColorKey = normalizeColorKey(snapshot.selectedColorKey);
       const cartItemIndex = cart.product.findIndex(
-        (item) => item.productId.toString() === orderItem.productId.toString()
+        (item) =>
+          item.productId.toString() === orderItem.productId.toString() &&
+          normalizeColorKey(item.selectedColorKey) === normalizedSelectedColorKey
       );
 
       if (cartItemIndex >= 0) {
         cart.product[cartItemIndex].quantity += orderItem.quantity;
+        cart.product[cartItemIndex].unitPrice = toNonNegativeNumber(
+          cart.product[cartItemIndex].unitPrice,
+          snapshot.unitPrice
+        );
+        cart.product[cartItemIndex].selectedColorName =
+          cart.product[cartItemIndex].selectedColorName || snapshot.selectedColorName;
+        cart.product[cartItemIndex].selectedColorHex =
+          cart.product[cartItemIndex].selectedColorHex || snapshot.selectedColorHex;
+        cart.product[cartItemIndex].selectedColorImage =
+          cart.product[cartItemIndex].selectedColorImage || snapshot.selectedColorImage;
+        cart.product[cartItemIndex].selectedColorKey =
+          normalizeColorKey(cart.product[cartItemIndex].selectedColorKey || snapshot.selectedColorKey);
+
+        cart.totalPrice += cart.product[cartItemIndex].unitPrice * orderItem.quantity;
       } else {
         cart.product.push({
           productId: orderItem.productId,
           quantity: orderItem.quantity,
+          selectedColorKey: snapshot.selectedColorKey,
+          selectedColorName: snapshot.selectedColorName,
+          selectedColorHex: snapshot.selectedColorHex,
+          selectedColorImage: snapshot.selectedColorImage,
+          unitPrice: snapshot.unitPrice,
         });
-      }
 
-      cart.totalPrice += product.price * orderItem.quantity;
+        cart.totalPrice += snapshot.unitPrice * orderItem.quantity;
+      }
       product.stock -= orderItem.quantity;
     }
 
@@ -692,14 +842,21 @@ class PaymentsController {
       const detailedPayments = await Promise.all(
         payments.map(async (order) => {
           const products = await Promise.all(
-            order.products.map(async (item) => {
-              const product = await modelProduct.findById(item?.productId);
+            (Array.isArray(order.products) ? order.products : []).map(async (item) => {
+              const product = await modelProduct.findById(item?.productId).catch(() => null);
+              const snapshot = resolveOrderItemSnapshot({ orderItem: item, product });
+
               return {
-                productId: product?._id,
-                name: product?.name,
-                image: product?.images[0],
-                price: product?.price,
+                productId: product?._id || item?.productId,
+                name: product?.name || "Sản phẩm không tồn tại",
+                image: snapshot.selectedColorImage,
+                price: snapshot.unitPrice,
+                unitPrice: snapshot.unitPrice,
                 quantity: item?.quantity,
+                selectedColorKey: snapshot.selectedColorKey,
+                selectedColorName: snapshot.selectedColorName,
+                selectedColorHex: snapshot.selectedColorHex,
+                selectedColorImage: snapshot.selectedColorImage,
               };
             })
           );

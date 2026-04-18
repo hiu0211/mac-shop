@@ -52,7 +52,7 @@ function Cart() {
             setDiscountAmount(Number(newData.discountAmount || 0));
             setCouponCode(newData.couponCode || '');
             setSelectedCouponCode(newData.couponCode || undefined);
-            setSelectedRowKeys((prev) => prev.filter((key) => cartData.some((item) => item._id === key)));
+            setSelectedRowKeys((prev) => prev.filter((key) => cartData.some((item) => (item.cartItemKey || `${item._id}-${item.selectedColorKey || 'default'}`) === key)));
         } catch (error) {
             console.error(error);
             setCart([]);
@@ -102,7 +102,7 @@ function Cart() {
     }, [fetchCart, fetchAvailableCoupons]);
 
     useEffect(() => {
-        const selectedItems = cart.filter((item) => selectedRowKeys.includes(item._id));
+        const selectedItems = cart.filter((item) => selectedRowKeys.includes(item.cartItemKey || `${item._id}-${item.selectedColorKey || 'default'}`));
         const selectedTotal = selectedItems.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
 
         setTotalPrice(selectedTotal);
@@ -144,10 +144,11 @@ function Cart() {
     }, [debounce]);
 
     // Hàm cập nhật số lượng
-    const updateQuantityAPI = async (productId, newQuantity) => {
+    const updateQuantityAPI = async (record, newQuantity) => {
         try {
-            setUpdatingQuantity(prev => ({ ...prev, [productId]: true }));
-            await requestUpdateQuantityCart(productId, newQuantity);
+            const updatingKey = record.cartItemKey || record.id;
+            setUpdatingQuantity(prev => ({ ...prev, [updatingKey]: true }));
+            await requestUpdateQuantityCart(record.id, newQuantity, record.selectedColorKey || undefined);
             await fetchCart();
             window.dispatchEvent(new Event('cart-updated'));
             message.success('Cập nhật số lượng thành công');
@@ -156,21 +157,22 @@ function Cart() {
             message.error(error.response?.data?.message || 'Cập nhật số lượng thất bại');
             await fetchCart();
         } finally {
-            setUpdatingQuantity(prev => ({ ...prev, [productId]: false }));
+            const updatingKey = record.cartItemKey || record.id;
+            setUpdatingQuantity(prev => ({ ...prev, [updatingKey]: false }));
         }
     };
 
     // Tạo debounced version
     const debouncedUpdateAPI = useDebounceCallback(updateQuantityAPI, 800);
 
-    const handleUpdateQuantity = (productId, newQuantity) => {
+    const handleUpdateQuantity = (record, newQuantity) => {
         // Validate input
         if (!newQuantity || newQuantity < 1) {
             message.warning('Số lượng phải lớn hơn 0');
             return;
         }
 
-        const currentProduct = cart.find(item => item._id === productId);
+        const currentProduct = cart.find(item => item.cartItemKey === record.cartItemKey);
         if (currentProduct && currentProduct.quantity === newQuantity) {
             return;
         }
@@ -178,19 +180,19 @@ function Cart() {
         // Update UI ngay lập tức (optimistic update)
         setCart(prevCart =>
             prevCart.map(item =>
-                item._id === productId
+                item.cartItemKey === record.cartItemKey
                     ? { ...item, quantity: newQuantity }
                     : item
             )
         );
 
         // Gọi API với debounce (chờ 800ms sau lần nhấn cuối)
-        debouncedUpdateAPI(productId, productId, newQuantity);
+        debouncedUpdateAPI(record, newQuantity);
     };
 
-    const handleDelete = async (productId) => {
+    const handleDelete = async (record) => {
         try {
-            await requestDeleteCart(productId);
+            await requestDeleteCart(record.id, record.selectedColorKey || undefined);
             await fetchCart();
             window.dispatchEvent(new Event('cart-updated'));
             message.success('Xóa sản phẩm thành công');
@@ -297,13 +299,16 @@ function Cart() {
     };
 
     const dataSource = cart.map((item) => ({
-        key: item._id,
+        key: item.cartItemKey || item._id,
+        cartItemKey: item.cartItemKey || `${item._id}-${item.selectedColorKey || 'default'}`,
         id: item._id,
         name: item.name,
-        image: item.images?.[0],
-        price: item.price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }),
+        image: item.selectedColorImage || item.images?.[0],
+        price: Number(item.price || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }),
         quantity: item.quantity,
         stock: item.stock,
+        selectedColorKey: item.selectedColorKey,
+        selectedColorName: item.selectedColorName,
     }));
 
     const columns = [
@@ -319,6 +324,16 @@ function Cart() {
             dataIndex: 'name',
             key: 'name',
             align: 'left',
+            render: (_, record) => (
+                <div>
+                    <div>{record.name}</div>
+                    {record.selectedColorName && (
+                        <div style={{ color: '#666', fontSize: 12 }}>
+                            Màu: {record.selectedColorName}
+                        </div>
+                    )}
+                </div>
+            ),
         },
         {
             title: 'Giá',
@@ -338,23 +353,23 @@ function Cart() {
                     <Button
                         size="small"
                         icon={<MinusOutlined />}
-                        onClick={() => handleUpdateQuantity(record.id, quantity - 1)}
-                        disabled={quantity <= 1 || updatingQuantity[record.id]}
+                        onClick={() => handleUpdateQuantity(record, quantity - 1)}
+                        disabled={quantity <= 1 || updatingQuantity[record.cartItemKey]}
                     />
                     <InputNumber
                         min={1}
                         max={record.stock + quantity}
                         value={quantity}
-                        onChange={(value) => handleUpdateQuantity(record.id, value)}
-                        disabled={updatingQuantity[record.id]}
+                        onChange={(value) => handleUpdateQuantity(record, value)}
+                        disabled={updatingQuantity[record.cartItemKey]}
                         style={{ width: '50px' }}
                         controls={false}
                     />
                     <Button
                         size="small"
                         icon={<PlusOutlined />}
-                        onClick={() => handleUpdateQuantity(record.id, quantity + 1)}
-                        disabled={updatingQuantity[record.id]}
+                        onClick={() => handleUpdateQuantity(record, quantity + 1)}
+                        disabled={updatingQuantity[record.cartItemKey]}
                     />
                 </div>
             ),
@@ -366,7 +381,7 @@ function Cart() {
             align: 'center',
             width: '100px',
             render: (_, record) => (
-                <Button onClick={() => handleDelete(record.id)} type="text" danger>
+                <Button onClick={() => handleDelete(record)} type="text" danger>
                     Xóa
                 </Button>
             ),

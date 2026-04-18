@@ -24,6 +24,112 @@ const normalizeComponentType = (componentType = "") =>
     .trim()
     .toLowerCase();
 
+const normalizeColorKey = (value = "") =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const normalizeColorOptions = (colorOptions) => {
+  if (colorOptions == null || colorOptions === "") {
+    return [];
+  }
+
+  let parsedOptions = colorOptions;
+
+  if (typeof parsedOptions === "string") {
+    try {
+      parsedOptions = JSON.parse(parsedOptions);
+    } catch {
+      throw new BadRequestError("colorOptions khong dung dinh dang JSON");
+    }
+  }
+
+  if (!Array.isArray(parsedOptions)) {
+    throw new BadRequestError("colorOptions phai la mang");
+  }
+
+  const seenNames = new Set();
+  const seenKeys = new Set();
+  let defaultIndex = -1;
+
+  const normalizedOptions = parsedOptions
+    .filter((item) => item && typeof item === "object")
+    .map((item, index) => {
+      const normalizedName = String(item.name || "").trim();
+      if (!normalizedName) {
+        throw new BadRequestError("Ten mau la bat buoc");
+      }
+
+      const normalizedNameKey = normalizedName.toLowerCase();
+      if (seenNames.has(normalizedNameKey)) {
+        throw new BadRequestError("Ten mau khong duoc trung nhau");
+      }
+      seenNames.add(normalizedNameKey);
+
+      const numericPrice = Number(item.price);
+      if (!Number.isFinite(numericPrice) || numericPrice < 0) {
+        throw new BadRequestError(`Gia cua mau ${normalizedName} khong hop le`);
+      }
+
+      const baseKey = normalizeColorKey(item.key || normalizedName || `color-${index + 1}`) || `color-${index + 1}`;
+      let resolvedKey = baseKey;
+      let suffix = 2;
+      while (seenKeys.has(resolvedKey)) {
+        resolvedKey = `${baseKey}-${suffix}`;
+        suffix += 1;
+      }
+      seenKeys.add(resolvedKey);
+
+      const normalizedOption = {
+        key: resolvedKey,
+        name: normalizedName,
+        image: String(item.image || "").trim(),
+        price: numericPrice,
+        isDefault: Boolean(item.isDefault),
+      };
+
+      if (normalizedOption.isDefault && defaultIndex === -1) {
+        defaultIndex = index;
+      }
+
+      return normalizedOption;
+    });
+
+  if (normalizedOptions.length === 0) {
+    return [];
+  }
+
+  if (defaultIndex === -1) {
+    normalizedOptions[0].isDefault = true;
+  } else {
+    normalizedOptions.forEach((option, optionIndex) => {
+      option.isDefault = optionIndex === defaultIndex;
+    });
+  }
+
+  return normalizedOptions;
+};
+
+const safeNormalizeColorOptions = (colorOptions) => {
+  try {
+    return normalizeColorOptions(colorOptions);
+  } catch {
+    return [];
+  }
+};
+
+const getDefaultColorOption = (colorOptions = []) => {
+  if (!Array.isArray(colorOptions) || colorOptions.length === 0) {
+    return null;
+  }
+
+  return colorOptions.find((item) => item?.isDefault) || colorOptions[0] || null;
+};
+
 const normalizeAttributes = (attributes) => {
   if (attributes == null) {
     return {};
@@ -335,6 +441,8 @@ const formatProductOutput = (productDoc, productTypeDoc = null) => {
   const product = productDoc?.toObject ? productDoc.toObject() : { ...productDoc };
   const sanitizedProduct = stripLegacySpecFields(product);
   const attributes = normalizeAttributes(product.attributes || {});
+  const normalizedColorOptions = safeNormalizeColorOptions(product.colorOptions);
+  const defaultColorOption = getDefaultColorOption(normalizedColorOptions);
   const legacyAttributes = buildAttributesFromLegacyProduct(product);
   const resolvedAttributes = Object.keys(attributes).length > 0 ? attributes : legacyAttributes;
   const normalizedComponentType = normalizeComponentType(product.componentType);
@@ -350,6 +458,8 @@ const formatProductOutput = (productDoc, productTypeDoc = null) => {
   return {
     ...sanitizedProduct,
     componentType: normalizedComponentType,
+    colorOptions: normalizedColorOptions,
+    defaultColorKey: defaultColorOption?.key || "",
     attributes: resolvedAttributes,
     attributesTemplate,
     specifications,
@@ -382,6 +492,7 @@ class controllerProducts {
       discount,
       costPrice,
       priceDiscount,
+      colorOptions,
     } = req.body;
 
     const normalizedName = String(name || "").trim();
@@ -412,6 +523,7 @@ class controllerProducts {
 
     const normalizedAttributes = normalizeAttributesByTemplate(attributes, productType.attributesTemplate);
     ensureRequiredAttributes(normalizedAttributes, productType.attributesTemplate);
+    const normalizedColorOptions = normalizeColorOptions(colorOptions);
 
     const discountInfo = resolveDiscountInfo({
       price: normalizedPrice,
@@ -430,6 +542,7 @@ class controllerProducts {
       stock: normalizedStock,
       componentType: normalizedComponentType,
       attributes: normalizedAttributes,
+      colorOptions: normalizedColorOptions,
     });
 
     new OK({
@@ -511,6 +624,7 @@ class controllerProducts {
         discount,
         costPrice,
         priceDiscount,
+        colorOptions,
       } = req.body;
 
       if (!_id) {
@@ -553,6 +667,8 @@ class controllerProducts {
 
       const nextAttributes = normalizeAttributesByTemplate(mergedAttributes, productType.attributesTemplate);
       ensureRequiredAttributes(nextAttributes, productType.attributesTemplate);
+      const persistedColorOptions = safeNormalizeColorOptions(product.colorOptions);
+      const nextColorOptions = colorOptions !== undefined ? normalizeColorOptions(colorOptions) : persistedColorOptions;
 
       const nextPrice = toNullableNumber(price) ?? Number(product.price || 0);
       const discountInfo = resolveDiscountInfo({
@@ -573,6 +689,7 @@ class controllerProducts {
         stock: nextStock == null ? product.stock : nextStock,
         componentType: nextComponentType,
         attributes: nextAttributes,
+        colorOptions: nextColorOptions,
         costPrice: nextCostPrice == null ? Number(product.costPrice || 0) : nextCostPrice,
         discount: discountInfo.discount,
         priceDiscount: discountInfo.priceDiscount,

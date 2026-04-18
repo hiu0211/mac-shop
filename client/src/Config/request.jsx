@@ -198,8 +198,12 @@ export const requestGetCart = async () => {
     return res.data;
 };
 
-export const requestDeleteCart = async (productId) => {
-    const res = await request.delete('/api/delete-cart', { params: { productId } });
+export const requestDeleteCart = async (productId, selectedColorKey = undefined) => {
+    const params = { productId };
+    if (selectedColorKey !== undefined) {
+        params.selectedColorKey = selectedColorKey;
+    }
+    const res = await request.delete('/api/delete-cart', { params });
     return res.data;
 };
 
@@ -278,11 +282,17 @@ export const requestGetOrderAdmin = async () => {
     return res.data;
 };
 
-export const requestUpdateQuantityCart = async (productId, quantity) => {
-    const res = await request.put('/api/update-quantity-cart', {
+export const requestUpdateQuantityCart = async (productId, quantity, selectedColorKey = undefined) => {
+    const payload = {
         productId,
         quantity
-    });
+    };
+
+    if (selectedColorKey !== undefined) {
+        payload.selectedColorKey = selectedColorKey;
+    }
+
+    const res = await request.put('/api/update-quantity-cart', payload);
     return res.data;
 };
 

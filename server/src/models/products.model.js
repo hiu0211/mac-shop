@@ -15,6 +15,19 @@ const modelProduct = new Schema(
     stock: { type: Number, required: true, min: 0 },
     componentType: { type: String, trim: true, lowercase: true, default: "" },
     attributes: { type: Schema.Types.Mixed, default: {} },
+    colorOptions: {
+      type: [
+        {
+          _id: false,
+          key: { type: String, required: true, trim: true, lowercase: true },
+          name: { type: String, required: true, trim: true },
+          image: { type: String, default: "", trim: true },
+          price: { type: Number, required: true, min: 0 },
+          isDefault: { type: Boolean, default: false },
+        },
+      ],
+      default: [],
+    },
     reviews: [
       {
         userId: { type: String, required: true, ref: "user" },
