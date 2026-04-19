@@ -7,6 +7,14 @@ import {
     requestGetBrands,
     requestUploadImage,
 } from '../../../Config/request';
+import {
+    buildColorOptionsAfterRemove,
+    buildColorOptionsAfterToggleDefault,
+    enforceSingleDefaultColorOption,
+    getDefaultColorPrice,
+    hasDefaultColorOption,
+    syncProductPriceWithDefaultColor,
+} from './colorPriceSync';
 
 const normalizeTemplate = (template) => {
     if (!Array.isArray(template)) {
@@ -76,9 +84,7 @@ const normalizeColorOptions = (colorOptions = []) => {
 
     const defaultIndex = normalized.findIndex((item) => item.isDefault);
 
-    if (defaultIndex === -1) {
-        normalized[0].isDefault = true;
-    } else {
+    if (defaultIndex !== -1) {
         normalized.forEach((item, index) => {
             item.isDefault = index === defaultIndex;
         });
@@ -157,6 +163,12 @@ const AddProduct = ({ setActiveComponent }) => {
     const [productTypes, setProductTypes] = useState([]);
     const [selectedTypeCode, setSelectedTypeCode] = useState('');
     const uploadCounterRef = React.useRef(0);
+    const watchedColorOptions = Form.useWatch('colorOptions', form);
+
+    const isPriceLockedByDefaultColor = useMemo(() => {
+        const currentColorOptions = Array.isArray(watchedColorOptions) ? watchedColorOptions : [];
+        return hasDefaultColorOption(currentColorOptions);
+    }, [watchedColorOptions]);
 
     const productTypeMap = useMemo(() => {
         return productTypes.reduce((accumulator, item) => {
@@ -230,6 +242,22 @@ const AddProduct = ({ setActiveComponent }) => {
         bootstrap();
     }, [form]);
 
+    useEffect(() => {
+        const currentColorOptions = Array.isArray(watchedColorOptions) ? watchedColorOptions : [];
+        const normalizedColorOptions = enforceSingleDefaultColorOption(currentColorOptions);
+
+        const hasDefaultFlagChanged = normalizedColorOptions.some(
+            (item, index) => Boolean(item?.isDefault) !== Boolean(currentColorOptions[index]?.isDefault),
+        );
+
+        if (hasDefaultFlagChanged) {
+            form.setFieldsValue({ colorOptions: normalizedColorOptions });
+            return;
+        }
+
+        syncProductPriceWithDefaultColor(form, currentColorOptions);
+    }, [watchedColorOptions, form]);
+
     const handleUpload = async (files) => {
         try {
             const formData = new FormData();
@@ -271,6 +299,7 @@ const AddProduct = ({ setActiveComponent }) => {
                 : [];
             const colorOptionsWithUploadedImages = await uploadColorOptionImages(rawColorOptions);
             const normalizedColorOptions = normalizeColorOptions(colorOptionsWithUploadedImages);
+            const defaultColorPrice = getDefaultColorPrice(normalizedColorOptions);
 
             if (normalizedColorOptions.length !== rawColorOptions.length) {
                 message.error('Danh sách màu có dữ liệu không hợp lệ hoặc bị trùng tên');
@@ -281,7 +310,7 @@ const AddProduct = ({ setActiveComponent }) => {
             const productData = {
                 name: values.name,
                 brand: values.brand,
-                price: values.price,
+                price: defaultColorPrice ?? values.price,
                 discount: values.discount || 0,
                 costPrice: values.costPrice || 0,
                 stock: values.stock,
@@ -343,12 +372,20 @@ const AddProduct = ({ setActiveComponent }) => {
             ? form.getFieldValue('colorOptions')
             : [];
 
-        const nextColorOptions = currentColorOptions.map((item, index) => ({
-            ...(item || {}),
-            isDefault: checked ? index === targetIndex : false,
-        }));
+        const nextColorOptions = buildColorOptionsAfterToggleDefault(currentColorOptions, targetIndex, checked);
 
         form.setFieldsValue({ colorOptions: nextColorOptions });
+        syncProductPriceWithDefaultColor(form, nextColorOptions);
+    };
+
+    const handleRemoveColorOption = (targetIndex) => {
+        const currentColorOptions = Array.isArray(form.getFieldValue('colorOptions'))
+            ? form.getFieldValue('colorOptions')
+            : [];
+
+        const nextColorOptions = buildColorOptionsAfterRemove(currentColorOptions, targetIndex);
+        form.setFieldsValue({ colorOptions: nextColorOptions });
+        syncProductPriceWithDefaultColor(form, nextColorOptions);
     };
 
     const renderAttributeInput = (field) => {
@@ -413,7 +450,7 @@ const AddProduct = ({ setActiveComponent }) => {
                                 placeholder="Chọn loại sản phẩm"
                                 options={productTypes.map((item) => ({
                                     value: item.code,
-                                    label: `${item.name} (${item.code})`,
+                                    label: item.name,
                                 }))}
                                 onChange={handleComponentTypeChange}
                                 showSearch
@@ -454,6 +491,7 @@ const AddProduct = ({ setActiveComponent }) => {
                                 parser={(value) => (value || '').replace(/\$\s?|(,*)/g, '')}
                                 placeholder="Nhập giá sản phẩm"
                                 min={0}
+                                disabled={isPriceLockedByDefaultColor}
                             />
                         </Form.Item>
                     </Col>
@@ -471,6 +509,8 @@ const AddProduct = ({ setActiveComponent }) => {
                                 placeholder="Nhập phần trăm giảm"
                                 min={0}
                                 max={100}
+                                formatter={(value) => `${value}%`}
+                                parser={(value) => (value || '').replace('%', '')}
                             />
                         </Form.Item>
                     </Col>
@@ -535,7 +575,7 @@ const AddProduct = ({ setActiveComponent }) => {
                     <Col span={24}>
                         <Divider orientation='start' style={{ textTransform: 'uppercase' }}>Tùy chọn màu sắc</Divider>
                         <Form.List name="colorOptions">
-                            {(fields, { add, remove }) => (
+                            {(fields, { add }) => (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                                     {fields.map((field) => (
                                         <Row key={field.key} gutter={[12, 0]} align="middle">
@@ -603,7 +643,7 @@ const AddProduct = ({ setActiveComponent }) => {
 
                                             <Col xs={24} md={3}>
                                                 <Form.Item label=" ">
-                                                    <Button danger onClick={() => remove(field.name)} block>
+                                                    <Button danger onClick={() => handleRemoveColorOption(field.name)} block>
                                                         Xóa
                                                     </Button>
                                                 </Form.Item>
@@ -611,7 +651,7 @@ const AddProduct = ({ setActiveComponent }) => {
                                         </Row>
                                     ))}
 
-                                    <Button type="dashed" onClick={() => add({ name: '', image: [], price: 0, isDefault: fields.length === 0 })}>
+                                    <Button type="dashed" onClick={() => add({ name: '', image: [], price: 0, isDefault: false })}>
                                         + Thêm màu
                                     </Button>
                                 </div>
@@ -622,7 +662,6 @@ const AddProduct = ({ setActiveComponent }) => {
                     <Col span={24}>
                         <Divider orientation='start' style={{ textTransform: 'uppercase' }}>Thông số kĩ thuật</Divider>
                     </Col>
-
 
                     <Col span={24}>
                         {selectedTypeTemplate.length === 0 ? (
