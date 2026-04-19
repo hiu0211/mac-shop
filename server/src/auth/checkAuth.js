@@ -14,6 +14,13 @@ const authUser = async (req, res, next) => {
         if (!user) throw new BadUserRequestError('Vui lòng đăng nhập');
         const token = user;
         const decoded = await verifyToken(token);
+        const findUser = await modelUser.findById(decoded.id).select('isActive');
+        if (!findUser) {
+            throw new BadUserRequestError('Vui lòng đăng nhập');
+        }
+        if (!findUser.isActive) {
+            throw new BadUser2RequestError('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên');
+        }
         req.user = decoded;
         next();
     } catch (error) {
@@ -28,7 +35,13 @@ const authAdmin = async (req, res, next) => {
         const token = user;
         const decoded = await verifyToken(token);
         const { id } = decoded;
-        const findUser = await modelUser.findById(id);
+        const findUser = await modelUser.findById(id).select('isAdmin isActive');
+        if (!findUser) {
+            throw new BadUserRequestError('Vui lòng đăng nhập');
+        }
+        if (!findUser.isActive) {
+            throw new BadUser2RequestError('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên');
+        }
         if (findUser.isAdmin === false) {
             throw new BadUser2RequestError('Bạn không có quyền truy cập');
         }

@@ -2,11 +2,16 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Descriptions, Drawer, Input, Select, Space, Table, Tag, message } from 'antd';
 import { EyeOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { requestGetAllUser, requestUpdateUserRole } from '../../../Config/request';
+import { requestGetAllUser, requestUpdateUserRole, requestUpdateUserStatus } from '../../../Config/request';
 
 const roleOptions = [
     { label: 'Admin', value: true },
     { label: 'Người dùng', value: false },
+];
+
+const accountStatusOptions = [
+    { label: 'Đang hoạt động', value: true },
+    { label: 'Ngừng hoạt động', value: false },
 ];
 
 const formatDateTime = (value) => (value ? dayjs(value).format('DD/MM/YYYY HH:mm') : 'N/A');
@@ -17,8 +22,9 @@ const UserManagement = () => {
     const [loading, setLoading] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
+    const [selectedStatus, setSelectedStatus] = useState(true);
     const [selectedRole, setSelectedRole] = useState(false);
-    const [updatingRole, setUpdatingRole] = useState(false);
+    const [savingChanges, setSavingChanges] = useState(false);
 
     const fetchData = async () => {
         setLoading(true);
@@ -68,6 +74,7 @@ const UserManagement = () => {
 
     const handleOpenDetail = (user) => {
         setSelectedUser(user);
+        setSelectedStatus(Boolean(user?.isActive));
         setSelectedRole(Boolean(user?.isAdmin));
         setDrawerOpen(true);
     };
@@ -75,38 +82,67 @@ const UserManagement = () => {
     const handleCloseDetail = () => {
         setDrawerOpen(false);
         setSelectedUser(null);
+        setSelectedStatus(true);
         setSelectedRole(false);
     };
 
-    const handleUpdateRole = async () => {
+    const syncUpdatedUser = (updatedUser) => {
+        if (!updatedUser?._id) {
+            return;
+        }
+
+        setDataUsers((prev) => prev.map((item) => (item._id === updatedUser._id ? updatedUser : item)));
+        setSelectedUser(updatedUser);
+        setSelectedStatus(Boolean(updatedUser.isActive));
+        setSelectedRole(Boolean(updatedUser.isAdmin));
+    };
+
+    const handleSaveChanges = async () => {
         if (!selectedUser) {
             return;
         }
 
-        if (Boolean(selectedUser.isAdmin) === selectedRole) {
-            message.info('Quyền hiện tại chưa thay đổi');
+        const hasStatusChanged = Boolean(selectedUser.isActive) !== selectedStatus;
+        const hasRoleChanged = Boolean(selectedUser.isAdmin) !== selectedRole;
+
+        if (!hasStatusChanged && !hasRoleChanged) {
+            message.info('Không có thay đổi để lưu');
             return;
         }
 
-        setUpdatingRole(true);
+        setSavingChanges(true);
         try {
-            const res = await requestUpdateUserRole({
-                id: selectedUser._id,
-                isAdmin: selectedRole,
-            });
+            let latestUser = selectedUser;
 
-            const updatedUser = res?.metadata?.user;
-            if (updatedUser?._id) {
-                setDataUsers((prev) => prev.map((item) => (item._id === updatedUser._id ? updatedUser : item)));
-                setSelectedUser(updatedUser);
-                setSelectedRole(Boolean(updatedUser.isAdmin));
+            if (hasRoleChanged) {
+                const roleRes = await requestUpdateUserRole({
+                    id: selectedUser._id,
+                    isAdmin: selectedRole,
+                });
+                latestUser = roleRes?.metadata?.user || latestUser;
             }
 
-            message.success(res?.message || 'Cập nhật quyền người dùng thành công');
+            if (hasStatusChanged) {
+                const statusRes = await requestUpdateUserStatus({
+                    id: selectedUser._id,
+                    isActive: selectedStatus,
+                });
+                latestUser = statusRes?.metadata?.user || latestUser;
+            }
+
+            syncUpdatedUser(latestUser);
+
+            if (hasRoleChanged && hasStatusChanged) {
+                message.success('Đã cập nhật quyền và trạng thái tài khoản thành công');
+            } else if (hasRoleChanged) {
+                message.success('Đã cập nhật quyền người dùng thành công');
+            } else {
+                message.success('Đã cập nhật trạng thái tài khoản thành công');
+            }
         } catch (error) {
-            message.error(error?.response?.data?.message || 'Không thể cập nhật quyền người dùng');
+            message.error(error?.response?.data?.message || 'Không thể cập nhật thông tin. Vui lòng thử lại');
         } finally {
-            setUpdatingRole(false);
+            setSavingChanges(false);
         }
     };
 
@@ -145,6 +181,18 @@ const UserManagement = () => {
             onFilter: (value, record) => record.isAdmin === value,
         },
         {
+            title: 'Trạng thái tài khoản',
+            dataIndex: 'isActive',
+            key: 'isActive',
+            render: (isActive) =>
+                isActive ? <Tag color="green">Đang hoạt động</Tag> : <Tag color="red">Ngừng hoạt động</Tag>,
+            filters: [
+                { text: 'Đang hoạt động', value: true },
+                { text: 'Ngừng hoạt động', value: false },
+            ],
+            onFilter: (value, record) => record.isActive === value,
+        },
+        {
             title: 'Loại tài khoản',
             dataIndex: 'typeLogin',
             key: 'typeLogin',
@@ -157,7 +205,7 @@ const UserManagement = () => {
             onFilter: (value, record) => record.typeLogin === value,
         },
         {
-            title: 'Hành động',
+            title: 'Thao tác',
             key: 'actions',
             align: 'center',
             render: (_, record) => (
@@ -209,10 +257,10 @@ const UserManagement = () => {
                                     <Tag color="green">Email</Tag>
                                 )}
                             </Descriptions.Item>
-                            {/* <Descriptions.Item label="Trạng thái">
-                                {selectedUser.isActive ? <Tag color="green">Đang hoạt động</Tag> : <Tag color="red">Không hoạt động</Tag>}
-                            </Descriptions.Item> */}
-                            <Descriptions.Item label="Vai trò hiện tại">
+                            <Descriptions.Item label="Trạng thái tài khoản">
+                                {selectedUser.isActive ? <Tag color="green">Đang hoạt động</Tag> : <Tag color="red">Ngừng hoạt động</Tag>}
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Vai trò">
                                 {selectedUser.isAdmin ? <Tag color="red">Admin</Tag> : <Tag color="blue">Người dùng</Tag>}
                             </Descriptions.Item>
                             <Descriptions.Item label="Ngày tạo">{formatDateTime(selectedUser.createdAt)}</Descriptions.Item>
@@ -220,7 +268,17 @@ const UserManagement = () => {
                         </Descriptions>
 
                         <div>
-                            <div style={{ marginBottom: 8, fontWeight: 600 }}>Cập nhật quyền</div>
+                            <div style={{ marginBottom: 8, fontWeight: 600 }}>Trạng thái tài khoản</div>
+                            <Select
+                                value={selectedStatus}
+                                options={accountStatusOptions}
+                                onChange={setSelectedStatus}
+                                style={{ width: '100%' }}
+                            />
+                        </div>
+
+                        <div>
+                            <div style={{ marginBottom: 8, fontWeight: 600 }}>Quyền</div>
                             <Select
                                 value={selectedRole}
                                 options={roleOptions}
@@ -233,11 +291,14 @@ const UserManagement = () => {
                             <Button onClick={handleCloseDetail}>Đóng</Button>
                             <Button
                                 type="primary"
-                                onClick={handleUpdateRole}
-                                loading={updatingRole}
-                                disabled={Boolean(selectedUser.isAdmin) === selectedRole}
+                                onClick={handleSaveChanges}
+                                loading={savingChanges}
+                                disabled={
+                                    Boolean(selectedUser.isActive) === selectedStatus &&
+                                    Boolean(selectedUser.isAdmin) === selectedRole
+                                }
                             >
-                                Cập nhật quyền
+                                Lưu
                             </Button>
                         </Space>
                     </Space>

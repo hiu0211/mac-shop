@@ -3,7 +3,11 @@ const modelPayments = require("../models/payments.model");
 const modelApiKey = require("../models/apiKey.model");
 const modelOtp = require("../models/otp.model");
 
-const { BadRequestError, BadUser2RequestError } = require("../core/error.response");
+const {
+  BadRequestError,
+  BadUser2RequestError,
+  BadUserRequestError,
+} = require("../core/error.response");
 const {
   createApiKey,
   createToken,
@@ -19,6 +23,9 @@ const otpGenerator = require("otp-generator");
 const CryptoJS = require("crypto-js");
 const jwt = require("jsonwebtoken");
 const { jwtDecode } = require("jwt-decode");
+
+const ACCOUNT_LOCKED_MESSAGE =
+  "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên";
 
 const getCookieConfig = (req, maxAge, httpOnly = true) => {
   const isProduction = process.env.NODE_ENV === "production";
@@ -68,6 +75,7 @@ class controllerUsers {
         password: passwordHash,
         typeLogin: "email",
         phone,
+        isActive: true,
       });
       await newUser.save();
       await createApiKey(newUser._id);
@@ -88,6 +96,9 @@ class controllerUsers {
     const user = await modelUser.findOne({ email });
     if (!user) {
       throw new BadRequestError("Tài khoản hoặc mật khẩu không chính xác");
+    }
+    if (!user.isActive) {
+      throw new BadUser2RequestError(ACCOUNT_LOCKED_MESSAGE);
     }
     if (user.typeLogin === "google") {
       throw new BadRequestError("Tài khoản đăng nhập bằng google");
@@ -113,6 +124,9 @@ class controllerUsers {
     const dataToken = jwtDecode(credential);
     const user = await modelUser.findOne({ email: dataToken.email });
     if (user) {
+      if (!user.isActive) {
+        throw new BadUser2RequestError(ACCOUNT_LOCKED_MESSAGE);
+      }
       await createApiKey(user._id);
       const token = await createToken({ id: user._id });
       const refreshToken = await createRefreshToken({ id: user._id });
@@ -126,6 +140,7 @@ class controllerUsers {
         fullName: dataToken.name,
         email: dataToken.email,
         typeLogin: "google",
+        isActive: true,
       });
       await newUser.save();
       await createApiKey(newUser._id);
@@ -149,6 +164,10 @@ class controllerUsers {
     const user = await modelUser.findOne({ email });
     if (!user || user.typeLogin !== "email") {
       throw new BadRequestError("Tài khoản hoặc mật khẩu không chính xác");
+    }
+
+    if (!user.isActive) {
+      throw new BadUser2RequestError(ACCOUNT_LOCKED_MESSAGE);
     }
 
     const isMatch = bcrypt.compareSync(password, user.password);
@@ -200,6 +219,17 @@ class controllerUsers {
     const decoded = await verifyToken(refreshToken);
 
     const user = await modelUser.findById(decoded.id);
+    if (!user) {
+      clearAuthCookies(req, res);
+      throw new BadUserRequestError("Phiên đăng nhập đã hết hạn");
+    }
+
+    if (!user.isActive) {
+      await modelApiKey.deleteOne({ userId: user._id });
+      clearAuthCookies(req, res);
+      throw new BadUser2RequestError(ACCOUNT_LOCKED_MESSAGE);
+    }
+
     const token = await createToken({ id: user._id });
     res.cookie("token", token, getCookieConfig(req, 15 * 60 * 1000));
     res.cookie("logged", 1, getCookieConfig(req, 7 * 24 * 60 * 60 * 1000, false));
@@ -406,6 +436,51 @@ class controllerUsers {
 
     new OK({
       message: "Cập nhật quyền người dùng thành công",
+      metadata: { user: updatedUser },
+    }).send(res);
+  }
+
+  async updateUserStatus(req, res) {
+    const { id, isActive } = req.body;
+
+    const normalizedIsActive =
+      typeof isActive === "boolean"
+        ? isActive
+        : isActive === "true"
+          ? true
+          : isActive === "false"
+            ? false
+            : null;
+
+    if (!id || normalizedIsActive === null) {
+      throw new BadRequestError("Vui lòng chọn người dùng và trạng thái hợp lệ");
+    }
+
+    if (id === req.user.id && normalizedIsActive === false) {
+      throw new BadRequestError("Không thể khóa tài khoản admin đang đăng nhập");
+    }
+
+    const user = await modelUser.findById(id);
+    if (!user) {
+      throw new BadRequestError("Không tìm thấy người dùng");
+    }
+
+    const updatedUser = await modelUser
+      .findByIdAndUpdate(
+        id,
+        { isActive: normalizedIsActive },
+        { new: true, runValidators: true }
+      )
+      .select("_id fullName email phone isAdmin isActive typeLogin createdAt updatedAt");
+
+    if (!normalizedIsActive) {
+      await modelApiKey.deleteOne({ userId: id });
+    }
+
+    new OK({
+      message: normalizedIsActive
+        ? "Mở khóa tài khoản thành công"
+        : "Khóa tài khoản thành công",
       metadata: { user: updatedUser },
     }).send(res);
   }

@@ -24,6 +24,7 @@ function routes(app) {
   app.post("/api/update-info-user", userRoutes);
   app.post("/api/update-password", userRoutes);
   app.patch("/api/update-user-role", userRoutes);
+  app.patch("/api/update-user-status", userRoutes);
   app.post("/api/login-google", userRoutes);
   app.get("/admin", userRoutes);
 
