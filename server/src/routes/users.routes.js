@@ -49,6 +49,12 @@ router.get(
   asyncHandler(controllerUsers.getAllUser)
 );
 
+router.patch(
+  "/api/update-user-role",
+  authAdmin,
+  asyncHandler(controllerUsers.updateUserRole)
+);
+
 router.get("/admin", authAdmin, asyncHandler(controllerUsers.authAdmin));
 
 module.exports = router;

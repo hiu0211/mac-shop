@@ -67,6 +67,11 @@ export const requestGetAllUser = async () => {
     return res.data;
 };
 
+export const requestUpdateUserRole = async (data) => {
+    const res = await request.patch('/api/update-user-role', data);
+    return res.data;
+};
+
 export const requestUpdateInfoUser = async (data) => {
     const res = await request.post('/api/update-info-user', data);
     return res.data;

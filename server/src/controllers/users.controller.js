@@ -341,6 +341,7 @@ class controllerUsers {
         customer: order.fullName,
         product: `${order.products.length} sản phẩm`,
         amount: order.totalPrice,
+        orderDate: order.createdAt,
         status: getStatusLabel(order.statusOrder),
       }));
 
@@ -364,10 +365,48 @@ class controllerUsers {
   }
 
   async getAllUser(req, res) {
-    const users = await modelUser.find();
+    const users = await modelUser
+      .find()
+      .sort({ createdAt: -1 })
+      .select("_id fullName email phone isAdmin isActive typeLogin createdAt updatedAt");
     new OK({
-      message: "Lấy thống kê thông tin người dùng",
+      message: "Lấy danh sách người dùng thành công",
       metadata: { users },
+    }).send(res);
+  }
+
+  async updateUserRole(req, res) {
+    const { id, isAdmin } = req.body;
+
+    const normalizedIsAdmin =
+      typeof isAdmin === "boolean"
+        ? isAdmin
+        : isAdmin === "true"
+          ? true
+          : isAdmin === "false"
+            ? false
+            : null;
+
+    if (!id || normalizedIsAdmin === null) {
+      throw new BadRequestError("Vui lòng chọn người dùng và quyền hợp lệ");
+    }
+
+    const user = await modelUser.findById(id);
+    if (!user) {
+      throw new BadRequestError("Không tìm thấy người dùng");
+    }
+
+    const updatedUser = await modelUser
+      .findByIdAndUpdate(
+        id,
+        { isAdmin: normalizedIsAdmin },
+        { new: true, runValidators: true }
+      )
+      .select("_id fullName email phone isAdmin isActive typeLogin createdAt updatedAt");
+
+    new OK({
+      message: "Cập nhật quyền người dùng thành công",
+      metadata: { user: updatedUser },
     }).send(res);
   }
 

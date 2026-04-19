@@ -53,6 +53,27 @@ const formatCurrency = (value) => {
     return `${safeValue.toLocaleString('vi-VN')} VNĐ`;
 };
 
+const formatRevenueChartLabel = (period) => {
+    if (typeof period !== 'string') {
+        return '';
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(period)) {
+        return dayjs(period).format('DD/MM/YYYY');
+    }
+
+    if (/^\d{4}-\d{2}$/.test(period)) {
+        return dayjs(`${period}-01`).format('MM/YYYY');
+    }
+
+    const weekMatch = period.match(/^(\d{4})-W(\d{2})$/);
+    if (weekMatch) {
+        return `Tuần ${weekMatch[2]}/${weekMatch[1]}`;
+    }
+
+    return period;
+};
+
 const groupByOptions = [
     { label: 'Theo ngày', value: 'day' },
     { label: 'Theo tuần', value: 'week' },
@@ -172,7 +193,7 @@ const Dashboard = () => {
 
     const revenueTrendData = useMemo(
         () => ({
-            labels: revenueDataState.chart_data.map((item) => item.period),
+            labels: revenueDataState.chart_data.map((item) => formatRevenueChartLabel(item.period)),
             datasets: [
                 {
                     label: 'Doanh thu (VNĐ)',
@@ -275,7 +296,7 @@ const Dashboard = () => {
                             <Space wrap>
                                 <RangePicker
                                     value={dateRange}
-                                    format="YYYY-MM-DD"
+                                    format="DD/MM/YYYY"
                                     allowClear={false}
                                     onChange={(value) => {
                                         if (value?.length === 2 && value[0] && value[1]) {
@@ -555,6 +576,12 @@ const Dashboard = () => {
                                         key: 'product',
                                     },
                                     {
+                                        title: 'Ngày đặt hàng',
+                                        dataIndex: 'orderDate',
+                                        key: 'orderDate',
+                                        render: (value) => (value ? dayjs(value).format('DD/MM/YYYY HH:mm') : 'N/A'),
+                                    },
+                                    {
                                         title: 'Tổng tiền',
                                         dataIndex: 'amount',
                                         key: 'amount',
@@ -583,7 +610,7 @@ const Dashboard = () => {
                                         ),
                                     },
                                 ]}
-                                pagination={false}
+                                pagination={{ pageSize: 10, showSizeChanger: false }}
                             />
                         </Card>
                     </Col>
