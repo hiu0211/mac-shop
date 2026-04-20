@@ -50,7 +50,11 @@ function Cart() {
             setDiscountAmount(Number(newData.discountAmount || 0));
             setCouponCode(newData.couponCode || '');
             setSelectedCouponCode(newData.couponCode || undefined);
-            setSelectedRowKeys((prev) => prev.filter((key) => cartData.some((item) => (item.cartItemKey || `${item._id}-${item.selectedColorKey || 'default'}`) === key)));
+            setSelectedRowKeys((prev) => prev.filter((key) => cartData.some((item) => {
+                const itemProductId = item.productId || item._id || item.id;
+                const itemCartKey = item.cartItemKey || `${itemProductId}-${item.selectedColorKey || 'default'}`;
+                return itemCartKey === key;
+            })));
         } catch (error) {
             console.error(error);
             setCart([]);
@@ -97,7 +101,10 @@ function Cart() {
     }, [fetchCart, fetchAvailableCoupons]);
 
     useEffect(() => {
-        const selectedItems = cart.filter((item) => selectedRowKeys.includes(item.cartItemKey || `${item._id}-${item.selectedColorKey || 'default'}`));
+        const selectedItems = cart.filter((item) => {
+            const itemProductId = item.productId || item._id || item.id;
+            return selectedRowKeys.includes(item.cartItemKey || `${itemProductId}-${item.selectedColorKey || 'default'}`);
+        });
         const selectedTotal = selectedItems.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
 
         setTotalPrice(selectedTotal);
@@ -138,10 +145,16 @@ function Cart() {
     }, [debounce]);
 
     const updateQuantityAPI = async (record, newQuantity) => {
+        const resolvedProductId = record?.productId || record?.id || record?._id;
+        if (!resolvedProductId) {
+            message.error('Không xác định được sản phẩm để cập nhật');
+            return;
+        }
+
         try {
-            const updatingKey = record.cartItemKey || record.id;
+            const updatingKey = record.cartItemKey || resolvedProductId;
             setUpdatingQuantity(prev => ({ ...prev, [updatingKey]: true }));
-            await requestUpdateQuantityCart(record.id, newQuantity, record.selectedColorKey || undefined);
+            await requestUpdateQuantityCart(resolvedProductId, newQuantity, record.selectedColorKey || undefined);
             await fetchCart();
             window.dispatchEvent(new Event('cart-updated'));
             message.success('Cập nhật số lượng thành công');
@@ -150,7 +163,7 @@ function Cart() {
             message.error(error.response?.data?.message || 'Cập nhật số lượng thất bại');
             await fetchCart();
         } finally {
-            const updatingKey = record.cartItemKey || record.id;
+            const updatingKey = record.cartItemKey || resolvedProductId;
             setUpdatingQuantity(prev => ({ ...prev, [updatingKey]: false }));
         }
     };
@@ -176,12 +189,19 @@ function Cart() {
             )
         );
 
-        debouncedUpdateAPI(record, newQuantity);
+        const debounceKey = record.cartItemKey || record.productId || record.id || record._id;
+        debouncedUpdateAPI(debounceKey, record, newQuantity);
     };
 
     const handleDelete = async (record) => {
+        const resolvedProductId = record.productId || record.id;
+        if (!resolvedProductId) {
+            message.error('Không xác định được sản phẩm để xóa');
+            return;
+        }
+
         try {
-            await requestDeleteCart(record.id, record.selectedColorKey || undefined);
+            await requestDeleteCart(resolvedProductId, record.selectedColorKey || undefined);
             await fetchCart();
             window.dispatchEvent(new Event('cart-updated'));
             message.success('Xóa sản phẩm thành công');
@@ -287,18 +307,23 @@ function Cart() {
         }
     };
 
-    const dataSource = cart.map((item) => ({
-        key: item.cartItemKey || item._id,
-        cartItemKey: item.cartItemKey || `${item._id}-${item.selectedColorKey || 'default'}`,
-        id: item._id,
-        name: item.name,
-        image: item.selectedColorImage || item.images?.[0],
-        price: Number(item.price || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }),
-        quantity: item.quantity,
-        stock: item.stock,
-        selectedColorKey: item.selectedColorKey,
-        selectedColorName: item.selectedColorName,
-    }));
+    const dataSource = cart.map((item) => {
+        const productId = item.productId || item._id || item.id;
+
+        return {
+            key: item.cartItemKey || `${productId}-${item.selectedColorKey || 'default'}`,
+            cartItemKey: item.cartItemKey || `${productId}-${item.selectedColorKey || 'default'}`,
+            id: productId,
+            productId,
+            name: item.name,
+            image: item.selectedColorImage || item.images?.[0],
+            price: Number(item.price || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' }),
+            quantity: item.quantity,
+            stock: item.stock,
+            selectedColorKey: item.selectedColorKey,
+            selectedColorName: item.selectedColorName,
+        };
+    });
 
     const columns = [
         {

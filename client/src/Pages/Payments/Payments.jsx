@@ -14,6 +14,9 @@ function Payments() {
     const [dataPayment, setDataPayment] = useState({});
 
     const { id } = useParams();
+    const totalPriceAfterDiscount = Number(
+        dataPayment?.findPayment?.totalPriceAfterDiscount ?? dataPayment?.findPayment?.totalPrice ?? 0,
+    );
 
     useEffect(() => {
         const fetchData = async () => {
@@ -73,12 +76,7 @@ function Payments() {
 
                         <div className={cx('list')}>
                             <span>Tổng thanh toán</span>
-                            <p>
-                                {dataPayment?.findPayment?.totalPrice?.toLocaleString('vi-VN', {
-                                    style: 'currency',
-                                    currency: 'VND',
-                                })}
-                            </p>
+                            <p>{totalPriceAfterDiscount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</p>
                         </div>
 
                         <div className={cx('list__products')}>

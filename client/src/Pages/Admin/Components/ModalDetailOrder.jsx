@@ -10,16 +10,18 @@ const ModalDetailOrder = ({ isModalVisible, setIsModalVisible, selectedOrder }) 
     const [order, setOrder] = useState({});
     // const [adminMessage, setAdminMessage] = useState('');
     // const [isSending, setIsSending] = useState(false);
-
-    const fetchData = async () => {
-        const res = await requestGetOnePayment(selectedOrder);
-        setOrder(res.metadata);
-    };
+    const totalPriceAfterDiscount = Number(
+        order?.findPayment?.totalPriceAfterDiscount ?? order?.findPayment?.totalPrice ?? 0,
+    );
 
     useEffect(() => {
         if (selectedOrder === '') {
             return;
         }
+        const fetchData = async () => {
+            const res = await requestGetOnePayment(selectedOrder);
+            setOrder(res.metadata);
+        };
         fetchData();
     }, [isModalVisible, selectedOrder]);
 
@@ -110,7 +112,7 @@ const ModalDetailOrder = ({ isModalVisible, setIsModalVisible, selectedOrder }) 
                         </div>
                     )}
                     <div className={cx('totalAmount')}>
-                        Tổng tiền: <span>{order?.findPayment?.totalPrice?.toLocaleString()} đ</span>
+                        Tổng tiền: <span>{totalPriceAfterDiscount.toLocaleString('vi-VN')} đ</span>
                     </div>
                 </div>
 

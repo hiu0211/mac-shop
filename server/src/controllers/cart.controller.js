@@ -47,6 +47,10 @@ const resolveColorSnapshotForCart = ({ product, selectedColorKey }) => {
       selectedColorHex: "",
       selectedColorImage: "",
       unitPrice: fallbackPrice,
+      finalUnitPrice: resolveCartLineFinalUnitPrice({
+        cartItem: { unitPrice: fallbackPrice },
+        product,
+      }),
     };
   }
 
@@ -66,6 +70,10 @@ const resolveColorSnapshotForCart = ({ product, selectedColorKey }) => {
     selectedColorHex: matchedColor.hex,
     selectedColorImage: matchedColor.image,
     unitPrice: toNonNegativeNumber(matchedColor.price, fallbackPrice),
+    finalUnitPrice: resolveCartLineFinalUnitPrice({
+      cartItem: { unitPrice: toNonNegativeNumber(matchedColor.price, fallbackPrice) },
+      product,
+    }),
   };
 };
 
@@ -85,6 +93,27 @@ const resolveItemUnitPrice = ({ cartItem, product }) => {
   }
 
   return toNonNegativeNumber(product?.price, 0);
+};
+
+const resolveCartLineFinalUnitPrice = ({ cartItem, product }) => {
+  const storedFinalUnitPrice = toNonNegativeNumber(cartItem?.finalUnitPrice, -1);
+  if (storedFinalUnitPrice >= 0) {
+    return storedFinalUnitPrice;
+  }
+
+  const baseUnitPrice = resolveItemUnitPrice({ cartItem, product });
+  const discount = toNonNegativeNumber(product?.discount, 0);
+
+  if (discount > 0) {
+    return Math.max(0, Math.round((baseUnitPrice * (100 - discount)) / 100));
+  }
+
+  const legacyPriceDiscount = toNonNegativeNumber(product?.priceDiscount, 0);
+  if (legacyPriceDiscount > 0 && legacyPriceDiscount < baseUnitPrice) {
+    return legacyPriceDiscount;
+  }
+
+  return baseUnitPrice;
 };
 
 const resolveCartItemImage = ({ cartItem, product }) => {
@@ -136,7 +165,7 @@ class controllerCart {
       product: findProduct,
       selectedColorKey,
     });
-    const totalPriceProduct = selectedColorSnapshot.unitPrice * normalizedQuantity;
+    const totalPriceProduct = selectedColorSnapshot.finalUnitPrice * normalizedQuantity;
     const normalizedSelectedColorKey = normalizeColorKey(selectedColorSnapshot.selectedColorKey);
 
     if (!findCart) {
@@ -156,6 +185,7 @@ class controllerCart {
             selectedColorHex: selectedColorSnapshot.selectedColorHex,
             selectedColorImage: selectedColorSnapshot.selectedColorImage,
             unitPrice: selectedColorSnapshot.unitPrice,
+            finalUnitPrice: selectedColorSnapshot.finalUnitPrice,
           },
         ],
         totalPrice: totalPriceProduct,
@@ -207,7 +237,12 @@ class controllerCart {
           findCart.product[existingProductIndex].selectedColorHex || selectedColorSnapshot.selectedColorHex;
         findCart.product[existingProductIndex].selectedColorImage =
           findCart.product[existingProductIndex].selectedColorImage || selectedColorSnapshot.selectedColorImage;
-        findCart.totalPrice += lineUnitPrice * normalizedQuantity;
+        const lineFinalUnitPrice = resolveCartLineFinalUnitPrice({
+          cartItem: findCart.product[existingProductIndex],
+          product: findProduct,
+        });
+        findCart.product[existingProductIndex].finalUnitPrice = lineFinalUnitPrice;
+        findCart.totalPrice += lineFinalUnitPrice * normalizedQuantity;
       } else {
         // Sản phẩm chưa tồn tại, kiểm tra stock và thêm mới
         if (normalizedQuantity > findProduct.stock) {
@@ -222,6 +257,7 @@ class controllerCart {
           selectedColorHex: selectedColorSnapshot.selectedColorHex,
           selectedColorImage: selectedColorSnapshot.selectedColorImage,
           unitPrice: selectedColorSnapshot.unitPrice,
+          finalUnitPrice: selectedColorSnapshot.finalUnitPrice,
         });
         findCart.totalPrice += totalPriceProduct;
       }
@@ -269,7 +305,8 @@ class controllerCart {
           return null;
         }
 
-        const unitPrice = resolveItemUnitPrice({ cartItem: item, product });
+          const unitPrice = resolveItemUnitPrice({ cartItem: item, product });
+          const finalUnitPrice = resolveCartLineFinalUnitPrice({ cartItem: item, product });
 
         return {
           product,
@@ -277,6 +314,7 @@ class controllerCart {
           cartItem: item,
           quantity: item.quantity,
           unitPrice,
+            finalUnitPrice,
         };
       })
     );
@@ -287,9 +325,10 @@ class controllerCart {
       cart.product = validProducts.map((item) => ({
         ...(item.cartItem?.toObject ? item.cartItem.toObject() : item.cartItem),
         unitPrice: item.unitPrice,
+        finalUnitPrice: item.finalUnitPrice,
       }));
       cart.totalPrice = validProducts.reduce(
-        (sum, item) => sum + item.unitPrice * item.quantity,
+        (sum, item) => sum + item.finalUnitPrice * item.quantity,
         0
       );
       await recalculateCartTotals({ cart, userId: id });
@@ -304,12 +343,18 @@ class controllerCart {
         }
 
         const nextUnitPrice = resolveItemUnitPrice({ cartItem: item, product: productInfo.product });
+        const nextFinalUnitPrice = resolveCartLineFinalUnitPrice({ cartItem: item, product: productInfo.product });
         const normalizedSelectedColorKey = normalizeColorKey(item.selectedColorKey);
         const normalizedColorOptions = normalizeProductColorOptions(productInfo.product?.colorOptions);
         const matchedColor = normalizedColorOptions.find((colorItem) => colorItem.key === normalizedSelectedColorKey);
 
         if (toNonNegativeNumber(item.unitPrice, -1) !== nextUnitPrice) {
           item.unitPrice = nextUnitPrice;
+          hasSnapshotChanges = true;
+        }
+
+        if (toNonNegativeNumber(item.finalUnitPrice, -1) !== nextFinalUnitPrice) {
+          item.finalUnitPrice = nextFinalUnitPrice;
           hasSnapshotChanges = true;
         }
 
@@ -332,8 +377,8 @@ class controllerCart {
       });
 
       if (hasSnapshotChanges) {
-        cart.totalPrice = cart.product.reduce(
-          (sum, item) => sum + toNonNegativeNumber(item.unitPrice, 0) * Number(item.quantity || 0),
+        cart.totalPrice = validProducts.reduce(
+          (sum, item) => sum + toNonNegativeNumber(item.finalUnitPrice, 0) * Number(item.quantity || 0),
           0
         );
         await recalculateCartTotals({ cart, userId: id });
@@ -342,7 +387,7 @@ class controllerCart {
     }
 
     const data = validProducts.map((item) => {
-      const liveUnitPrice = resolveItemUnitPrice({
+      const liveUnitPrice = resolveCartLineFinalUnitPrice({
         cartItem: item.cartItem,
         product: item.product,
       });
@@ -353,10 +398,12 @@ class controllerCart {
 
       return {
         ...item.product.toObject(),
+        productId: String(item.productId),
         cartItemKey: `${item.productId}-${item.cartItem.selectedColorKey || "default"}`,
         quantity: item.quantity,
         price: liveUnitPrice,
         unitPrice: liveUnitPrice,
+        baseUnitPrice: item.unitPrice,
         selectedColorKey: normalizeColorKey(item.cartItem.selectedColorKey),
         selectedColorName: String(item.cartItem.selectedColorName || "").trim(),
         selectedColorHex: String(item.cartItem.selectedColorHex || "").trim(),
@@ -425,11 +472,15 @@ class controllerCart {
         cartItem: removedProduct,
         product,
       });
+      const lineFinalUnitPrice = resolveCartLineFinalUnitPrice({
+        cartItem: removedProduct,
+        product,
+      });
 
       // Cập nhật totalPrice trước khi xoá sản phẩm
       cart.totalPrice = Math.max(
         0,
-        cart.totalPrice - lineUnitPrice * removedProduct.quantity
+        cart.totalPrice - lineFinalUnitPrice * removedProduct.quantity
       );
 
       // Xoá sản phẩm khỏi giỏ hàng
@@ -537,11 +588,16 @@ class controllerCart {
     cartItem,
     product,
   });
-  cart.totalPrice = Math.max(0, cart.totalPrice + pricePerItem * quantityDiff);
+  const finalPricePerItem = resolveCartLineFinalUnitPrice({
+    cartItem,
+    product,
+  });
+  cart.totalPrice = Math.max(0, cart.totalPrice + finalPricePerItem * quantityDiff);
 
   // Cập nhật số lượng trong giỏ hàng
   cart.product[productIndex].quantity = normalizedQuantity;
   cart.product[productIndex].unitPrice = pricePerItem;
+  cart.product[productIndex].finalUnitPrice = finalPricePerItem;
 
   // Cập nhật stock
   await modelProduct.updateOne(

@@ -458,6 +458,7 @@ const formatProductOutput = (productDoc, productTypeDoc = null) => {
   return {
     ...sanitizedProduct,
     componentType: normalizedComponentType,
+    componentTypeName: String(productTypeDoc?.name || normalizedComponentType || "").trim(),
     colorOptions: normalizedColorOptions,
     defaultColorKey: defaultColorOption?.key || "",
     attributes: resolvedAttributes,
@@ -605,7 +606,21 @@ class controllerProducts {
   }
 
   async getAllProduct(req, res) {
-    const data = await modelProduct.find().sort({ createdAt: -1 });
+    const brand = String(req.query.brand || "")
+      .trim();
+    const componentType = normalizeComponentType(req.query.componentType || "");
+
+    const query = {};
+
+    if (brand && brand !== "all") {
+      query.brand = { $regex: `^${escapeRegex(brand)}$`, $options: "i" };
+    }
+
+    if (componentType && componentType !== "all") {
+      query.componentType = componentType;
+    }
+
+    const data = await modelProduct.find(query).sort({ createdAt: -1 });
     const formattedData = await formatProductListOutput(data);
     new OK({ message: "Lấy sản phẩm thông tin", metadata: formattedData }).send(res);
   }

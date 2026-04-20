@@ -79,6 +79,44 @@ const resolveFallbackProductImage = (product = null) => {
   return product.images.map((item) => String(item || "").trim()).find(Boolean) || "";
 };
 
+const resolveCartLineFinalUnitPrice = ({ cartItem = {}, product = null }) => {
+  const storedFinalUnitPrice = toNonNegativeNumber(cartItem?.finalUnitPrice, -1);
+  if (storedFinalUnitPrice >= 0) {
+    return storedFinalUnitPrice;
+  }
+
+  const baseUnitPrice = toNonNegativeNumber(cartItem?.unitPrice, 0);
+  const discount = toNonNegativeNumber(product?.discount, 0);
+  if (discount > 0) {
+    return Math.max(0, Math.round((baseUnitPrice * (100 - discount)) / 100));
+  }
+
+  const legacyPriceDiscount = toNonNegativeNumber(product?.priceDiscount, 0);
+  if (legacyPriceDiscount > 0 && legacyPriceDiscount < baseUnitPrice) {
+    return legacyPriceDiscount;
+  }
+
+  return baseUnitPrice;
+};
+
+const buildOrderProductsFromCart = async (cartProducts = []) => {
+  const productDocs = await Promise.all(
+    cartProducts.map(async (item) => modelProduct.findById(item.productId).catch(() => null))
+  );
+
+  return cartProducts.map((item, index) => {
+    const product = productDocs[index];
+    const snapshot = resolveOrderItemSnapshot({ orderItem: item, product });
+    const finalUnitPrice = resolveCartLineFinalUnitPrice({ cartItem: item, product });
+
+    return {
+      ...(item?.toObject ? item.toObject() : item),
+      ...snapshot,
+      unitPrice: finalUnitPrice,
+    };
+  });
+};
+
 const resolveOrderItemSnapshot = ({ orderItem = {}, product = null }) => {
   const snapshotUnitPrice = toNonNegativeNumber(orderItem?.unitPrice, -1);
   const snapshotColorKey = normalizeColorKey(orderItem?.selectedColorKey);
@@ -190,11 +228,10 @@ class PaymentsController {
     }
 
     if (typePayment === "COD") {
+      const orderProducts = await buildOrderProductsFromCart(findCart.product || []);
       const newPayment = new modelPayments({
         userId: id,
-        products: (findCart.product || []).map((item) => ({
-          ...(item?.toObject ? item.toObject() : item),
-        })),
+        products: orderProducts,
         address: findCart.address,
         phone: findCart.phone,
         fullName: findCart.fullName,
@@ -284,9 +321,7 @@ class PaymentsController {
 
       const newPayment = new modelPayments({
         userId: findCart.userId,
-        products: (findCart.product || []).map((item) => ({
-          ...(item?.toObject ? item.toObject() : item),
-        })),
+        products: await buildOrderProductsFromCart(findCart.product || []),
         address: findCart.address,
         phone: findCart.phone,
         typePayments: "VNPAY",
@@ -411,7 +446,15 @@ class PaymentsController {
           };
         })
       );
-      const data = { findPayment, dataProduct };
+      const paymentData = findPayment.toObject ? findPayment.toObject() : { ...findPayment };
+      const { products, ...safeFindPayment } = paymentData;
+      const data = {
+        findPayment: {
+          ...safeFindPayment,
+          totalPriceAfterDiscount: Number(paymentData.totalPrice || 0),
+        },
+        dataProduct,
+      };
 
       new OK({ message: "Thành công", metadata: data }).send(res);
     } catch (error) {
@@ -422,11 +465,23 @@ class PaymentsController {
 
   async updateStatusOrder(req, res, next) {
     const { statusOrder, orderId } = req.body;
+    if (!orderId) {
+      throw new BadRequestError("Không tìm thấy đơn hàng");
+    }
+
+    const normalizedStatusOrder = String(statusOrder || "")
+      .trim()
+      .toLowerCase();
+
+    if (!SUPPORTED_ORDER_STATUSES.includes(normalizedStatusOrder)) {
+      throw new BadRequestError("Trạng thái đơn hàng không hợp lệ");
+    }
+
     const findPayment = await modelPayments.findById(orderId);
     if (!findPayment) {
       throw new BadRequestError("Không tìm thấy đơn hàng");
     }
-    findPayment.statusOrder = statusOrder;
+    findPayment.statusOrder = normalizedStatusOrder;
     await findPayment.save();
     new OK({ message: "Thành công", metadata: findPayment }).send(res);
   }
@@ -513,6 +568,10 @@ class PaymentsController {
           cart.product[cartItemIndex].unitPrice,
           snapshot.unitPrice
         );
+        cart.product[cartItemIndex].finalUnitPrice = toNonNegativeNumber(
+          cart.product[cartItemIndex].finalUnitPrice,
+          snapshot.unitPrice
+        );
         cart.product[cartItemIndex].selectedColorName =
           cart.product[cartItemIndex].selectedColorName || snapshot.selectedColorName;
         cart.product[cartItemIndex].selectedColorHex =
@@ -522,7 +581,7 @@ class PaymentsController {
         cart.product[cartItemIndex].selectedColorKey =
           normalizeColorKey(cart.product[cartItemIndex].selectedColorKey || snapshot.selectedColorKey);
 
-        cart.totalPrice += cart.product[cartItemIndex].unitPrice * orderItem.quantity;
+        cart.totalPrice += cart.product[cartItemIndex].finalUnitPrice * orderItem.quantity;
       } else {
         cart.product.push({
           productId: orderItem.productId,
@@ -532,6 +591,7 @@ class PaymentsController {
           selectedColorHex: snapshot.selectedColorHex,
           selectedColorImage: snapshot.selectedColorImage,
           unitPrice: snapshot.unitPrice,
+          finalUnitPrice: snapshot.unitPrice,
         });
 
         cart.totalPrice += snapshot.unitPrice * orderItem.quantity;
@@ -838,7 +898,20 @@ class PaymentsController {
 
   async getOrderAdmin(req, res) {
     try {
-      const payments = await modelPayments.find().sort({ createdAt: -1 });
+      const statusOrder = String(req.query.statusOrder || "")
+        .trim()
+        .toLowerCase();
+
+      const query = {};
+
+      if (statusOrder && statusOrder !== "all") {
+        if (!SUPPORTED_ORDER_STATUSES.includes(statusOrder)) {
+          throw new BadRequestError("Trạng thái đơn hàng không hợp lệ");
+        }
+        query.statusOrder = statusOrder;
+      }
+
+      const payments = await modelPayments.find(query).sort({ createdAt: -1 });
       const detailedPayments = await Promise.all(
         payments.map(async (order) => {
           const products = await Promise.all(

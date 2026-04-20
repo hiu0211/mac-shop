@@ -14,6 +14,7 @@ const modelCart = new Schema(
         selectedColorHex: { type: String, default: "", trim: true },
         selectedColorImage: { type: String, default: "", trim: true },
         unitPrice: { type: Number, default: 0, min: 0 },
+        finalUnitPrice: { type: Number, default: 0, min: 0 },
       },
     ],
     totalPrice: { type: Number, require: true },

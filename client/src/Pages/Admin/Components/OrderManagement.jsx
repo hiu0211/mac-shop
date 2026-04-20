@@ -5,10 +5,13 @@ import { message } from 'antd';
 import { requestGetOrderAdmin, requestUpdateStatusOrder } from '../../../Config/request';
 import ModalDetailOrder from './ModalDetailOrder';
 
+const DEFAULT_STATUS_FILTER = 'all';
+
 const OrderManagement = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchText, setSearchText] = useState('');
+    const [statusFilter, setStatusFilter] = useState(DEFAULT_STATUS_FILTER);
 
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState('');
@@ -32,7 +35,7 @@ const OrderManagement = () => {
             setLoading(true);
             await requestUpdateStatusOrder({ orderId, statusOrder: newStatus });
             message.success('Cập nhật trạng thái thành công');
-            await fetchOrders();
+            await fetchOrders(statusFilter);
         } catch (error) {
             console.error(error);
             message.error('Cập nhật trạng thái thất bại');
@@ -42,12 +45,12 @@ const OrderManagement = () => {
     };
 
     const columns = [
-        {
-            title: 'Mã đơn hàng',
-            dataIndex: 'id',
-            key: 'id',
-            width: 220,
-        },
+        // {
+        //     title: 'Mã đơn hàng',
+        //     dataIndex: 'id',
+        //     key: 'id',
+        //     width: 220,
+        // },
         {
             title: 'Khách hàng',
             dataIndex: 'customer',
@@ -100,10 +103,15 @@ const OrderManagement = () => {
         },
     ];
 
-    const fetchOrders = async () => {
+    const fetchOrders = async (statusOrder = DEFAULT_STATUS_FILTER) => {
         try {
             setLoading(true);
-            const response = await requestGetOrderAdmin();
+            const params = {};
+            if (statusOrder && statusOrder !== DEFAULT_STATUS_FILTER) {
+                params.statusOrder = statusOrder;
+            }
+
+            const response = await requestGetOrderAdmin(params);
             if (response.metadata) {
                 const formattedOrders = response.metadata.map((order) => ({
                     key: order.orderId,
@@ -128,8 +136,13 @@ const OrderManagement = () => {
     };
 
     useEffect(() => {
-        fetchOrders();
-    }, []);
+        fetchOrders(statusFilter);
+    }, [statusFilter]);
+
+    const statusFilterOptions = [
+        { label: 'Tất cả trạng thái', value: DEFAULT_STATUS_FILTER },
+        ...statusOptions,
+    ];
 
     // Lọc đơn hàng theo searchText
     const filteredOrders = orders.filter((order) => {
@@ -148,14 +161,25 @@ const OrderManagement = () => {
                 <h2>Quản lý đơn hàng</h2>
             </Space>
 
-            <Input
-                placeholder="Tìm kiếm đơn hàng"
-                prefix={<SearchOutlined />}
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                allowClear
-                style={{ marginBottom: 16,width: 350 }}
-            />
+            <Space wrap size={12} style={{ marginBottom: 16 }}>
+                <Input
+                    placeholder="Tìm kiếm đơn hàng"
+                    prefix={<SearchOutlined />}
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    allowClear
+                    style={{ width: 350 }}
+                />
+
+                <Select
+                    value={statusFilter}
+                    allowClear
+                    placeholder="Lọc theo trạng thái"
+                    onChange={(value) => setStatusFilter(value || DEFAULT_STATUS_FILTER)}
+                    options={statusFilterOptions}
+                    style={{ width: 220 }}
+                />
+            </Space>
             <Table columns={columns} dataSource={filteredOrders} loading={loading} />
             <ModalDetailOrder
                 isModalVisible={isModalVisible}

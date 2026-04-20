@@ -102,8 +102,8 @@ export const requestUpdateStatusOrder = async (data) => {
     return res.data;
 };
 
-export const requestGetAllProduct = async () => {
-    const res = await request.get('/api/all-product');
+export const requestGetAllProduct = async (params = {}) => {
+    const res = await request.get('/api/all-product', { params });
     return res.data;
 };
 
@@ -209,7 +209,7 @@ export const requestGetCart = async () => {
 };
 
 export const requestDeleteCart = async (productId, selectedColorKey = undefined) => {
-    const params = { productId };
+    const params = { productId: String(productId || '').trim() };
     if (selectedColorKey !== undefined) {
         params.selectedColorKey = selectedColorKey;
     }
@@ -287,14 +287,14 @@ export const requestDeleteAdminReview = async (productId, reviewId) => {
     return res.data;
 };
 
-export const requestGetOrderAdmin = async () => {
-    const res = await request.get('/api/get-order-admin');
+export const requestGetOrderAdmin = async (params = {}) => {
+    const res = await request.get('/api/get-order-admin', { params });
     return res.data;
 };
 
 export const requestUpdateQuantityCart = async (productId, quantity, selectedColorKey = undefined) => {
     const payload = {
-        productId,
+        productId: String(productId || '').trim(),
         quantity
     };
 
