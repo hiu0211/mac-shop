@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Space, Button, Input, Tag, Select } from 'antd';
-import { SearchOutlined, EyeOutlined } from '@ant-design/icons';
+import { Table, Space, Button, Input, Tag, Select, Popconfirm } from 'antd';
+import { SearchOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
 import { message } from 'antd';
-import { requestGetOrderAdmin, requestUpdateStatusOrder } from '../../../Config/request';
+import { requestDeleteOrder, requestGetOrderAdmin, requestUpdateStatusOrder } from '../../../Config/request';
 import ModalDetailOrder from './ModalDetailOrder';
 
 const DEFAULT_STATUS_FILTER = 'all';
@@ -39,6 +39,28 @@ const OrderManagement = () => {
         } catch (error) {
             console.error(error);
             message.error('Cập nhật trạng thái thất bại');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteOrder = async (orderId) => {
+        if (!orderId) return;
+
+        try {
+            setLoading(true);
+            await requestDeleteOrder(orderId);
+            message.success('Xóa đơn hàng thành công');
+
+            if (selectedOrder === orderId) {
+                setIsModalVisible(false);
+                setSelectedOrder('');
+            }
+
+            await fetchOrders(statusFilter);
+        } catch (error) {
+            console.error(error);
+            message.error(error?.response?.data?.message || 'Xóa đơn hàng thất bại');
         } finally {
             setLoading(false);
         }
@@ -98,6 +120,18 @@ const OrderManagement = () => {
                 <Space size="middle">
                     <Button title='Xem chi tiết đơn hàng' icon={<EyeOutlined />} onClick={() => handleShowModal(record)}>
                     </Button>
+                    {record.status === 'cancelled' && (
+                        <Popconfirm
+                            title="Xóa đơn hàng"
+                            description="Bạn có chắc muốn xóa đơn hàng này không?"
+                            okText="Xóa"
+                            cancelText="Hủy"
+                            onConfirm={() => handleDeleteOrder(record.id)}
+                        >
+                            <Button danger title='Xóa đơn hàng' icon={<DeleteOutlined />}>
+                            </Button>
+                        </Popconfirm>
+                    )}
                 </Space>
             ),
         },

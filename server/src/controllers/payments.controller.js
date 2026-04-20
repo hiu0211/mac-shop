@@ -2,6 +2,8 @@ const modelPayments = require("../models/payments.model");
 const modelCart = require("../models/cart.model");
 const modelProduct = require("../models/products.model");
 const modelUser = require("../models/users.model");
+const modelCoupon = require("../models/coupon.model");
+const modelCouponUsage = require("../models/couponUsage.model");
 const {
   validateCouponForCart,
   recordCouponUsage,
@@ -39,6 +41,42 @@ const SUPPORTED_ORDER_STATUSES = [
   "delivered",
   "cancelled",
 ];
+
+const rollbackCouponUsageByOrder = async ({ orderId, couponId }) => {
+  const normalizedOrderId = String(orderId || "").trim();
+  const normalizedCouponId = String(couponId || "").trim();
+
+  if (!normalizedOrderId || !normalizedCouponId) {
+    return;
+  }
+
+  const usageRecords = await modelCouponUsage
+    .find({
+      orderId: normalizedOrderId,
+      couponId: normalizedCouponId,
+    })
+    .select("_id");
+
+  if (!usageRecords.length) {
+    return;
+  }
+
+  await modelCouponUsage.deleteMany({
+    _id: { $in: usageRecords.map((item) => item._id) },
+  });
+
+  if (!/^[a-f\d]{24}$/i.test(normalizedCouponId)) {
+    return;
+  }
+
+  const coupon = await modelCoupon.findById(normalizedCouponId).select("usedCount");
+  if (!coupon) {
+    return;
+  }
+
+  coupon.usedCount = Math.max(0, Number(coupon.usedCount || 0) - usageRecords.length);
+  await coupon.save();
+};
 
 const normalizeColorKey = (value = "") =>
   String(value || "")
@@ -484,6 +522,41 @@ class PaymentsController {
     findPayment.statusOrder = normalizedStatusOrder;
     await findPayment.save();
     new OK({ message: "Thành công", metadata: findPayment }).send(res);
+  }
+
+  async deleteOrderByAdmin(req, res) {
+    const { orderId } = {
+      ...(req.query || {}),
+      ...(req.body || {}),
+    };
+
+    if (!orderId) {
+      throw new BadRequestError("Không tìm thấy đơn hàng");
+    }
+
+    const findPayment = await modelPayments.findById(orderId);
+    if (!findPayment) {
+      throw new BadRequestError("Không tìm thấy đơn hàng");
+    }
+
+    if (findPayment.statusOrder !== "cancelled") {
+      throw new BadRequestError("Chỉ có thể xóa đơn hàng đã hủy");
+    }
+
+    const deletedOrderId = findPayment._id.toString();
+    const couponId = String(findPayment.couponId || "").trim();
+
+    await rollbackCouponUsageByOrder({
+      orderId: deletedOrderId,
+      couponId,
+    });
+
+    await findPayment.deleteOne();
+
+    new OK({
+      message: "Xóa đơn hàng thành công",
+      metadata: { orderId: deletedOrderId },
+    }).send(res);
   }
 
   async cancelOrderByUser(req, res) {

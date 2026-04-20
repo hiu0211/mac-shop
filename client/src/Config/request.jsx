@@ -292,6 +292,11 @@ export const requestGetOrderAdmin = async (params = {}) => {
     return res.data;
 };
 
+export const requestDeleteOrder = async (orderId) => {
+    const res = await request.delete('/api/delete-order', { params: { orderId } });
+    return res.data;
+};
+
 export const requestUpdateQuantityCart = async (productId, quantity, selectedColorKey = undefined) => {
     const payload = {
         productId: String(productId || '').trim(),

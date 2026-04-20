@@ -61,6 +61,7 @@ function routes(app) {
   app.get("/api/get-history-order", paymentsRoutes);
   app.get("/api/get-one-payment", paymentsRoutes);
   app.post("/api/update-status-order", paymentsRoutes);
+  app.delete("/api/delete-order", paymentsRoutes);
   app.post("/api/cancel-order", paymentsRoutes);
   app.post("/api/reorder", paymentsRoutes);
   app.get("/api/order-contact", paymentsRoutes);

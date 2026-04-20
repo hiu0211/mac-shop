@@ -35,6 +35,12 @@ router.post(
   asyncHandler(controllerPayments.updateStatusOrder)
 );
 
+router.delete(
+  "/api/delete-order",
+  authAdmin,
+  asyncHandler(controllerPayments.deleteOrderByAdmin)
+);
+
 router.post(
   "/api/cancel-order",
   authUser,
