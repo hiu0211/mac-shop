@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Button, Descriptions, Drawer, Input, Select, Space, Table, Tag, message } from 'antd';
+import { Button, Descriptions, Drawer, Input, Select, Space, Table, Tag, Tooltip, message } from 'antd';
 import { EyeOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { requestGetAllUser, requestUpdateUserRole, requestUpdateUserStatus } from '../../../Config/request';
+import { useStore } from '../../../hooks/useStore';
 
 const roleOptions = [
     { label: 'Admin', value: true },
@@ -17,6 +18,7 @@ const accountStatusOptions = [
 const formatDateTime = (value) => (value ? dayjs(value).format('DD/MM/YYYY HH:mm') : 'N/A');
 
 const UserManagement = () => {
+    const { dataUser } = useStore();
     const [dataUsers, setDataUsers] = useState([]);
     const [searchText, setSearchText] = useState('');
     const [loading, setLoading] = useState(false);
@@ -25,6 +27,17 @@ const UserManagement = () => {
     const [selectedStatus, setSelectedStatus] = useState(true);
     const [selectedRole, setSelectedRole] = useState(false);
     const [savingChanges, setSavingChanges] = useState(false);
+
+    const isCurrentUserSelected = useMemo(() => {
+        const selectedUserId = String(selectedUser?._id || '');
+        const currentUserId = String(dataUser?._id || '');
+
+        if (!selectedUserId || !currentUserId) {
+            return false;
+        }
+
+        return selectedUserId === currentUserId;
+    }, [selectedUser, dataUser]);
 
     const fetchData = async () => {
         setLoading(true);
@@ -99,6 +112,11 @@ const UserManagement = () => {
 
     const handleSaveChanges = async () => {
         if (!selectedUser) {
+            return;
+        }
+
+        if (isCurrentUserSelected) {
+            message.warning('Bạn không thể tự thay đổi quyền hoặc khóa tài khoản của chính mình');
             return;
         }
 
@@ -269,22 +287,44 @@ const UserManagement = () => {
 
                         <div>
                             <div style={{ marginBottom: 8, fontWeight: 600 }}>Trạng thái tài khoản</div>
-                            <Select
-                                value={selectedStatus}
-                                options={accountStatusOptions}
-                                onChange={setSelectedStatus}
-                                style={{ width: '100%' }}
-                            />
+                            <Tooltip
+                                title={
+                                    isCurrentUserSelected
+                                        ? 'Bạn không được thay đổi trạng thái tài khoản của chính mình'
+                                        : null
+                                }
+                            >
+                                <span style={{ display: 'block' }}>
+                                    <Select
+                                        value={selectedStatus}
+                                        options={accountStatusOptions}
+                                        onChange={setSelectedStatus}
+                                        style={{ width: '100%' }}
+                                        disabled={isCurrentUserSelected}
+                                    />
+                                </span>
+                            </Tooltip>
                         </div>
 
                         <div>
                             <div style={{ marginBottom: 8, fontWeight: 600 }}>Quyền</div>
-                            <Select
-                                value={selectedRole}
-                                options={roleOptions}
-                                onChange={setSelectedRole}
-                                style={{ width: '100%' }}
-                            />
+                            <Tooltip
+                                title={
+                                    isCurrentUserSelected
+                                        ? 'Bạn không được thay đổi quyền của chính mình'
+                                        : null
+                                }
+                            >
+                                <span style={{ display: 'block' }}>
+                                    <Select
+                                        value={selectedRole}
+                                        options={roleOptions}
+                                        onChange={setSelectedRole}
+                                        style={{ width: '100%' }}
+                                        disabled={isCurrentUserSelected}
+                                    />
+                                </span>
+                            </Tooltip>
                         </div>
 
                         <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
@@ -294,6 +334,7 @@ const UserManagement = () => {
                                 onClick={handleSaveChanges}
                                 loading={savingChanges}
                                 disabled={
+                                    isCurrentUserSelected ||
                                     Boolean(selectedUser.isActive) === selectedStatus &&
                                     Boolean(selectedUser.isAdmin) === selectedRole
                                 }

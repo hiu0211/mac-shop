@@ -421,6 +421,10 @@ class controllerUsers {
       throw new BadRequestError("Vui lòng chọn người dùng và quyền hợp lệ");
     }
 
+    if (String(id) === String(req.user.id)) {
+      throw new BadRequestError("Không được thay đổi quyền của chính mình");
+    }
+
     const user = await modelUser.findById(id);
     if (!user) {
       throw new BadRequestError("Không tìm thấy người dùng");
@@ -456,8 +460,8 @@ class controllerUsers {
       throw new BadRequestError("Vui lòng chọn người dùng và trạng thái hợp lệ");
     }
 
-    if (id === req.user.id && normalizedIsActive === false) {
-      throw new BadRequestError("Không thể khóa tài khoản admin đang đăng nhập");
+    if (String(id) === String(req.user.id) && normalizedIsActive === false) {
+      throw new BadRequestError("Không được khóa tài khoản của chính mình");
     }
 
     const user = await modelUser.findById(id);
