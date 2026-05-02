@@ -10,6 +10,7 @@ const modelUser = new Schema(
         phone: { type: String, require: true },
         isAdmin: { type: Boolean, default: false },
         isActive: { type: Boolean, default: true },
+        wishlist: { type: [{ type: Schema.Types.ObjectId, ref: 'product' }], default: [] },
         typeLogin: { type: String, enum: ['email', 'google'] },
     },
     {

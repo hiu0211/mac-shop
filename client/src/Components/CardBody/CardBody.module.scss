@@ -93,3 +93,41 @@
     border: none;
     cursor: pointer;
 }
+
+.wishlist {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    margin-top: 8px;
+    padding: 4px 0;
+    width: 100%;
+
+    span {
+        font-size: 13px;
+        color: #666;
+    }
+
+    &.active span {
+        color: #E53935;
+    }
+
+    &:hover {
+        opacity: 0.8;
+    }
+}
+
+@keyframes heart-bounce {
+    0% {
+        transform: scale(0.8);
+    }
+    50% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+    }
+}

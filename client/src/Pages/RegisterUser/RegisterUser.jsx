@@ -31,11 +31,8 @@ function RegisterUser() {
             setLoading(true);
             const res = await requestLoginGoogle(credential);
             message.success(res.message);
-
-            // Chuyển hướng sau khi đăng nhập Google thành công
-            setTimeout(() => {
-                navigate('/'); // Hoặc trang chủ sau khi đăng nhập
-            }, 1500);
+            // Chuyển hướng đến trang chủ khi đăng nhập Google thành công
+            navigate('/');
         } catch (error) {
             console.error('Login failed', error);
             message.error('Đăng nhập Google thất bại');
@@ -83,11 +80,8 @@ function RegisterUser() {
 
             const res = await requestRegister(data);
             message.success(res.metadata.message || 'Đăng ký thành công!');
-
-            // Chuyển hướng tới trang đăng nhập sau 1.5 giây
-            setTimeout(() => {
-                navigate('/login');
-            }, 1500);
+            // Chuyển hướng tới trang đăng nhập sau khi đăng ký thành công
+            navigate('/login');
         } catch (error) {
             console.error('Registration failed:', error);
             const errorMessage = error?.response?.data?.message || 'Đăng ký thất bại';

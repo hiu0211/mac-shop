@@ -208,6 +208,21 @@ export const requestGetCart = async () => {
     return res.data;
 };
 
+export const requestGetWishlist = async () => {
+    const res = await request.get('/api/wishlist');
+    return res.data;
+};
+
+export const requestAddWishlist = async (data) => {
+    const res = await request.post('/api/wishlist/add', data);
+    return res.data;
+};
+
+export const requestRemoveWishlist = async (productId) => {
+    const res = await request.delete('/api/wishlist/remove', { params: { productId } });
+    return res.data;
+};
+
 export const requestDeleteCart = async (productId, selectedColorKey = undefined) => {
     const params = { productId: String(productId || '').trim() };
     if (selectedColorKey !== undefined) {

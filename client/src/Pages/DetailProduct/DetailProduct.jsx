@@ -251,12 +251,6 @@ function DetailProduct() {
                     <div className={cx('rightColumn')}>
                         <div className={cx('productHeader')}>
                             <h1>{dataProduct?.name}</h1>
-                            {reviews.length > 0 && (
-                                <div className={cx('miniRating')}>
-                                    <Rate disabled allowHalf value={Number(averageRating.toFixed(1))} style={{ fontSize: 14 }} />
-                                    <span>({reviews.length} đánh giá)</span>
-                                </div>
-                            )}
                         </div>
 
                         <div className={cx('priceBox')}>
@@ -372,10 +366,13 @@ function DetailProduct() {
                                 <h4>Đánh giá khách hàng</h4>
                                 {reviews.length > 0 && (
                                     <div className={cx('ratingOverview')}>
-                                        <h2>{averageRating.toFixed(1)}</h2>
+                                        <h2>
+                                            {averageRating.toFixed(1)}
+                                            <span className={cx('maxRating')}>/5</span>
+                                        </h2>
                                         <div className={cx('stars')}>
                                             <Rate disabled allowHalf value={Number(averageRating.toFixed(1))} />
-                                            <span>{reviews.length} đánh giá</span>
+                                            <span>{reviews.length} lượt đánh giá</span>
                                         </div>
                                     </div>
                                 )}

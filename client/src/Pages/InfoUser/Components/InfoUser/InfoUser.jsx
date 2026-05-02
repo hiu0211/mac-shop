@@ -1,12 +1,12 @@
 import classNames from 'classnames/bind';
 import styles from './InfoUser.module.scss';
 
-import { Button, Dropdown, Input, message, Modal, Rate, Upload, Empty, Popconfirm } from 'antd';
+import { Button, Dropdown, Input, message, Modal, Rate, Upload, Empty, Popconfirm, Drawer } from 'antd';
 import { Table } from 'antd';
-import { DeleteOutlined, DownOutlined, UploadOutlined } from '@ant-design/icons';
+import { DeleteOutlined, DownOutlined, UploadOutlined, HeartFilled, RightOutlined } from '@ant-design/icons';
 import { useStore } from '../../../../hooks/useStore';
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useRef } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import {
     requestCancelOrder,
     requestGetHistoryOrder,
@@ -17,13 +17,16 @@ import {
     requestSendOrderContactMessage,
     requestUpdateInfoUser,
     requestUploadImage,
+    requestGetWishlist,
+    requestGetProductById,
+    requestRemoveWishlist,
 } from '../../../../Config/request';
 import ModalUpdatePassword from './ModalUpdatePassword/ModalUpdatePassword';
 
 const cx = classNames.bind(styles);
 
 function InfoUser({ isOpen, setIsOpen }) {
-    const { dataUser } = useStore();
+    const { dataUser, refreshWishlist } = useStore();
 
     const [fullName, setFullName] = useState(dataUser.fullName);
     const [email, setEmail] = useState(dataUser.email);
@@ -61,6 +64,8 @@ function InfoUser({ isOpen, setIsOpen }) {
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
     const [isCancelLoading, setIsCancelLoading] = useState(false);
 
+    const formatPrice = (value) => Number(value || 0).toLocaleString('vi-VN');
+
     const [contactOrderId, setContactOrderId] = useState('');
     const [isContactModalOpen, setIsContactModalOpen] = useState(false);
     const [contactInput, setContactInput] = useState('');
@@ -75,6 +80,62 @@ function InfoUser({ isOpen, setIsOpen }) {
     const [reviewComment, setReviewComment] = useState('');
     const [reviewFiles, setReviewFiles] = useState([]);
     const [isReviewSubmitting, setIsReviewSubmitting] = useState(false);
+    // wishlist state
+    const [wishlistData, setWishlistData] = useState([]);
+    const [isLoadingWishlist, setIsLoadingWishlist] = useState(false);
+    const [isWishlistDrawerOpen, setIsWishlistDrawerOpen] = useState(false);
+    const mountedRef = useRef(true);
+
+    const loadWishlist = async () => {
+        try {
+            if (mountedRef.current) setIsLoadingWishlist(true);
+            const res = await requestGetWishlist();
+            const ids = res?.metadata || [];
+
+            if (!ids || ids.length === 0) {
+                if (mountedRef.current) setWishlistData([]);
+                return;
+            }
+
+            const proms = ids.map((id) =>
+                requestGetProductById(id).then((r) => r?.metadata).catch(() => null),
+            );
+
+            const products = await Promise.all(proms);
+            const valid = products.filter(Boolean);
+            if (mountedRef.current) setWishlistData(valid);
+        } catch (error) {
+            console.error('Error loading wishlist:', error);
+            if (mountedRef.current) setWishlistData([]);
+        } finally {
+            if (mountedRef.current) setIsLoadingWishlist(false);
+        }
+    };
+
+    useEffect(() => {
+        loadWishlist();
+        return () => {
+            mountedRef.current = false;
+        };
+    }, []);
+
+    const handleRemoveWishlist = async (productId) => {
+        try {
+            await requestRemoveWishlist(productId);
+            message.success('Đã bỏ khỏi danh sách yêu thích');
+            await loadWishlist();
+            // refresh provider state so header/counts update
+            try {
+                await refreshWishlist();
+            } catch (error) {
+                console.error('Error refreshing wishlist:', error);
+            }
+        } catch (err) {
+            console.error(err);
+            message.error(err?.response?.data?.message || 'Bỏ yêu thích thất bại');
+        }
+    };
+
     const navigate = useNavigate();
 
     const fetchOrders = async () => {
@@ -420,6 +481,120 @@ function InfoUser({ isOpen, setIsOpen }) {
             <Button onClick={handleUpdateInfoUser} className={cx('btn')} type="primary" size="large">
                 Cập nhật
             </Button>
+
+            {/* --- Phần UI Wishlist Mới --- */}
+            <div className={cx('wishlistHeader')}>
+                <h5>Sản phẩm yêu thích</h5>
+                <button type="button" className={cx('seeAll')} onClick={() => setIsWishlistDrawerOpen(true)}>
+                    Xem tất cả <RightOutlined style={{ fontSize: '12px' }} />
+                </button>
+            </div>
+            <div className={cx('wishlistSection')}>
+                {isLoadingWishlist ? (
+                    <p>Đang tải...</p>
+                ) : wishlistData.length === 0 ? (
+                    <Empty description="Chưa có sản phẩm yêu thích" />
+                ) : (
+                    <div className={cx('grid')}>
+                        {wishlistData.slice(0, 6).map((p) => {
+                            const originalPrice = Number(p.price || 0);
+                            const rawDiscount = Number(p.discount);
+                            const discountPercent = Number.isFinite(rawDiscount)
+                                ? Math.min(Math.max(Math.round(rawDiscount), 0), 100)
+                                : 0;
+                            const hasDiscount = originalPrice > 0 && discountPercent > 0;
+                            const discountedPrice = hasDiscount
+                                ? Math.max(0, Math.round((originalPrice * (100 - discountPercent)) / 100))
+                                : originalPrice;
+
+                            return (
+                                <div key={p._id} className={cx('item')} onClick={() => navigate(`/product/${p._id}`)}>
+                                    <div className={cx('thumb')}>
+                                        <img src={p.images?.[0]} alt={p.name} />
+                                    </div>
+                                    <div className={cx('info')}>
+                                        <div className={cx('title')}>{p.name}</div>
+                                        <div className={cx('price')}>
+                                            <span className={cx('priceNew')}>{formatPrice(discountedPrice)}đ</span>
+                                            {hasDiscount && (
+                                                <span className={cx('priceOld')}>{formatPrice(originalPrice)}đ</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <HeartFilled
+                                        className={cx('favIcon')}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleRemoveWishlist(p._id);
+                                        }}
+                                    />
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+            {/* --- Kết thúc phần Wishlist --- */}
+
+            <Drawer
+                title="Sản phẩm yêu thích của bạn"
+                placement="right"
+                width={400}
+                onClose={() => setIsWishlistDrawerOpen(false)}
+                open={isWishlistDrawerOpen}
+                footer={<div className={cx('drawerFooter')}><Button onClick={() => setIsWishlistDrawerOpen(false)}>Quay lại</Button></div>}
+            >
+                <div className={cx('wishlistDrawer')}>
+                    {isLoadingWishlist ? (
+                        <p>Đang tải...</p>
+                    ) : wishlistData.length === 0 ? (
+                        <Empty description="Chưa có sản phẩm yêu thích" />
+                    ) : (
+                        <div className={cx('list')}>
+                            {wishlistData.map((p) => {
+                                const originalPrice = Number(p.price || 0);
+                                const rawDiscount = Number(p.discount);
+                                const discountPercent = Number.isFinite(rawDiscount)
+                                    ? Math.min(Math.max(Math.round(rawDiscount), 0), 100)
+                                    : 0;
+                                const hasDiscount = originalPrice > 0 && discountPercent > 0;
+                                const discountedPrice = hasDiscount
+                                    ? Math.max(0, Math.round((originalPrice * (100 - discountPercent)) / 100))
+                                    : originalPrice;
+
+                                return (
+                                    <div
+                                        key={p._id}
+                                        className={cx('listItem')}
+                                        onClick={() => {
+                                            setIsWishlistDrawerOpen(false);
+                                            navigate(`/product/${p._id}`);
+                                        }}
+                                    >
+                                        <img className={cx('listItemImage')} src={p.images?.[0]} alt={p.name} />
+                                        <div className={cx('listItemBody')}>
+                                            <div className={cx('listItemTitle')}>{p.name}</div>
+                                            <div className={cx('listItemPrice')}>
+                                                <span className={cx('priceNew')}>{formatPrice(discountedPrice)}đ</span>
+                                                {hasDiscount && (
+                                                    <span className={cx('priceOld')}>{formatPrice(originalPrice)}đ</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <HeartFilled
+                                            className={cx('listItemFav')}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleRemoveWishlist(p._id);
+                                            }}
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            </Drawer>
             <h5>Đơn hàng</h5>
             <div className={cx('table')}>
                 <Table
@@ -427,7 +602,12 @@ function InfoUser({ isOpen, setIsOpen }) {
                     dataSource={dataOrder}
                     columns={columns}
                     rowKey="orderId"
-                    pagination={false}
+                    pagination={{
+                        pageSize: 10,
+                        showSizeChanger: true,
+                        pageSizeOptions: ['10', '20', '50'],
+                        showTotal: (total) => `Tổng ${total} đơn hàng`,
+                    }}
                     loading={isLoadingOrder}
                 />
             </div>

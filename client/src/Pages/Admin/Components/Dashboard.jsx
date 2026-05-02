@@ -560,11 +560,11 @@ const Dashboard = () => {
                             <Table
                                 dataSource={stats.recentOrders}
                                 columns={[
-                                    {
-                                        title: 'Mã đơn',
-                                        dataIndex: 'order',
-                                        key: 'order',
-                                    },
+                                    // {
+                                    //     title: 'Mã đơn',
+                                    //     dataIndex: 'order',
+                                    //     key: 'order',
+                                    // },
                                     {
                                         title: 'Khách hàng',
                                         dataIndex: 'customer',

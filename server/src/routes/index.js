@@ -2,6 +2,7 @@ const userRoutes = require("./users.routes");
 const productRoutes = require("./products.routes");
 const brandRoutes = require("./brands.routes");
 const cartRoutes = require("./cart.routes");
+const wishlistRoutes = require("./wishlist.routes");
 const paymentsRoutes = require("./payments.routes");
 const couponsRoutes = require("./coupons.routes");
 const productTypeRoutes = require("./productType.routes");
@@ -55,6 +56,9 @@ function routes(app) {
   app.delete("/api/delete-cart", cartRoutes);
   app.post("/api/update-info-user-cart", cartRoutes);
   app.put("/api/update-quantity-cart", cartRoutes);
+  app.post("/api/wishlist/add", wishlistRoutes);
+  app.get("/api/wishlist", wishlistRoutes);
+  app.delete("/api/wishlist/remove", wishlistRoutes);
   app.post("/api/payment", paymentsRoutes);
   app.get("/api/check-payment-momo", paymentsRoutes);
   app.get("/api/check-payment-vnpay", paymentsRoutes);
