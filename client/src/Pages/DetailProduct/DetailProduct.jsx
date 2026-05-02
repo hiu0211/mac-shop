@@ -179,7 +179,7 @@ function DetailProduct() {
             return true;
         } catch (error) {
             console.error(error);
-            message.error('Sản phẩm đã hết hàng hoặc có lỗi xảy ra');
+            message.error('Sản phẩm đã hết hàng');
             return false;
         }
     };

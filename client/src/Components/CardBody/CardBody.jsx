@@ -2,7 +2,7 @@ import classNames from 'classnames/bind';
 import styles from './CardBody.module.scss';
 import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '../../hooks/useStore';
-
+import { message } from 'antd';
 import { Heart } from 'lucide-react';
 
 const cx = classNames.bind(styles);
@@ -48,6 +48,7 @@ function WishlistButton({ itemId }) {
             return;
         }
         toggleWishlist(itemId);
+        message.success(active ? 'Đã bỏ sản phẩm khỏi danh sách yêu thích' : 'Đã thêm sản phẩm vào danh sách yêu thích');
     };
 
     return (
