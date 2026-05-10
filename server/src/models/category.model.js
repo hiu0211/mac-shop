@@ -2,12 +2,12 @@ const mongoose = require("mongoose");
 
 const Schema = mongoose.Schema;
 
-const brandSchema = new Schema(
+const categorySchema = new Schema(
   {
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, trim: true, lowercase: true, unique: true, index: true },
     description: { type: String, default: "" },
-    logo: { type: String, default: "" },
+    image: { type: String, default: "" },
     isActive: { type: Boolean, default: true },
   },
   {
@@ -15,4 +15,4 @@ const brandSchema = new Schema(
   }
 );
 
-module.exports = mongoose.model("brand", brandSchema);
+module.exports = mongoose.model("category", categorySchema);

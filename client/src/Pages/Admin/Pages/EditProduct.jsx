@@ -5,6 +5,7 @@ import {
     requestEditProduct,
     requestGetAllProductTypes,
     requestGetBrands,
+    requestGetActiveCategories,
     requestGetProductById,
     requestUploadImage,
 } from '../../../Config/request';
@@ -209,6 +210,7 @@ const EditProduct = ({ setActiveComponent, productId }) => {
     const [form] = Form.useForm();
     const [brands, setBrands] = useState([]);
     const [productTypes, setProductTypes] = useState([]);
+    const [categories, setCategories] = useState([]);
     const [selectedTypeCode, setSelectedTypeCode] = useState('');
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -313,9 +315,22 @@ const EditProduct = ({ setActiveComponent, productId }) => {
 
                 setSelectedTypeCode(typeCode);
 
+                // Fetch active categories to populate dropdown
+                try {
+                    const categoriesResponse = await requestGetActiveCategories();
+                    const nextCategories = categoriesResponse?.metadata || [];
+                    setCategories(nextCategories);
+                    if (nextCategories.length === 0) {
+                        message.warning('Chưa có danh mục nào. Vui lòng tạo danh mục trước.');
+                    }
+                } catch (err) {
+                    console.warn('Không thể tải danh mục', err);
+                }
+
                 form.setFieldsValue({
                     ...product,
                     componentType: typeCode,
+                    category: product.categoryId || product.category || null,
                     discount: Number(product?.discount || 0),
                     costPrice: Number(product?.costPrice || 0),
                     attributes: mergedAttributes,
@@ -404,6 +419,7 @@ const EditProduct = ({ setActiveComponent, productId }) => {
                 _id: productId,
                 name: values.name,
                 brand: values.brand,
+                category: values.category,
                 price: defaultColorPrice ?? values.price,
                 discount: values.discount || 0,
                 costPrice: values.costPrice || 0,
@@ -514,7 +530,7 @@ const EditProduct = ({ setActiveComponent, productId }) => {
                     <Button onClick={handleBack} disabled={submitting}>
                         Quay lại
                     </Button>
-                    <Button type="primary" onClick={() => form.submit()} loading={submitting} disabled={productTypes.length === 0}>
+                    <Button type="primary" onClick={() => form.submit()} loading={submitting} disabled={productTypes.length === 0 || (categories || []).length === 0}>
                         Cập nhật sản phẩm
                     </Button>
                 </Space>
@@ -535,14 +551,31 @@ const EditProduct = ({ setActiveComponent, productId }) => {
                     <Col xs={24} md={12}>
                         <Form.Item
                             name="brand"
-                            label="Hãng điện thoại"
-                            rules={[{ required: true, message: 'Vui lòng chọn hãng điện thoại!' }]}
+                            label="Hãng sản xuất"
+                            rules={[{ required: true, message: 'Vui lòng chọn hãng sản xuất!' }]}
                         >
                             <Select
-                                placeholder="Chọn hãng điện thoại"
+                                placeholder="Chọn hãng sản xuất"
                                 options={brands.map((brand) => ({ value: brand.name, label: brand.name }))}
                                 showSearch
                                 optionFilterProp="label"
+                            />
+                        </Form.Item>
+                    </Col>
+
+                    <Col xs={24} md={12}>
+                        <Form.Item
+                            name="category"
+                            label="Danh mục"
+                            rules={[{ required: true, message: 'Vui lòng chọn danh mục!' }]}
+                        >
+                            <Select
+                                placeholder="Chọn danh mục"
+                                options={(categories || []).map((c) => ({ value: c._id, label: c.name }))}
+                                showSearch
+                                optionFilterProp="label"
+                                notFoundContent="Chưa có danh mục"
+                                disabled={(categories || []).length === 0}
                             />
                         </Form.Item>
                     </Col>

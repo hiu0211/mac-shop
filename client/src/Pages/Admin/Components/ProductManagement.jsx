@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Table, Space, Button, Input, Card, Tag, Image, Popconfirm, Select, message } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { requestDeleteProduct, requestGetAllProduct } from '../../../Config/request';
+import { requestGetActiveCategories } from '../../../Config/request';
 
 const DEFAULT_FILTER_VALUE = 'all';
 
@@ -45,7 +46,9 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
     const [searchText, setSearchText] = useState('');
     const [brandFilter, setBrandFilter] = useState(DEFAULT_FILTER_VALUE);
     const [componentTypeFilter, setComponentTypeFilter] = useState(DEFAULT_FILTER_VALUE);
+    const [categoryFilter, setCategoryFilter] = useState(DEFAULT_FILTER_VALUE);
     const [filterOptions, setFilterOptions] = useState({ brands: [], componentTypes: [] });
+    const [categories, setCategories] = useState([]);
 
     const columns = [
         {
@@ -134,6 +137,9 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
             if (componentType && componentType !== DEFAULT_FILTER_VALUE) {
                 params.componentType = componentType;
             }
+            if (categoryFilter && categoryFilter !== DEFAULT_FILTER_VALUE) {
+                params.category = categoryFilter;
+            }
 
             const res = await requestGetAllProduct(params);
             setProducts(sortProducts(res.metadata || []));
@@ -150,6 +156,12 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
             const res = await requestGetAllProduct();
             const allProducts = sortProducts(res.metadata || []);
             setFilterOptions(buildFilterOptions(allProducts));
+            try {
+                const catRes = await requestGetActiveCategories();
+                setCategories(catRes?.metadata || []);
+            } catch (err) {
+                console.warn('Không thể tải danh mục', err);
+            }
         } catch (error) {
             console.error('Lỗi khi lấy bộ lọc sản phẩm:', error);
         }
@@ -161,7 +173,7 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
 
     useEffect(() => {
         fetchData({ brand: brandFilter, componentType: componentTypeFilter });
-    }, [brandFilter, componentTypeFilter]);
+    }, [brandFilter, componentTypeFilter, categoryFilter]);
 
     const data = products.map((product) => ({
         key: product._id,
@@ -170,6 +182,7 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
         brand: product.brand,
         componentType: product.componentType,
         componentTypeLabel: product.componentTypeName || product.componentType,
+        categoryName: product.categoryName || '',
         price: product.price,
         priceDiscount: product.priceDiscount,
         displayPrice: product.priceDiscount > 0 ? product.priceDiscount : product.price,
@@ -251,6 +264,14 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
                         style={{ width: 220 }}
                         options={brandSelectOptions}
                         onChange={(value) => setBrandFilter(value || DEFAULT_FILTER_VALUE)}
+                    />
+
+                    <Select
+                        value={categoryFilter}
+                        allowClear
+                        style={{ width: 220 }}
+                        options={[{ label: 'Tất cả danh mục', value: DEFAULT_FILTER_VALUE }, ...(categories || []).map((c) => ({ label: c.name, value: c._id }))]}
+                        onChange={(value) => setCategoryFilter(value || DEFAULT_FILTER_VALUE)}
                     />
 
                     <Select

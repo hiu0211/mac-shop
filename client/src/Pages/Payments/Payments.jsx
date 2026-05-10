@@ -63,19 +63,21 @@ function Payments() {
                         </div>
 
                         {dataPayment?.findPayment?.discountAmount > 0 && (
-                            <div className={cx('list')}>
-                                <span>Giảm giá</span>
-                                <p>
-                                    {dataPayment?.findPayment?.discountAmount?.toLocaleString('vi-VN', {
-                                        style: 'currency',
-                                        currency: 'VND',
-                                    })}
-                                </p>
-                            </div>
+                            <>
+                                <div className={cx('list')}>
+                                    <span>Tổng tiền hàng</span>
+                                    <p>{dataPayment?.findPayment?.totalPriceBeforeDiscount?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</p>
+                                </div>
+
+                                <div className={cx('list')}>
+                                    <span>Giảm giá</span>
+                                    <p>- {dataPayment?.findPayment?.discountAmount?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</p>
+                                </div>
+                            </>
                         )}
 
                         <div className={cx('list')}>
-                            <span>Tổng thanh toán</span>
+                            <span>Thành tiền</span>
                             <p>{totalPriceAfterDiscount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</p>
                         </div>
 
@@ -89,7 +91,7 @@ function Payments() {
                                         </div>
                                         {item?.selectedColorName && <p id={cx('price')}>Màu: {item.selectedColorName}</p>}
                                         <p id={cx('price')}>Số lượng : x{item?.quantity} </p>
-                                        <p id={cx('price')}>{Number(item?.price || item?.unitPrice || item?.product?.price || 0).toLocaleString()} đ</p>
+                                        {/* <p id={cx('price')}>{Number(item?.price || item?.unitPrice || item?.product?.price || 0).toLocaleString()} đ</p> */}
                                     </li>
                                 ))}
                             </ul>

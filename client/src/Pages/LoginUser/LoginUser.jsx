@@ -7,7 +7,7 @@ import Footer from '../../Components/Footer/Footer';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 
 import { Input, Button, Space, message } from 'antd';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 
 import { requestLogin, requestLoginGoogle } from '../../Config/request';
 import { useState, useContext } from 'react';
@@ -17,8 +17,9 @@ const cx = classNames.bind(styles);
 
 function LoginUser() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { fetchAuth } = useContext(Context);
-
+    const from = location.state?.from || '/';
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -31,7 +32,7 @@ function LoginUser() {
             message.success(res.message);
             // Đợi fetchAuth hoàn thành rồi mới navigate
             await fetchAuth();
-            navigate('/');
+            navigate(from, { replace: true });
         } catch (error) {
             message.error(error.response?.data?.message || 'Đăng nhập thất bại');
         } finally {
@@ -55,7 +56,7 @@ function LoginUser() {
             message.success(res.metadata.message);
             // Đợi fetchAuth hoàn thành rồi mới navigate
             await fetchAuth();
-            navigate('/');
+            navigate(from, { replace: true });
         } catch (error) {
             message.error(error.response?.data?.message || 'Đăng nhập thất bại');
         } finally {
@@ -73,20 +74,20 @@ function LoginUser() {
                 <div className={cx('container')}>
                     <h1>Đăng nhập</h1>
                     <div className={cx('form')}>
-                        <Input 
-                            placeholder="Email" 
+                        <Input
+                            placeholder="Email"
                             onChange={(e) => setEmail(e.target.value)}
                             disabled={loading}
                         />
                         <Space direction="vertical">
-                            <Input.Password 
-                                placeholder="Mật khẩu" 
+                            <Input.Password
+                                placeholder="Mật khẩu"
                                 onChange={(e) => setPassword(e.target.value)}
                                 disabled={loading}
                             />
                         </Space>
-                        <Button 
-                            fullWidth 
+                        <Button
+                            fullWidth
                             onClick={handleLogin}
                             loading={loading}
                             disabled={loading}
@@ -95,8 +96,8 @@ function LoginUser() {
                         </Button>
 
                         <GoogleOAuthProvider clientId={import.meta.env.VITE_CLIENT_ID}>
-                            <GoogleLogin 
-                                onSuccess={handleSuccess} 
+                            <GoogleLogin
+                                onSuccess={handleSuccess}
                                 onError={() => message.error('Đăng nhập Google thất bại')}
                                 disabled={loading}
                             />

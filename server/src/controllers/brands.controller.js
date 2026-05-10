@@ -19,30 +19,32 @@ class BrandsController {
     const name = normalizeBrandName(req.body.name || "");
     const description = (req.body.description || "").trim();
     const isActive = typeof req.body.isActive === "boolean" ? req.body.isActive : true;
+    const logo = String(req.body.logo || "").trim();
 
     if (!name) {
-      throw new BadRequestError("Vui lòng nhập tên hãng điện thoại");
+      throw new BadRequestError("Vui lòng nhập tên hãng sản xuất");
     }
 
     const slug = toSlug(name);
     if (!slug) {
-      throw new BadRequestError("Tên hãng điện thoại không hợp lệ");
+      throw new BadRequestError("Tên hãng sản xuất không hợp lệ");
     }
 
     const existingBrand = await modelBrand.findOne({ slug });
     if (existingBrand) {
-      throw new ConflictRequestError("Hãng điện thoại đã tồn tại");
+      throw new ConflictRequestError("Hãng sản xuất đã tồn tại");
     }
 
     const brand = await modelBrand.create({
       name,
       slug,
       description,
+      logo,
       isActive,
     });
 
     new Created({
-      message: "Thêm hãng điện thoại thành công",
+      message: "Thêm hãng sản xuất thành công",
       metadata: brand,
     }).send(res);
   }
@@ -62,31 +64,31 @@ class BrandsController {
     const brands = await modelBrand.find(query).sort({ name: 1, createdAt: -1 });
 
     new OK({
-      message: "Lấy danh sách hãng điện thoại thành công",
+      message: "Lấy danh sách hãng sản xuất thành công",
       metadata: brands,
     }).send(res);
   }
 
   async updateBrand(req, res) {
-    const { id, name, description, isActive } = req.body;
+    const { id, name, description, isActive, logo } = req.body;
 
     if (!id) {
-      throw new BadRequestError("Không tìm thấy hãng điện thoại");
+      throw new BadRequestError("Không tìm thấy hãng sản xuất");
     }
 
     const normalizedName = normalizeBrandName(name || "");
     if (!normalizedName) {
-      throw new BadRequestError("Vui lòng nhập tên hãng điện thoại");
+      throw new BadRequestError("Vui lòng nhập tên hãng sản xuất");
     }
 
     const slug = toSlug(normalizedName);
     if (!slug) {
-      throw new BadRequestError("Tên hãng điện thoại không hợp lệ");
+      throw new BadRequestError("Tên hãng sản xuất không hợp lệ");
     }
 
     const currentBrand = await modelBrand.findById(id);
     if (!currentBrand) {
-      throw new BadRequestError("Không tìm thấy hãng điện thoại");
+      throw new BadRequestError("Không tìm thấy hãng sản xuất");
     }
 
     const duplicatedBrand = await modelBrand.findOne({
@@ -94,7 +96,7 @@ class BrandsController {
       _id: { $ne: id },
     });
     if (duplicatedBrand) {
-      throw new ConflictRequestError("Hãng điện thoại đã tồn tại");
+      throw new ConflictRequestError("Hãng sản xuất đã tồn tại");
     }
 
     const updatePayload = {
@@ -110,6 +112,10 @@ class BrandsController {
       updatePayload.isActive = isActive;
     }
 
+    if (typeof logo === 'string') {
+      updatePayload.logo = String(logo || '').trim();
+    }
+
     const updatedBrand = await modelBrand.findByIdAndUpdate(id, updatePayload, { new: true });
 
     if (currentBrand.name !== normalizedName) {
@@ -120,7 +126,7 @@ class BrandsController {
     }
 
     new OK({
-      message: "Cập nhật hãng điện thoại thành công",
+      message: "Cập nhật hãng sản xuất thành công",
       metadata: updatedBrand,
     }).send(res);
   }
@@ -129,12 +135,12 @@ class BrandsController {
     const { id } = req.query;
 
     if (!id) {
-      throw new BadRequestError("Không tìm thấy hãng điện thoại");
+      throw new BadRequestError("Không tìm thấy hãng sản xuất");
     }
 
     const brand = await modelBrand.findById(id);
     if (!brand) {
-      throw new BadRequestError("Không tìm thấy hãng điện thoại");
+      throw new BadRequestError("Không tìm thấy hãng sản xuất");
     }
 
     const isUsedByProducts = await modelProduct.exists({ brand: brand.name });
@@ -145,7 +151,7 @@ class BrandsController {
     await modelBrand.findByIdAndDelete(id);
 
     new OK({
-      message: "Xóa hãng điện thoại thành công",
+      message: "Xóa hãng sản xuất thành công",
       metadata: brand,
     }).send(res);
   }

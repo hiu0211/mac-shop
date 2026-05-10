@@ -12,6 +12,7 @@ import {
     GiftOutlined,
     LogoutOutlined,
     MobileOutlined,
+    TagOutlined,
     AppstoreOutlined,
 } from '@ant-design/icons';
 import Dashboard from './Components/Dashboard';
@@ -26,6 +27,7 @@ import ReviewManagement from './Components/ReviewManagement';
 import BrandManagement from './Components/BrandManagement';
 import ManagerProductType from './Components/ManagerProductType/ManagerProductType';
 import ManagerProductTypeEditor from './Components/ManagerProductType/ManagerProductTypeEditor';
+import CategoryManagement from './Components/CategoryManagement'; // Importing CategoryManagement
 import { requestAdmin, requestLogout } from '../../Config/request';
 import { useNavigate } from 'react-router-dom';
 
@@ -55,9 +57,14 @@ const MainLayout = () => {
             label: 'Quản lý loại sản phẩm',
         },
         {
+            key: 'categories',
+            icon: <TagOutlined />,
+            label: 'Quản lý danh mục',
+        },
+        {
             key: 'brands',
             icon: <MobileOutlined />,
-            label: 'Quản lý hãng điện thoại',
+            label: 'Quản lý hãng sản xuất',
         },
         {
             key: 'orders',
@@ -122,6 +129,8 @@ const MainLayout = () => {
                 return <ReviewManagement />;
             case 'coupons':
                 return <CouponManagement />;
+            case 'categories':
+                return <CategoryManagement />;
             case 'brands':
                 return <BrandManagement />;
             default:

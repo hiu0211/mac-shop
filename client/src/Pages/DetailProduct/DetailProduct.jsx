@@ -11,7 +11,7 @@ import { faCheckCircle, faShieldHalved, faTruckFast, faRotateLeft, faPhoneVolume
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { requestAddToCart, requestGetProductById } from '../../Config/request';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import cookies from 'js-cookie';
 
 import { Empty, Rate, message } from 'antd';
@@ -134,6 +134,7 @@ const formatCurrency = (value) => Number(value || 0).toLocaleString('vi-VN');
 function DetailProduct() {
     const ref = useRef();
     const navigate = useNavigate();
+    const location = useLocation();
     const { id } = useParams();
     const [dataProduct, setDataProduct] = useState({});
     const [selectedColorKey, setSelectedColorKey] = useState('');
@@ -157,7 +158,9 @@ function DetailProduct() {
     const handleAddToCart = async () => {
         const token = cookies.get('logged');
         if (!token) {
-            navigate('/login');
+            navigate('/login', {
+                state: { from: location.pathname + location.search }
+            });
             return false;
         }
 

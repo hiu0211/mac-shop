@@ -6,6 +6,7 @@ const modelProduct = new Schema(
   {
     name: { type: String, required: true, trim: true },
     brand: { type: String, required: true, trim: true },
+    category: { type: Schema.Types.ObjectId, ref: 'category', default: null },
     price: { type: Number, required: true, min: 0 },
     discount: { type: Number, default: 0, min: 0, max: 100 },
     costPrice: { type: Number, default: 0, min: 0 },

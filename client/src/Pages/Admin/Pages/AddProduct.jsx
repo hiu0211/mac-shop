@@ -5,6 +5,7 @@ import {
     requestAddProduct,
     requestGetAllProductTypes,
     requestGetBrands,
+    requestGetActiveCategories,
     requestUploadImage,
 } from '../../../Config/request';
 import {
@@ -161,6 +162,7 @@ const AddProduct = ({ setActiveComponent }) => {
     const [uploading, setUploading] = useState(false);
     const [brands, setBrands] = useState([]);
     const [productTypes, setProductTypes] = useState([]);
+    const [categories, setCategories] = useState([]);
     const [selectedTypeCode, setSelectedTypeCode] = useState('');
     const uploadCounterRef = React.useRef(0);
     const watchedColorOptions = Form.useWatch('colorOptions', form);
@@ -213,16 +215,19 @@ const AddProduct = ({ setActiveComponent }) => {
     useEffect(() => {
         const bootstrap = async () => {
             try {
-                const [brandsResponse, productTypesResponse] = await Promise.all([
+                const [brandsResponse, productTypesResponse, categoriesResponse] = await Promise.all([
                     requestGetBrands({ active: true }),
                     requestGetAllProductTypes(),
+                    requestGetActiveCategories(),
                 ]);
 
                 const nextBrands = brandsResponse?.metadata || [];
                 const nextTypes = productTypesResponse?.metadata || [];
+                const nextCategories = categoriesResponse?.metadata || [];
 
                 setBrands(nextBrands);
                 setProductTypes(nextTypes);
+                setCategories(nextCategories);
 
                 if (nextTypes.length === 0) {
                     message.warning('Vui lòng tạo loại sản phẩm trước khi thêm sản phẩm mới');
@@ -233,6 +238,9 @@ const AddProduct = ({ setActiveComponent }) => {
                     discount: 0,
                     costPrice: 0,
                 });
+                if ((nextCategories || []).length === 0) {
+                    message.warning('Chưa có danh mục nào. Vui lòng tạo danh mục trước.');
+                }
             } catch (error) {
                 console.error('Không thể tải dữ liệu khởi tạo:', error);
                 message.error('Không thể tải dữ liệu loại sản phẩm hoặc hãng');
@@ -310,6 +318,7 @@ const AddProduct = ({ setActiveComponent }) => {
             const productData = {
                 name: values.name,
                 brand: values.brand,
+                category: values.category,
                 price: defaultColorPrice ?? values.price,
                 discount: values.discount || 0,
                 costPrice: values.costPrice || 0,
@@ -422,7 +431,7 @@ const AddProduct = ({ setActiveComponent }) => {
                     <Button onClick={handleBack} disabled={uploading}>
                         Quay lại
                     </Button>
-                    <Button type="primary" onClick={() => form.submit()} loading={uploading} disabled={productTypes.length === 0}>
+                    <Button type="primary" onClick={() => form.submit()} loading={uploading} disabled={productTypes.length === 0 || (categories || []).length === 0}>
                         Thêm sản phẩm
                     </Button>
                 </Space>
@@ -463,15 +472,32 @@ const AddProduct = ({ setActiveComponent }) => {
                     <Col xs={24} md={12}>
                         <Form.Item
                             name="brand"
-                            label="Hãng điện thoại"
-                            rules={[{ required: true, message: 'Vui lòng chọn hãng điện thoại!' }]}
+                            label="Hãng sản xuất"
+                            rules={[{ required: true, message: 'Vui lòng chọn hãng sản xuất!' }]}
                         >
                             <Select
-                                placeholder="Chọn hãng điện thoại"
+                                placeholder="Chọn hãng sản xuất"
                                 options={brands.map((brand) => ({ value: brand.name, label: brand.name }))}
                                 showSearch
                                 optionFilterProp="label"
-                                notFoundContent="Chưa có hãng điện thoại"
+                                notFoundContent="Chưa có hãng sản xuất"
+                            />
+                        </Form.Item>
+                    </Col>
+
+                    <Col xs={24} md={12}>
+                        <Form.Item
+                            name="category"
+                            label="Danh mục"
+                            rules={[{ required: true, message: 'Vui lòng chọn danh mục!' }]}
+                        >
+                            <Select
+                                placeholder="Chọn danh mục"
+                                options={(categories || []).map((c) => ({ value: c._id, label: c.name }))}
+                                showSearch
+                                optionFilterProp="label"
+                                notFoundContent="Chưa có danh mục"
+                                disabled={(categories || []).length === 0}
                             />
                         </Form.Item>
                     </Col>
@@ -695,7 +721,7 @@ const AddProduct = ({ setActiveComponent }) => {
                     <Col span={24}>
                         <Form.Item>
                             <Space>
-                                <Button type="primary" htmlType="submit" loading={uploading} disabled={productTypes.length === 0}>
+                                <Button type="primary" htmlType="submit" loading={uploading} disabled={productTypes.length === 0 || (categories || []).length === 0}>
                                     {uploading ? 'Đang xử lý...' : 'Thêm sản phẩm'}
                                 </Button>
                                 <Button onClick={handleBack} disabled={uploading}>

@@ -51,6 +51,14 @@ function routes(app) {
   app.put("/api/admin/brands", brandRoutes);
   app.delete("/api/admin/brands", brandRoutes);
 
+  const categoryRoutes = require('./categories.routes');
+  app.post('/api/admin/categories', categoryRoutes);
+  app.get('/api/admin/categories', categoryRoutes);
+  app.get('/api/admin/categories/all-active', categoryRoutes);
+  app.get('/api/admin/categories/:id', categoryRoutes);
+  app.put('/api/admin/categories/:id', categoryRoutes);
+  app.delete('/api/admin/categories/:id', categoryRoutes);
+
   app.post("/api/add-to-cart", cartRoutes);
   app.get("/api/get-cart", cartRoutes);
   app.delete("/api/delete-cart", cartRoutes);

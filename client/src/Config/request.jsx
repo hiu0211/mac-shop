@@ -117,6 +117,36 @@ export const requestGetAdminBrands = async (params = {}) => {
     return res.data;
 };
 
+export const requestGetAdminCategories = async (params = {}) => {
+    const res = await request.get('/api/admin/categories', { params });
+    return res.data;
+};
+
+export const requestGetAdminCategoryById = async (id) => {
+    const res = await request.get(`/api/admin/categories/${id}`);
+    return res.data;
+};
+
+export const requestCreateCategory = async (data) => {
+    const res = await request.post('/api/admin/categories', data);
+    return res.data;
+};
+
+export const requestUpdateCategory = async (id, data) => {
+    const res = await request.put(`/api/admin/categories/${id}`, data);
+    return res.data;
+};
+
+export const requestDeleteCategory = async (id) => {
+    const res = await request.delete(`/api/admin/categories/${id}`);
+    return res.data;
+};
+
+export const requestGetActiveCategories = async () => {
+    const res = await request.get('/api/admin/categories/all-active');
+    return res.data;
+};
+
 export const requestCreateBrand = async (data) => {
     const res = await request.post('/api/admin/brands', data);
     return res.data;

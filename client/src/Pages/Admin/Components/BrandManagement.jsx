@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Card, Form, Input, Modal, Popconfirm, Space, Switch, Table, Tag, message } from 'antd';
-import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { Button, Card, Form, Input, Modal, Popconfirm, Space, Switch, Table, Tag, Upload, message } from 'antd';
+import { DeleteOutlined, EditOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import {
     requestCreateBrand,
     requestDeleteBrand,
     requestGetAdminBrands,
     requestUpdateBrand,
+    requestUploadImage,
 } from '../../../Config/request';
 
 const { Search, TextArea } = Input;
@@ -19,6 +20,10 @@ const BrandManagement = () => {
     const [editingBrand, setEditingBrand] = useState(null);
 
     const [form] = Form.useForm();
+    const [logoFileList, setLogoFileList] = useState([]);
+    const [logoUrl, setLogoUrl] = useState('');
+
+    // ─── Data fetching ────────────────────────────────────────────────────────
 
     const fetchBrands = async () => {
         try {
@@ -26,8 +31,8 @@ const BrandManagement = () => {
             const res = await requestGetAdminBrands();
             setBrands(res.metadata || []);
         } catch (error) {
-            console.error('Lỗi khi tải danh sách hãng điện thoại:', error);
-            message.error('Không thể tải danh sách hãng điện thoại');
+            console.error('Error fetching brands:', error);
+            message.error('Không thể tải danh sách hãng sản xuất');
         } finally {
             setLoading(false);
         }
@@ -37,30 +42,35 @@ const BrandManagement = () => {
         fetchBrands();
     }, []);
 
-    const dataSource = useMemo(() => {
-        const normalizedSearchText = searchText.trim().toLowerCase();
+    // ─── Table data ───────────────────────────────────────────────────────────
 
+    const dataSource = useMemo(() => {
+        const keyword = searchText.trim().toLowerCase();
         return (brands || [])
-            .filter((item) => {
-                if (!normalizedSearchText) return true;
-                return (item.name || '').toLowerCase().includes(normalizedSearchText);
-            })
+            .filter((item) => !keyword || (item.name || '').toLowerCase().includes(keyword))
             .map((item) => ({
                 key: item._id,
                 id: item._id,
                 name: item.name,
                 description: item.description,
+                logo: item.logo || '',
                 isActive: item.isActive,
                 createdAt: item.createdAt,
             }));
     }, [brands, searchText]);
 
+    // ─── Modal helpers ────────────────────────────────────────────────────────
+
+    const resetLogoState = () => {
+        setLogoFileList([]);
+        setLogoUrl('');
+    };
+
     const handleOpenCreate = () => {
         setEditingBrand(null);
         form.resetFields();
-        form.setFieldsValue({
-            isActive: true,
-        });
+        form.setFieldsValue({ isActive: true });
+        resetLogoState();
         setIsModalOpen(true);
     };
 
@@ -71,19 +81,22 @@ const BrandManagement = () => {
             description: record.description,
             isActive: record.isActive,
         });
+        if (record.logo) {
+            setLogoFileList([{ uid: record.id || '-1', name: 'logo', status: 'done', url: record.logo }]);
+            setLogoUrl(record.logo);
+        } else {
+            resetLogoState();
+        }
         setIsModalOpen(true);
     };
 
-    const handleDelete = async (id) => {
-        try {
-            await requestDeleteBrand(id);
-            message.success('Xóa hãng điện thoại thành công');
-            fetchBrands();
-        } catch (error) {
-            console.error('Lỗi khi xóa hãng điện thoại:', error);
-            message.error(error?.response?.data?.message || 'Xóa hãng điện thoại thất bại');
-        }
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        resetLogoState();
+        form.resetFields();
     };
+
+    // ─── CRUD actions ─────────────────────────────────────────────────────────
 
     const handleSubmit = async () => {
         try {
@@ -94,43 +107,107 @@ const BrandManagement = () => {
                 name: values.name,
                 description: values.description || '',
                 isActive: !!values.isActive,
+                logo: logoUrl || '',
             };
 
             if (editingBrand) {
                 await requestUpdateBrand({ id: editingBrand.id, ...payload });
-                message.success('Cập nhật hãng điện thoại thành công');
+                message.success('Cập nhật hãng sản xuất thành công');
             } else {
                 await requestCreateBrand(payload);
-                message.success('Thêm hãng điện thoại thành công');
+                message.success('Thêm hãng sản xuất thành công');
             }
 
-            setIsModalOpen(false);
-            form.resetFields();
+            handleCloseModal();
             fetchBrands();
         } catch (error) {
-            if (error?.errorFields) {
-                return;
-            }
-            console.error('Lỗi khi lưu hãng điện thoại:', error);
-            message.error(error?.response?.data?.message || 'Lưu hãng điện thoại thất bại');
+            if (error?.errorFields) return;
+            message.error(error?.response?.data?.message || 'Lưu hãng sản xuất thất bại');
         } finally {
             setSaving(false);
         }
     };
 
+    const handleDelete = async (id) => {
+        try {
+            await requestDeleteBrand(id);
+            message.success('Xóa hãng sản xuất thành công');
+            fetchBrands();
+        } catch (error) {
+            message.error(error?.response?.data?.message || 'Xóa hãng sản xuất thất bại');
+        }
+    };
+
+    // ─── Logo upload ──────────────────────────────────────────────────────────
+
+    const handleUploadLogo = async ({ file, onSuccess, onError }) => {
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+        if (!allowedTypes.includes(file.type)) {
+            message.error('Chỉ chấp nhận ảnh JPG, JPEG, PNG, WEBP');
+            onError?.('Invalid file type');
+            return;
+        }
+
+        if (file.size / 1024 / 1024 > 2) {
+            message.error('Kích thước tối đa là 2MB');
+            onError?.('File too large');
+            return;
+        }
+
+        setLogoFileList([{ uid: file.uid, name: file.name, status: 'uploading' }]);
+
+        try {
+            const formData = new FormData();
+            formData.append('images', file);
+            formData.append('folder', 'mac-shop/brands');
+
+            const res = await requestUploadImage(formData);
+            const uploadedUrl = res?.metadata?.[0] || '';
+
+            if (!uploadedUrl) throw new Error('Không nhận được URL ảnh');
+
+            setLogoUrl(uploadedUrl);
+            setLogoFileList([{ uid: file.uid, name: file.name, status: 'done', url: uploadedUrl }]);
+            message.success('Tải ảnh thành công');
+            onSuccess?.(null);
+        } catch (error) {
+            resetLogoState();
+            message.error('Tải ảnh thất bại');
+            onError?.(error);
+        }
+    };
+
+    const handleRemoveLogo = () => {
+        resetLogoState();
+    };
+
+    // ─── Table columns ────────────────────────────────────────────────────────
+
     const columns = [
+        {
+            title: 'Logo',
+            dataIndex: 'logo',
+            key: 'logo',
+            align: 'center',
+            width: 80,
+            render: (logo, record) =>
+                logo ? (
+                    <img
+                        src={logo}
+                        alt={record.name}
+                        style={{ width: 40, height: 40, objectFit: 'contain', borderRadius: 4 }}
+                    />
+                ) : (
+                    <span style={{ color: '#bbb' }}>—</span>
+                ),
+        },
         {
             title: 'Tên hãng',
             dataIndex: 'name',
             key: 'name',
             sorter: (a, b) => a.name.localeCompare(b.name),
         },
-        // {
-        //     title: 'Mô tả',
-        //     dataIndex: 'description',
-        //     key: 'description',
-        //     render: (description) => description || '-',
-        // },
         {
             title: 'Trạng thái',
             dataIndex: 'isActive',
@@ -144,17 +221,17 @@ const BrandManagement = () => {
             title: 'Ngày tạo',
             dataIndex: 'createdAt',
             key: 'createdAt',
-            render: (createdAt) => (createdAt ? new Date(createdAt).toLocaleDateString('vi-VN') : '-'),
+            render: (val) => (val ? new Date(val).toLocaleDateString('vi-VN') : '—'),
         },
         {
             title: 'Thao tác',
             key: 'action',
             align: 'center',
             render: (_, record) => (
-                <Space size="middle">
+                <Space>
                     <Button icon={<EditOutlined />} onClick={() => handleOpenEdit(record)} />
                     <Popconfirm
-                        title="Bạn có chắc muốn xóa hãng điện thoại này?"
+                        title="Bạn có chắc muốn xóa hãng sản xuất này?"
                         onConfirm={() => handleDelete(record.id)}
                         okText="Có"
                         cancelText="Không"
@@ -166,10 +243,12 @@ const BrandManagement = () => {
         },
     ];
 
+    // ─── Render ───────────────────────────────────────────────────────────────
+
     return (
         <div>
             <Card
-                title="Quản lý hãng điện thoại"
+                title="Quản lý hãng sản xuất"
                 extra={
                     <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>
                         Thêm hãng
@@ -180,7 +259,7 @@ const BrandManagement = () => {
                     placeholder="Tìm theo tên hãng"
                     allowClear
                     value={searchText}
-                    onChange={(event) => setSearchText(event.target.value)}
+                    onChange={(e) => setSearchText(e.target.value)}
                     style={{ width: 350 }}
                 />
             </Card>
@@ -188,25 +267,44 @@ const BrandManagement = () => {
             <Table columns={columns} dataSource={dataSource} loading={loading} />
 
             <Modal
-                title={editingBrand ? 'Cập nhật hãng điện thoại' : 'Thêm mới hãng điện thoại'}
+                title={editingBrand ? 'Cập nhật hãng sản xuất' : 'Thêm mới hãng sản xuất'}
                 open={isModalOpen}
-                onCancel={() => setIsModalOpen(false)}
+                onCancel={handleCloseModal}
                 onOk={handleSubmit}
                 okText="Lưu"
                 cancelText="Hủy"
                 confirmLoading={saving}
+                destroyOnClose
             >
                 <Form form={form} layout="vertical" initialValues={{ isActive: true }}>
                     <Form.Item
                         label="Tên hãng"
                         name="name"
-                        rules={[{ required: true, message: 'Vui lòng nhập tên hãng điện thoại' }]}
+                        rules={[{ required: true, message: 'Vui lòng nhập tên hãng sản xuất' }]}
                     >
-                        <Input placeholder="Vi du: Apple" />
+                        <Input placeholder="Ví dụ: Apple" />
                     </Form.Item>
 
                     <Form.Item label="Mô tả" name="description">
-                        <TextArea rows={3} placeholder="Nhập mô tả cho hãng điện thoại" />
+                        <TextArea rows={3} placeholder="Nhập mô tả cho hãng sản xuất" />
+                    </Form.Item>
+
+                    <Form.Item label="Logo">
+                        <Upload
+                            accept="image/jpeg,image/jpg,image/png,image/webp"
+                            listType="picture-card"
+                            fileList={logoFileList}
+                            customRequest={handleUploadLogo}
+                            onRemove={handleRemoveLogo}
+                            maxCount={1}
+                        >
+                            {logoFileList.length >= 1 ? null : (
+                                <div>
+                                    <UploadOutlined style={{ fontSize: 24 }} />
+                                    <div style={{ marginTop: 8 }}>Upload</div>
+                                </div>
+                            )}
+                        </Upload>
                     </Form.Item>
 
                     <Form.Item label="Trạng thái" name="isActive" valuePropName="checked">

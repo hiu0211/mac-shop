@@ -3,6 +3,7 @@ const { OK } = require("../core/success.response");
 
 const modelProduct = require("../models/products.model");
 const modelProductType = require("../models/productType.model");
+const modelCategory = require("../models/category.model");
 const { uploadMultipleToCloudinary } = require("../utils/cloudinary");
 
 const escapeRegex = (keyword = "") => keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -437,6 +438,17 @@ const buildProductTypeMap = async (products = []) => {
   }, {});
 };
 
+const buildCategoryMap = async (products = []) => {
+  const ids = [...new Set(products.map((p) => String(p?.category || "")).filter(Boolean))];
+  if (ids.length === 0) return {};
+
+  const categories = await modelCategory.find({ _id: { $in: ids } }).lean();
+  return categories.reduce((acc, item) => {
+    acc[String(item._id)] = item;
+    return acc;
+  }, {});
+};
+
 const formatProductOutput = (productDoc, productTypeDoc = null) => {
   const product = productDoc?.toObject ? productDoc.toObject() : { ...productDoc };
   const sanitizedProduct = stripLegacySpecFields(product);
@@ -472,11 +484,18 @@ const formatProductOutput = (productDoc, productTypeDoc = null) => {
 
 const formatProductListOutput = async (products = []) => {
   const productTypeMap = await buildProductTypeMap(products);
+  const categoryMap = await buildCategoryMap(products);
 
   return products.map((item) => {
     const product = item?.toObject ? item.toObject() : { ...item };
     const componentType = normalizeComponentType(product.componentType);
-    return formatProductOutput(item, productTypeMap[componentType]);
+    const base = formatProductOutput(item, productTypeMap[componentType]);
+
+    return {
+      ...base,
+      categoryId: product.category ? String(product.category) : null,
+      categoryName: product.category ? (categoryMap[String(product.category)]?.name || "") : "",
+    };
   });
 };
 
@@ -494,12 +513,14 @@ class controllerProducts {
       costPrice,
       priceDiscount,
       colorOptions,
+      category,
     } = req.body;
 
     const normalizedName = String(name || "").trim();
     const normalizedBrand = String(brand || "").trim();
     const normalizedImages = normalizeImages(images);
     const normalizedComponentType = normalizeComponentType(componentType);
+    const categoryId = String(category || (req.body.categoryId || '')).trim();
     const normalizedPrice = toNullableNumber(price);
     const normalizedStock = toNullableNumber(stock);
     const normalizedCostPrice = toNullableNumber(costPrice);
@@ -522,6 +543,16 @@ class controllerProducts {
       throw new BadRequestError("Loai san pham khong ton tai");
     }
 
+    // Validate category existence
+    if (!categoryId) {
+      throw new BadRequestError('Vui lòng chọn danh mục sản phẩm');
+    }
+
+    const categoryDoc = await modelCategory.findById(categoryId);
+    if (!categoryDoc) {
+      throw new BadRequestError('Danh mục sản phẩm không tồn tại');
+    }
+
     const normalizedAttributes = normalizeAttributesByTemplate(attributes, productType.attributesTemplate);
     ensureRequiredAttributes(normalizedAttributes, productType.attributesTemplate);
     const normalizedColorOptions = normalizeColorOptions(colorOptions);
@@ -535,6 +566,7 @@ class controllerProducts {
     const data = await modelProduct.create({
       name: normalizedName,
       brand: normalizedBrand,
+      category: categoryDoc._id,
       price: normalizedPrice,
       costPrice: normalizedCostPrice || 0,
       discount: discountInfo.discount,
@@ -561,8 +593,12 @@ class controllerProducts {
       // Lấy buffers từ files được upload qua multer memory storage
       const buffers = req.files.map((file) => file.buffer);
 
+      // Allow optional folder param so caller can specify destination folder (e.g. brands)
+      const folderParam = req.body && req.body.folder ? String(req.body.folder).trim() : '';
+      const folder = folderParam || 'mac-shop/products';
+
       // Upload lên Cloudinary
-      const imageUrls = await uploadMultipleToCloudinary(buffers, 'mac-shop/products');
+      const imageUrls = await uploadMultipleToCloudinary(buffers, folder);
 
       new OK({
         message: "Tải ảnh lên thành công",
@@ -601,14 +637,23 @@ class controllerProducts {
 
     const componentType = normalizeComponentType(data.componentType);
     const productType = componentType ? await modelProductType.findOne({ code: componentType }) : null;
+    const categoryDoc = data.category ? await modelCategory.findById(data.category) : null;
 
-    new OK({ message: "Lấy sản phẩm thông tin", metadata: formatProductOutput(data, productType) }).send(res);
+    const formatted = formatProductOutput(data, productType);
+    const result = {
+      ...formatted,
+      categoryId: data.category ? String(data.category) : null,
+      categoryName: categoryDoc ? categoryDoc.name : '',
+    };
+
+    new OK({ message: "Lấy sản phẩm thông tin", metadata: result }).send(res);
   }
 
   async getAllProduct(req, res) {
     const brand = String(req.query.brand || "")
       .trim();
     const componentType = normalizeComponentType(req.query.componentType || "");
+    const categoryId = String(req.query.category || "").trim();
 
     const query = {};
 
@@ -618,6 +663,10 @@ class controllerProducts {
 
     if (componentType && componentType !== "all") {
       query.componentType = componentType;
+    }
+
+    if (categoryId && categoryId !== "all") {
+      query.category = categoryId;
     }
 
     const data = await modelProduct.find(query).sort({ createdAt: -1 });
@@ -663,6 +712,18 @@ class controllerProducts {
       const productType = await modelProductType.findOne({ code: nextComponentType });
       if (!productType) {
         throw new BadRequestError("Loai san pham khong ton tai");
+      }
+
+      const incomingCategoryId = (req.body.category || req.body.categoryId) ? String(req.body.category || req.body.categoryId).trim() : null;
+      if (incomingCategoryId) {
+        const categoryDoc = await modelCategory.findById(incomingCategoryId);
+        if (!categoryDoc) {
+          throw new BadRequestError('Danh mục sản phẩm không tồn tại');
+        }
+        updatedData.category = categoryDoc._id;
+      } else if (!product.category) {
+        // If no category exists currently and none provided, require category
+        throw new BadRequestError('Vui lòng chọn danh mục sản phẩm');
       }
 
       const currentAttributes = {
