@@ -835,17 +835,28 @@ class controllerProducts {
   }
 
   async filterProduct(req, res) {
-    const { pricedes, priceRange, brand } = req.query;
+    const { pricedes, priceRange, brand, category, minPrice, maxPrice } = req.query;
     let query = {};
 
     if (brand && brand !== "all") {
       query.brand = { $regex: `^${escapeRegex(brand)}$`, $options: "i" };
     }
 
+    if (category && category !== "all") {
+      query.category = category;
+    }
+
     let products = await modelProduct.find(query);
     let data = await formatProductListOutput(products);
 
-    if (priceRange) {
+    if (minPrice !== undefined && maxPrice !== undefined) {
+      const min = Number(minPrice);
+      const max = Number(maxPrice);
+      data = data.filter((item) => {
+        const finalPrice = item.priceDiscount > 0 ? item.priceDiscount : item.price;
+        return finalPrice >= min && finalPrice <= max;
+      });
+    } else if (priceRange) {
       data = data.filter((item) => {
         const finalPrice = item.priceDiscount > 0 ? item.priceDiscount : item.price;
         switch (priceRange) {

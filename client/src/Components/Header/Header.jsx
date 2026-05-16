@@ -10,8 +10,8 @@ import { useStore } from '../../hooks/useStore';
 import useDebounce from '../../hooks/useDebounce';
 
 import { Avatar, Badge, Dropdown, Space } from 'antd';
-import { UserOutlined, LogoutOutlined, ShoppingCartOutlined, CloseOutlined } from '@ant-design/icons';
-import { requestGetBrands, requestGetCart, requestLogout, requestSearchProduct } from '../../Config/request';
+import { UserOutlined, LogoutOutlined, ShoppingCartOutlined, CloseOutlined, AppstoreOutlined, DownOutlined, RightOutlined } from '@ant-design/icons';
+import { requestGetBrands, requestGetCart, requestLogout, requestSearchProduct, requestGetCategories } from '../../Config/request';
 
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import Context from '../../store/Context';
@@ -29,10 +29,14 @@ function Header() {
 
     const [resultSearch, setResultSearch] = useState([]);
     const [brands, setBrands] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [isCatOpen, setIsCatOpen] = useState(false);
+    const [hoveredCat, setHoveredCat] = useState(null);
     const [selectedBrand, setSelectedBrand] = useState('all');
     const [isSearchResultOpen, setIsSearchResultOpen] = useState(false);
     const [cartCount, setCartCount] = useState(0);
     const searchRef = useRef(null);
+    const catRef = useRef(null);
 
     const navigate = useNavigate();
     const location = useLocation();
@@ -55,16 +59,21 @@ function Header() {
     }, [dataUser?._id]);
 
     useEffect(() => {
-        const fetchBrands = async () => {
+        const fetchBrandsAndCategories = async () => {
             try {
-                const res = await requestGetBrands({ active: true });
-                setBrands(res?.metadata || []);
+                const [resBrands, resCats] = await Promise.all([
+                    requestGetBrands({ active: true }),
+                    requestGetCategories()
+                ]);
+                setBrands(resBrands?.metadata || []);
+                setCategories(resCats?.metadata || []);
             } catch {
                 setBrands([]);
+                setCategories([]);
             }
         };
 
-        fetchBrands();
+        fetchBrandsAndCategories();
     }, []);
 
     useEffect(() => {
@@ -93,6 +102,10 @@ function Header() {
         const handleClickOutside = (event) => {
             if (searchRef.current && !searchRef.current.contains(event.target)) {
                 setIsSearchResultOpen(false);
+            }
+            if (catRef.current && !catRef.current.contains(event.target)) {
+                setIsCatOpen(false);
+                setHoveredCat(null);
             }
         };
 
@@ -226,73 +239,128 @@ function Header() {
                     </div>
                 </Link>
 
-                <div className={cx('search')} ref={searchRef}>
-                    <div className={cx('search-input-group')} onClick={handleOpenSearchResult}>
-                        <select
-                            className={cx('brand-filter')}
-                            value={selectedBrand}
-                            onChange={(e) => setSelectedBrand(e.target.value)}
-                            onFocus={handleOpenSearchResult}
-                        >
-                            <option value="all">Tất cả</option>
-                            {brands.map((brand) => (
-                                <option key={brand._id || brand.name} value={brand.name}>
-                                    {brand.name}
-                                </option>
-                            ))}
-                        </select>
-
-                        <input
-                            className={cx({ 'has-clear': hasSearchTrigger })}
-                            type="text"
-                            placeholder="Tìm kiếm sản phẩm hoặc hãng..."
-                            onChange={(e) => setKeyword(e.target.value)}
-                            onFocus={handleOpenSearchResult}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    handleSubmitSearch();
+                <div className={cx('search-cat-group')}>
+                    <div
+                        className={cx('categories-wrapper')}
+                        ref={catRef}
+                    >
+                        <div
+                            className={cx('categories-btn')}
+                            onClick={() => {
+                                setIsCatOpen(!isCatOpen);
+                                if (isCatOpen) {
+                                    setHoveredCat(null);
                                 }
                             }}
-                            value={keyword}
-                        />
-
-                        {hasSearchTrigger && (
-                            <button
-                                type="button"
-                                className={cx('clear-search')}
-                                onClick={handleClearSearch}
-                                aria-label="Xóa nhanh tìm kiếm và bộ lọc"
-                            >
-                                <CloseOutlined />
-                            </button>
+                        >
+                            <AppstoreOutlined className={cx('cat-icon')} />
+                            <span>Danh mục</span>
+                            <DownOutlined className={cx('cat-arrow')} />
+                        </div>
+                        {isCatOpen && (
+                            <div className={cx('categories-dropdown')} onMouseLeave={() => setHoveredCat(null)}>
+                                <div className={cx('categories-list')}>
+                                    {categories.map(cat => (
+                                        <div
+                                            key={cat._id}
+                                            className={cx('category-item', { active: hoveredCat?._id === cat._id })}
+                                            onMouseEnter={() => setHoveredCat(cat)}
+                                            onClick={() => {
+                                                setIsCatOpen(false);
+                                                setHoveredCat(null);
+                                                navigate(`/category?category=${cat._id}`);
+                                            }}
+                                        >
+                                            <span>{cat.name}</span>
+                                            <RightOutlined />
+                                        </div>
+                                    ))}
+                                </div>
+                                {hoveredCat && (
+                                    <div className={cx('categories-subpanel')}>
+                                        <div className={cx('filter-section')}>
+                                            <h4>Hãng sản xuất</h4>
+                                            <div className={cx('filter-grid')}>
+                                                {brands.map(brand => (
+                                                    <Link to={`/category?brand=${brand.name}&category=${hoveredCat._id}`} key={brand._id} className={cx('filter-item')} onClick={() => setIsCatOpen(false)}>
+                                                        {brand.name}
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className={cx('filter-section')}>
+                                            <h4>Phân khúc giá</h4>
+                                            <div className={cx('filter-grid')}>
+                                                <Link to={`/category?priceRange=[0,2000000]&category=${hoveredCat._id}`} className={cx('filter-item')} onClick={() => setIsCatOpen(false)}>Dưới 2 triệu</Link>
+                                                <Link to={`/category?priceRange=[2000000,4000000]&category=${hoveredCat._id}`} className={cx('filter-item')} onClick={() => setIsCatOpen(false)}>Từ 2 - 4 triệu</Link>
+                                                <Link to={`/category?priceRange=[4000000,7000000]&category=${hoveredCat._id}`} className={cx('filter-item')} onClick={() => setIsCatOpen(false)}>Từ 4 - 7 triệu</Link>
+                                                <Link to={`/category?priceRange=[7000000,13000000]&category=${hoveredCat._id}`} className={cx('filter-item')} onClick={() => setIsCatOpen(false)}>Từ 7 - 13 triệu</Link>
+                                                <Link to={`/category?priceRange=[13000000,20000000]&category=${hoveredCat._id}`} className={cx('filter-item')} onClick={() => setIsCatOpen(false)}>Từ 13 - 20 triệu</Link>
+                                                <Link to={`/category?priceRange=[20000000,100000000]&category=${hoveredCat._id}`} className={cx('filter-item')} onClick={() => setIsCatOpen(false)}>Trên 20 triệu</Link>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </div>
 
-                    {hasSearchTrigger && isSearchResultOpen && (
-                        <div className={cx('result-search')}>
-                            {isSearching ? (
-                                <div className={cx('searching')}>
-                                    <span>Đang tìm kiếm...</span>
-                                </div>
-                            ) : resultSearch.length > 0 ? (
-                                resultSearch.map((item) => (
-                                    <Link to={`/product/${item._id}`} key={item._id} className={cx('search-item')}>
-                                        <img src={item.images[0]} alt={item.name} />
-                                        <div className={cx('info')}>
-                                            <h4>{item.name}</h4>
-                                            <span className={cx('brand')}>{item.brand || 'Khác'}</span>
-                                            <p className={cx('price')}>{item.price.toLocaleString('vi-VN')}đ</p>
-                                        </div>
-                                    </Link>
-                                ))
-                            ) : (
-                                <div className={cx('no-result')}>
-                                    <span>Không tìm thấy sản phẩm nào</span>
-                                </div>
+                    <div className={cx('search')} ref={searchRef}>
+                        <div className={cx('search-input-group')} onClick={handleOpenSearchResult}>
+
+
+                            <input
+                                className={cx({ 'has-clear': hasSearchTrigger })}
+                                type="text"
+                                placeholder="Tìm kiếm sản phẩm hoặc hãng..."
+                                onChange={(e) => setKeyword(e.target.value)}
+                                onFocus={handleOpenSearchResult}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleSubmitSearch();
+                                    }
+                                }}
+                                value={keyword}
+                            />
+
+                            {hasSearchTrigger && (
+                                <button
+                                    type="button"
+                                    className={cx('clear-search')}
+                                    onClick={handleClearSearch}
+                                    aria-label="Xóa nhanh tìm kiếm và bộ lọc"
+                                >
+                                    <CloseOutlined />
+                                </button>
                             )}
                         </div>
-                    )}
+
+                        {hasSearchTrigger && isSearchResultOpen && (
+                            <div className={cx('result-search')}>
+                                {isSearching ? (
+                                    <div className={cx('searching')}>
+                                        <span>Đang tìm kiếm...</span>
+                                    </div>
+                                ) : resultSearch.length > 0 ? (
+                                    resultSearch.map((item) => (
+                                        <Link to={`/product/${item._id}`} key={item._id} className={cx('search-item')}>
+                                            <img src={item.images[0]} alt={item.name} />
+                                            <div className={cx('info')}>
+                                                <h4>{item.name}</h4>
+                                                <span className={cx('brand')}>{item.brand || 'Khác'}</span>
+                                                <p className={cx('price')}>{item.price.toLocaleString('vi-VN')}đ</p>
+                                            </div>
+                                        </Link>
+                                    ))
+                                ) : (
+                                    <div className={cx('no-result')}>
+                                        <span>Không tìm thấy sản phẩm nào</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <div className={cx('user-actions')}>
                     <Link to="/cart" className={cx('cart-link')}>

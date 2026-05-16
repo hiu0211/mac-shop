@@ -147,6 +147,11 @@ export const requestGetActiveCategories = async () => {
     return res.data;
 };
 
+export const requestGetCategories = async () => {
+    const res = await request.get('/api/categories');
+    return res.data;
+};
+
 export const requestCreateBrand = async (data) => {
     const res = await request.post('/api/admin/brands', data);
     return res.data;
@@ -413,15 +418,21 @@ request.interceptors.response.use(
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
 
+            // Nếu không có refresh token -> logout ngay và reject để không treo UI
+            const token = cookies.get('logged');
+            if (!token) {
+                failedRequestsQueue.forEach((req) => req.reject(new Error('No refresh token')));
+                failedRequestsQueue = [];
+                localStorage.clear();
+                window.location.href = '/login';
+                return Promise.reject(error);
+            }
+
             if (!isRefreshing) {
                 isRefreshing = true;
 
                 try {
                     // Gửi yêu cầu refresh token
-                    const token = cookies.get('logged');
-                    if (!token) {
-                        return;
-                    }
                     await requestRefreshToken();
 
                     // Xử lý lại tất cả các request bị lỗi 401 trước đó
@@ -433,6 +444,7 @@ request.interceptors.response.use(
                     failedRequestsQueue = [];
                     localStorage.clear();
                     window.location.href = '/login'; // Chuyển về trang đăng nhập
+                    return Promise.reject(refreshError);
                 } finally {
                     isRefreshing = false;
                 }

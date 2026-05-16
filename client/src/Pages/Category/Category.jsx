@@ -3,17 +3,18 @@ import styles from './Category.module.scss';
 import Header from '../../Components/Header/Header';
 import Footer from '../../Components/Footer/Footer';
 
-import { Select } from 'antd';
+import { Select, Slider } from 'antd';
 import CardBody from '../../Components/CardBody/CardBody';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { requestFilterProduct, requestGetBrands } from '../../Config/request';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const cx = classNames.bind(styles);
 const DEFAULT_FILTERS = {
-    priceRange: undefined,
+    priceRange: [0, 100000000],
     pricedes: undefined,
     brand: 'all',
+    category: undefined,
 };
 
 function Category() {
@@ -28,8 +29,9 @@ function Category() {
         try {
             const params = {};
 
-            if (nextFilters?.priceRange) {
-                params.priceRange = nextFilters.priceRange;
+            if (nextFilters?.priceRange && Array.isArray(nextFilters.priceRange)) {
+                params.minPrice = nextFilters.priceRange[0];
+                params.maxPrice = nextFilters.priceRange[1];
             }
 
             if (nextFilters?.pricedes) {
@@ -38,6 +40,10 @@ function Category() {
 
             if (nextFilters?.brand && nextFilters.brand !== 'all') {
                 params.brand = nextFilters.brand;
+            }
+
+            if (nextFilters?.category) {
+                params.category = nextFilters.category;
             }
 
             const res = await requestFilterProduct(params);
@@ -65,9 +71,6 @@ function Category() {
         fetchProducts(nextFilters);
     };
 
-    const handlePriceRange = (range) => {
-        updateFilters({ priceRange: range });
-    };
 
     const handleSortChange = (value) => {
         updateFilters({ pricedes: value === 'default' ? undefined : value });
@@ -83,6 +86,7 @@ function Category() {
     };
 
     const navigate = useNavigate();
+    const location = useLocation();
 
     const handleCompare = (item) => {
         setProductCompare([...productCompare, item]);
@@ -102,8 +106,29 @@ function Category() {
 
     useEffect(() => {
         fetchBrands();
-        fetchProducts(DEFAULT_FILTERS);
-    }, [fetchBrands, fetchProducts]);
+        const params = new URLSearchParams(location.search);
+        const urlBrand = params.get('brand');
+        const urlCategory = params.get('category');
+        const urlPriceRange = params.get('priceRange');
+        
+        let parsedPriceRange = DEFAULT_FILTERS.priceRange;
+        if (urlPriceRange) {
+            try {
+                parsedPriceRange = JSON.parse(urlPriceRange);
+            } catch (error) {
+                console.error('Error parsing priceRange from URL:', error);
+            }
+        }
+
+        const initialFilters = {
+            ...DEFAULT_FILTERS,
+            brand: urlBrand || 'all',
+            category: urlCategory || undefined,
+            priceRange: parsedPriceRange,
+        };
+        setFilters(initialFilters);
+        fetchProducts(initialFilters);
+    }, [fetchBrands, fetchProducts, location.search]);
 
     const brandOptions = [
         { value: 'all', label: 'Tất cả hãng' },
@@ -120,10 +145,19 @@ function Category() {
                 <div className={cx('inner')}>
                     <div className={cx('fillter')}>
                         <div>
-                            <button onClick={handleResetFilter}>Mặc định</button>
-                            <button onClick={() => handlePriceRange('under20')}>Dưới 20 triệu</button>
-                            <button onClick={() => handlePriceRange('20to40')}>20 - 40 triệu</button>
-                            <button onClick={() => handlePriceRange('above40')}>Trên 40 triệu</button>
+                            <h4 style={{ display: 'flex', alignItems: 'center' }}>Khoảng giá</h4>
+                            <Slider
+                                range
+                                style={{ width: 230 }}
+                                min={0}
+                                max={100000000}
+                                step={1000000}
+                                value={filters.priceRange}
+                                onChange={(value) => updateFilters({ priceRange: value })}
+                                tooltip={{
+                                    formatter: (value) => `${value.toLocaleString('vi-VN')}đ`,
+                                }}
+                            />
                         </div>
 
                         <div>

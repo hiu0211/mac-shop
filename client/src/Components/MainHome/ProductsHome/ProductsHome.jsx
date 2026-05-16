@@ -74,7 +74,7 @@ function ProductsHome() {
     const headingText = hasSearchCriteria ? null : 'Sản phẩm nổi bật';
 
     const subText = hasSearchCriteria
-        ? `Hiển thị ${products.length} sản phẩm phù hợp${selectedBrand !== 'all' ? ` - Hãng: ${selectedBrand}` : ''}`
+        ? `Tìm thấy ${products.length} sản phẩm phù hợp${selectedBrand !== 'all' ? ` - Hãng: ${selectedBrand}` : ''}`
         : '';
 
     return (

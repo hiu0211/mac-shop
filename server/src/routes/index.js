@@ -52,6 +52,7 @@ function routes(app) {
   app.delete("/api/admin/brands", brandRoutes);
 
   const categoryRoutes = require('./categories.routes');
+  app.get('/api/categories', categoryRoutes);
   app.post('/api/admin/categories', categoryRoutes);
   app.get('/api/admin/categories', categoryRoutes);
   app.get('/api/admin/categories/all-active', categoryRoutes);

@@ -298,4 +298,70 @@ Gợi ý tiếp theo (tùy bạn chọn agent thực hiện):
 - Sinh SQL DDL (MySQL / Postgres) mapping từ các bảng đã mô tả.
 - Nếu cần, tôi sẽ xuất file Mermaid hoặc SQL và/hoặc vẽ sơ đồ tự động.
 
+## 9. Gợi ý phương thức cho các class (Methods)
+
+Dưới đây là các phương thức gợi ý cho từng model và controller — tên ngắn và mô tả tóm tắt (tham số/giá trị trả về có thể mở rộng tuỳ implement).
+
+### Identity (User / ApiKey / OTP)
+- `User.findByEmail(email)` : Tìm và trả về user theo email.
+- `User.createUser(data)` : Tạo user mới (hash password, validate fields) và trả về document.
+- `User.comparePassword(plainPassword)` : So sánh mật khẩu (instance method) -> boolean.
+- `User.setPassword(plainPassword)` : Hash và cập nhật password (instance method).
+- `User.toPublic()` : Trả object đã loại bỏ fields nhạy cảm (password, tokens).
+- `ApiKey.generateForUser(userId)` : Sinh cặp `publicKey`/`privateKey` và lưu.
+- `ApiKey.revoke(apiKeyId)` : Đánh dấu key là revoked/disabled.
+- `ApiKey.findByPublic(publicKey)` : Tìm apiKey theo publicKey.
+- `OTP.create(email, type)` : Sinh và lưu OTP có TTL, trả OTP (plain cho gửi mail/SMS).
+- `OTP.verify(email, otp, type)` : Kiểm tra OTP hợp lệ và consume nếu đúng -> boolean.
+
+### Catalog (Brand / ProductType / Product)
+- `Brand.create(data)` / `Brand.update(id, data)` / `Brand.findActive()` : Các thao tác CRUD cơ bản.
+- `Brand.rebuildProductsOnNameChange(brandId, newName)` : Khi brand.name đổi, cập nhật các product snapshot (nếu lưu tên string).
+- `ProductType.getTemplate(code)` : Lấy `attributesTemplate` theo `code`.
+- `ProductType.validateAttributes(code, attrs)` : Kiểm tra attrs khớp template -> {valid, errors}.
+- `Product.create(data)` : Tạo product với validation template và snapshots (price/stock).
+- `Product.search(filters, opts)` : Tìm sản phẩm có paging/sort, trả {items,total}.
+- `Product.getDiscountedPrice(product)` : Tính `price * (1 - discount/100)` (utility).
+- `Product.updateStock(productId, delta, session?)` : Cộng/ trừ tồn kho an toàn (transaction if provided).
+- `Product.addReview(productId, review)` : Thêm review subdoc và trigger recalc rating.
+- `Product.recalculateRating(productId)` : Tính lại rating trung bình và count.
+
+### Cart & Checkout (Cart / Payments / Coupon / CouponUsage)
+- `Cart.getByUser(userId)` : Lấy cart hiện tại của user.
+- `Cart.addItem(userId, productId, qty, options)` : Thêm hoặc merge cart item, trả cart mới.
+- `Cart.removeItem(userId, itemId)` : Xóa item khỏi cart.
+- `Cart.updateItemQty(userId, itemId, qty)` : Cập nhật số lượng và recalc totals.
+- `Cart.applyCoupon(userId, couponCode)` : Validate coupon, set couponId/code và recalc totals.
+- `Cart.calculateTotals(cartDoc)` : Tính subtotal, discount, total dựa trên discounted price.
+- `Payments.createOrderFromCart(userId, cartSnapshot, paymentType)` : Tạo payments document (tạo `idPayment` nhóm nếu cần).
+- `Payments.updateStatus(idPayment, status, meta)` : Cập nhật trạng thái đơn, trigger stock change và coupon usage.
+- `Payments.cancelOrder(idPayment)` : Hủy đơn, rollback stock và couponUsage nếu cần.
+- `Coupon.isApplicable(couponCode, userId, amount)` : Kiểm tra điều kiện áp dụng (date, limit, per-user).
+- `Coupon.calculateDiscount(coupon, amount)` : Tính discountAmount theo type (PERCENT/FIXED).
+- `Coupon.incrementUsage(couponId, userId, orderId, amount)` : Ghi `coupon_usage` và tăng `usedCount`.
+- `Coupon.revertUsage(orderId)` : Rollback khi huỷ đơn.
+
+### OTP & Auth flows
+- `UsersController.register(req,res)` : Tạo user, gửi OTP/email xác thực nếu cần.
+- `UsersController.login(req,res)` : Xác thực, trả JWT/token.
+- `UsersController.forgotPassword(req,res)` : Tạo OTP/Link reset và gửi mail.
+
+### Controllers & Services (chung)
+- `ProductsController.create(req,res)` : Tạo product (validate template, upload ảnh).
+- `ProductsController.bulkImport(file)` : Import CSV/Excel -> tạo nhiều product.
+- `CartController.addToCart(req,res)` : API add/merge cart, trả cart preview.
+- `CartController.preview(req,res)` : Trả preview totals + coupon info.
+- `PaymentsController.createPaymentSession(req,res)` : Khởi tạo payload VNPAY/MOMO và trả redirect/url.
+- `PaymentsController.handleVnPayCallback(req,res)` : Xác thực callback, finalize order.
+- `CouponsController.applyCoupon(req,res)` : Validate + áp coupon cho cart (gọi coupon service).
+- `CouponService.recalculateForUser(userId)` : Tính lại coupon khi cart thay đổi.
+- `TokenService.createApiKey(userId)` : Sinh API key pair và persist.
+
+### Utility / Background jobs
+- `cron.syncExpiredCoupons()` : Job hàng ngày đổi `coupon.status` theo `endAt`.
+- `job.recalculateProductRatings()` : Tính lại rating cache cho products theo schedule.
+- `utils.sendOrderEmail(order)` : Soạn và gửi email xác nhận/hủy đơn.
+
+Gợi ý: khi vẽ sơ đồ mermaid chỉ cần liệt kê tên phương thức chính (controller/service). Chi tiết tham số/kiểu trả về nên tách vào phần mô tả API hoặc tài liệu kỹ thuật riêng.
+
 
