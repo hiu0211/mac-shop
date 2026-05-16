@@ -15,30 +15,16 @@ import {
     TagOutlined,
     AppstoreOutlined,
 } from '@ant-design/icons';
-import Dashboard from './Components/Dashboard';
-import ProductManagement from './Components/ProductManagement';
-import UserManagement from './Components/UserManagement';
-import AddProduct from './Pages/AddProduct';
-import OrderManagement from './Components/OrderManagement';
-import EditProduct from './Pages/EditProduct';
-import CouponManagement from './Components/CouponManagement';
-import MessageManagement from './Components/MessageManagement';
-import ReviewManagement from './Components/ReviewManagement';
-import BrandManagement from './Components/BrandManagement';
-import ManagerProductType from './Components/ManagerProductType/ManagerProductType';
-import ManagerProductTypeEditor from './Components/ManagerProductType/ManagerProductTypeEditor';
-import CategoryManagement from './Components/CategoryManagement'; // Importing CategoryManagement
+
 import { requestAdmin, requestLogout } from '../../Config/request';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 
 const { Header, Sider, Content } = Layout;
 
 const MainLayout = () => {
     const [collapsed, setCollapsed] = useState(false);
-    const [activeComponent, setActiveComponent] = useState('dashboard');
-
-    const [productId, setProductId] = useState();
-    const [productTypeId, setProductTypeId] = useState();
+    const location = useLocation();
+    const navigate = useNavigate();
 
     const menuItems = [
         {
@@ -93,52 +79,7 @@ const MainLayout = () => {
         },
     ];
 
-    const renderComponent = () => {
-        switch (activeComponent) {
-            case 'dashboard':
-                return <Dashboard />;
-            case 'products':
-                return <ProductManagement setActiveComponent={setActiveComponent} setProductId={setProductId} />;
-            case 'product-types':
-                return (
-                    <ManagerProductType
-                        setActiveComponent={setActiveComponent}
-                        setProductTypeId={setProductTypeId}
-                    />
-                );
-            case 'add-product-type':
-                return <ManagerProductTypeEditor setActiveComponent={setActiveComponent} />;
-            case 'edit-product-type':
-                return (
-                    <ManagerProductTypeEditor
-                        setActiveComponent={setActiveComponent}
-                        productTypeId={productTypeId}
-                    />
-                );
-            case 'add-product':
-                return <AddProduct setActiveComponent={setActiveComponent} />;
-            case 'edit-product':
-                return <EditProduct setActiveComponent={setActiveComponent} productId={productId} />;
-            case 'users':
-                return <UserManagement />;
-            case 'orders':
-                return <OrderManagement />;
-            case 'messages':
-                return <MessageManagement />;
-            case 'reviews':
-                return <ReviewManagement />;
-            case 'coupons':
-                return <CouponManagement />;
-            case 'categories':
-                return <CategoryManagement />;
-            case 'brands':
-                return <BrandManagement />;
-            default:
-                return <Dashboard />;
-        }
-    };
 
-    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchAdmin = async () => {
@@ -169,8 +110,12 @@ const MainLayout = () => {
             return;
         }
 
-        setActiveComponent(key);
+        navigate(`/admin${key === 'dashboard' ? '' : '/' + key}`);
     };
+
+    // Determine current menu key based on URL path
+    const pathSegments = location.pathname.split('/').filter(Boolean);
+    const currentKey = pathSegments.length > 1 ? pathSegments[1] : 'dashboard';
 
     return (
         <Layout style={{ minHeight: '100vh' }}>
@@ -178,7 +123,7 @@ const MainLayout = () => {
                 <Menu
                     theme="dark"
                     mode="inline"
-                    defaultSelectedKeys={['dashboard']}
+                    selectedKeys={[currentKey]}
                     items={menuItems}
                     onClick={handleMenuClick}
                     style={{ fontSize: '16px' }}
@@ -207,7 +152,7 @@ const MainLayout = () => {
                         Đăng xuất
                     </Button>
                 </Header>
-                <Content style={{ margin: '24px 16px', padding: 24, background: '#fff' }}>{renderComponent()}</Content>
+                <Content style={{ margin: '24px 16px', padding: 24, background: '#fff' }}><Outlet /></Content>
             </Layout>
         </Layout>
     );

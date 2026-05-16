@@ -48,7 +48,11 @@ const generateCodeFromName = (name) => {
         .replace(/^-+|-+$/g, '');
 };
 
-function ManagerProductTypeEditor({ setActiveComponent, productTypeId }) {
+import { useNavigate, useParams } from 'react-router-dom';
+
+function ManagerProductTypeEditor() {
+    const navigate = useNavigate();
+    const { productTypeId } = useParams();
     const [form] = Form.useForm();
 
     const isEditMode = Boolean(productTypeId);
@@ -91,7 +95,7 @@ function ManagerProductTypeEditor({ setActiveComponent, productTypeId }) {
                 const record = nextTypes.find((item) => item._id === productTypeId);
                 if (!record) {
                     message.error('Không tìm thấy loại sản phẩm cần chỉnh sửa');
-                    setActiveComponent('product-types');
+                    navigate('/admin/product-types');
                     return;
                 }
 
@@ -116,7 +120,7 @@ function ManagerProductTypeEditor({ setActiveComponent, productTypeId }) {
             } catch (error) {
                 message.error(error?.response?.data?.message || 'Không thể tải dữ liệu loại sản phẩm');
                 if (isEditMode) {
-                    setActiveComponent('product-types');
+                    navigate('/admin/product-types');
                 }
             } finally {
                 if (isMounted) {
@@ -130,7 +134,7 @@ function ManagerProductTypeEditor({ setActiveComponent, productTypeId }) {
         return () => {
             isMounted = false;
         };
-    }, [form, isEditMode, productTypeId, setActiveComponent]);
+    }, [form, isEditMode, productTypeId, navigate]);
 
     const handleGenerateCodeByName = () => {
         const name = String(form.getFieldValue('name') || '').trim();
@@ -217,7 +221,7 @@ function ManagerProductTypeEditor({ setActiveComponent, productTypeId }) {
                 message.success('Đã tạo loại sản phẩm');
             }
 
-            setActiveComponent('product-types');
+            navigate('/admin/product-types');
         } catch (error) {
             if (error?.errorFields) {
                 return;
@@ -233,7 +237,7 @@ function ManagerProductTypeEditor({ setActiveComponent, productTypeId }) {
         <div className={cx('wrapper')}>
             <div className={cx('header')}>
                 <Space>
-                    <Button icon={<ArrowLeftOutlined />} onClick={() => setActiveComponent('product-types')}>
+                    <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/admin/product-types')}>
                         Quay lại
                     </Button>
                     <h2>{isEditMode ? 'Cập nhật loại sản phẩm' : 'Thêm loại sản phẩm'}</h2>

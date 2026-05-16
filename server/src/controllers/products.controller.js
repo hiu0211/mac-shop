@@ -714,13 +714,14 @@ class controllerProducts {
         throw new BadRequestError("Loai san pham khong ton tai");
       }
 
+      let nextCategoryId = product.category;
       const incomingCategoryId = (req.body.category || req.body.categoryId) ? String(req.body.category || req.body.categoryId).trim() : null;
       if (incomingCategoryId) {
         const categoryDoc = await modelCategory.findById(incomingCategoryId);
         if (!categoryDoc) {
           throw new BadRequestError('Danh mục sản phẩm không tồn tại');
         }
-        updatedData.category = categoryDoc._id;
+        nextCategoryId = categoryDoc._id;
       } else if (!product.category) {
         // If no category exists currently and none provided, require category
         throw new BadRequestError('Vui lòng chọn danh mục sản phẩm');
@@ -760,6 +761,7 @@ class controllerProducts {
       const updatedData = {
         name: String(name || "").trim() || product.name,
         brand: String(brand || "").trim() || product.brand,
+        category: nextCategoryId,
         price: nextPrice,
         images: normalizedImages,
         stock: nextStock == null ? product.stock : nextStock,

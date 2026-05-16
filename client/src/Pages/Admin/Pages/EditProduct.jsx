@@ -206,7 +206,11 @@ const uploadColorOptionImages = async (colorOptions = []) => {
     });
 };
 
-const EditProduct = ({ setActiveComponent, productId }) => {
+import { useNavigate, useParams } from 'react-router-dom';
+
+const EditProduct = () => {
+    const navigate = useNavigate();
+    const { productId } = useParams();
     const [form] = Form.useForm();
     const [brands, setBrands] = useState([]);
     const [productTypes, setProductTypes] = useState([]);
@@ -280,14 +284,14 @@ const EditProduct = ({ setActiveComponent, productId }) => {
 
                 if (nextTypes.length === 0) {
                     message.error('Vui lòng tạo loại sản phẩm trước khi chỉnh sửa sản phẩm');
-                    setActiveComponent('product-types');
+                    navigate('/admin/product-types');
                     return;
                 }
 
                 const product = productResponse?.metadata;
                 if (!product) {
                     message.error('Không thể tải thông tin sản phẩm!');
-                    setActiveComponent('products');
+                    navigate('/admin/products');
                     return;
                 }
 
@@ -340,7 +344,7 @@ const EditProduct = ({ setActiveComponent, productId }) => {
             } catch (error) {
                 console.error('Error fetching product:', error);
                 message.error('Không thể tải thông tin sản phẩm!');
-                setActiveComponent('products');
+                navigate('/admin/products');
             } finally {
                 setLoading(false);
             }
@@ -349,7 +353,7 @@ const EditProduct = ({ setActiveComponent, productId }) => {
         if (productId) {
             bootstrap();
         }
-    }, [productId, form, setActiveComponent]);
+    }, [productId, form, navigate]);
 
     useEffect(() => {
         const currentColorOptions = Array.isArray(watchedColorOptions) ? watchedColorOptions : [];
@@ -432,9 +436,9 @@ const EditProduct = ({ setActiveComponent, productId }) => {
 
             await requestEditProduct(productData);
             message.success('Cập nhật sản phẩm thành công');
-            setActiveComponent('products');
+            navigate('/admin/products');
         } catch (error) {
-            message.error('Có lỗi xảy ra khi cập nhật sản phẩm!');
+            message.error(error?.response?.data?.message || 'Có lỗi xảy ra khi cập nhật sản phẩm!');
             console.error(error);
         } finally {
             setSubmitting(false);
@@ -442,7 +446,7 @@ const EditProduct = ({ setActiveComponent, productId }) => {
     };
 
     const handleBack = () => {
-        setActiveComponent('products'); // Quay lại trang quản lý sản phẩm
+        navigate('/admin/products'); // Quay lại trang quản lý sản phẩm
     };
 
     const normFile = (e) => {

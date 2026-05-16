@@ -15,7 +15,19 @@ createRoot(document.getElementById('root')).render(
                         return <Route key={index} path={route.path} element={route.component} />;
                     })}
                     {privateRoutes.map((route, index) => {
-                        return <Route key={`private-${index}`} path={route.path} element={route.component} />;
+                        return (
+                            <Route key={`private-${index}`} path={route.path} element={route.component}>
+                                {route.children &&
+                                    route.children.map((child, childIndex) => (
+                                        <Route
+                                            key={`private-child-${childIndex}`}
+                                            index={child.index}
+                                            path={child.path}
+                                            element={child.component}
+                                        />
+                                    ))}
+                            </Route>
+                        );
                     })}
                 </Routes>
             </Router>

@@ -6,6 +6,7 @@ import {
     requestGetAllProductTypes,
     requestGetBrands,
     requestGetActiveCategories,
+    requestGetProductById,
     requestUploadImage,
 } from '../../../Config/request';
 import {
@@ -157,7 +158,12 @@ const uploadColorOptionImages = async (colorOptions = []) => {
     });
 };
 
-const AddProduct = ({ setActiveComponent }) => {
+import { useNavigate, useSearchParams } from 'react-router-dom';
+
+const AddProduct = () => {
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const duplicateProductId = searchParams.get('duplicate');
     const [form] = Form.useForm();
     const [uploading, setUploading] = useState(false);
     const [brands, setBrands] = useState([]);
@@ -234,21 +240,73 @@ const AddProduct = ({ setActiveComponent }) => {
                     return;
                 }
 
+                if ((nextCategories || []).length === 0) {
+                    message.warning('Chưa có danh mục nào. Vui lòng tạo danh mục trước.');
+                }
+
+                if (duplicateProductId) {
+                    const productResponse = await requestGetProductById(duplicateProductId);
+                    const product = productResponse?.metadata;
+                    if (product) {
+                        const parsedAttributes = {
+                            ...(product.attributes || {}),
+                        };
+                        const typeCode = product.componentType || nextTypes[0]?.code || '';
+                        const template = normalizeTemplate(nextTypes.find((item) => item.code === typeCode)?.attributesTemplate);
+                        const mergedAttributes = { ...parsedAttributes };
+                        template.forEach((field) => {
+                            if (mergedAttributes[field.key] == null) {
+                                mergedAttributes[field.key] = '';
+                            }
+                        });
+                        const imageFileList = (product?.images || []).map((url, index) => ({
+                            uid: `-${index}`,
+                            name: `image-${index}`,
+                            status: 'done',
+                            url: url,
+                        }));
+                        setSelectedTypeCode(typeCode);
+
+                        // Extract only properties we want to duplicate, avoiding IDs
+                        form.setFieldsValue({
+                            ...product,
+                            name: `${product.name} (Bản sao)`,
+                            componentType: typeCode,
+                            category: product.categoryId || product.category || null,
+                            discount: Number(product?.discount || 0),
+                            costPrice: Number(product?.costPrice || 0),
+                            attributes: mergedAttributes,
+                            colorOptions: (product?.colorOptions || []).map((item, index) => ({
+                                ...item,
+                                image: item.image
+                                    ? [
+                                          {
+                                              uid: `color-image-${item.key || index}`,
+                                              name: item.name || `color-${index + 1}`,
+                                              status: 'done',
+                                              url: item.image,
+                                          },
+                                      ]
+                                    : [],
+                            })),
+                            image: imageFileList,
+                        });
+                        return;
+                    }
+                }
+
                 form.setFieldsValue({
                     discount: 0,
                     costPrice: 0,
                 });
-                if ((nextCategories || []).length === 0) {
-                    message.warning('Chưa có danh mục nào. Vui lòng tạo danh mục trước.');
-                }
             } catch (error) {
                 console.error('Không thể tải dữ liệu khởi tạo:', error);
-                message.error('Không thể tải dữ liệu loại sản phẩm hoặc hãng');
+                message.error('Không thể tải dữ liệu khởi tạo');
             }
         };
 
         bootstrap();
-    }, [form]);
+    }, [form, duplicateProductId]);
 
     useEffect(() => {
         const currentColorOptions = Array.isArray(watchedColorOptions) ? watchedColorOptions : [];
@@ -277,7 +335,6 @@ const AddProduct = ({ setActiveComponent }) => {
             });
 
             if (!formData.has('images')) {
-                console.log('Không có file mới cần upload');
                 return [];
             }
 
@@ -293,8 +350,19 @@ const AddProduct = ({ setActiveComponent }) => {
     const onFinish = async (values) => {
         try {
             setUploading(true);
+            let imageUrls = [];
 
-            const imageUrls = await handleUpload(values.image || []);
+            const oldImages = (values.image || []).filter((file) => file.url && !file.originFileObj);
+            const newImages = (values.image || []).filter((file) => file.originFileObj);
+
+            const oldImageUrls = oldImages.map((file) => file.url);
+
+            let newImageUrls = [];
+            if (newImages.length > 0) {
+                newImageUrls = await handleUpload(newImages);
+            }
+
+            imageUrls = [...oldImageUrls, ...newImageUrls];
 
             if (!imageUrls || imageUrls.length === 0) {
                 message.error('Vui lòng tải lên ít nhất một hình ảnh!');
@@ -335,18 +403,18 @@ const AddProduct = ({ setActiveComponent }) => {
             form.resetFields();
 
             setTimeout(() => {
-                setActiveComponent('products');
+                navigate('/admin/products');
             }, 100);
         } catch (error) {
             console.error(error);
-            message.error('Có lỗi xảy ra khi thêm sản phẩm!');
+            message.error(error?.response?.data?.message || 'Có lỗi xảy ra khi thêm sản phẩm!');
         } finally {
             setUploading(false);
         }
     };
 
     const handleBack = () => {
-        setActiveComponent('products');
+        navigate('/admin/products');
     };
 
     const normFile = (e) => {

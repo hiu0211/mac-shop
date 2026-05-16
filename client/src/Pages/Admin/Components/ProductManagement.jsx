@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Space, Button, Input, Card, Tag, Image, Popconfirm, Select, message } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined } from '@ant-design/icons';
 import { requestDeleteProduct, requestGetAllProduct } from '../../../Config/request';
 import { requestGetActiveCategories } from '../../../Config/request';
 
@@ -40,7 +40,10 @@ const buildFilterOptions = (products = []) => {
     };
 };
 
-const ProductManagement = ({ setActiveComponent, setProductId }) => {
+import { useNavigate } from 'react-router-dom';
+
+const ProductManagement = () => {
+    const navigate = useNavigate();
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchText, setSearchText] = useState('');
@@ -113,6 +116,15 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
                 <Space size="middle">
                     <Button icon={<EditOutlined />} onClick={() => handleEdit(record)}>
                     </Button>
+                    <Popconfirm
+                        title="Bạn có chắc chắn muốn nhân bản sản phẩm này?"
+                        onConfirm={() => handleDuplicate(record.key)}
+                        okText="Có"
+                        cancelText="Không"
+                    >
+                        <Button icon={<CopyOutlined />}>
+                        </Button>
+                    </Popconfirm>
                     <Popconfirm
                         title="Bạn có chắc chắn muốn xóa sản phẩm này?"
                         onConfirm={() => handleDelete(record.key)}
@@ -203,12 +215,15 @@ const ProductManagement = ({ setActiveComponent, setProductId }) => {
     });
 
     const handleAdd = () => {
-        setActiveComponent('add-product');
+        navigate('/admin/products/add');
     };
 
     const handleEdit = (record) => {
-        setProductId(record.id);
-        setActiveComponent('edit-product');
+        navigate(`/admin/products/${record.id}/edit`);
+    };
+
+    const handleDuplicate = (key) => {
+        navigate(`/admin/products/add?duplicate=${key}`);
     };
 
     const handleDelete = async (key) => {

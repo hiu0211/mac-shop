@@ -8,7 +8,10 @@ import { requestDeleteProductType, requestGetAllProductTypes } from '../../../..
 
 const cx = classNames.bind(styles);
 
-function ManagerProductType({ setActiveComponent, setProductTypeId }) {
+import { useNavigate } from 'react-router-dom';
+
+function ManagerProductType() {
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [productTypes, setProductTypes] = useState([]);
     const [searchValue, setSearchValue] = useState('');
@@ -55,13 +58,11 @@ function ManagerProductType({ setActiveComponent, setProductTypeId }) {
     }, [productTypes, searchValue]);
 
     const handleCreate = () => {
-        setProductTypeId(undefined);
-        setActiveComponent('add-product-type');
+        navigate('/admin/product-types/add');
     };
 
     const handleEdit = (record) => {
-        setProductTypeId(record.id);
-        setActiveComponent('edit-product-type');
+        navigate(`/admin/product-types/${record.id}/edit`);
     };
 
     const handleDelete = async (record) => {
