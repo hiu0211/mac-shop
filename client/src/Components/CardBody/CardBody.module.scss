@@ -1,6 +1,8 @@
 .wrapper {
     width: 100%;
-    height: 3auto;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
     background-color: #fff;
     border-radius: 10px;
     box-shadow: 0 0 10px 0 rgba(0, 0, 0, 0.1);
@@ -16,8 +18,8 @@
 
     img {
         width: 100%;
-        height: auto;
-        object-fit: cover;
+        height: 300px;
+        object-fit: contain;
     }
 
     .discountBadge {
@@ -36,6 +38,7 @@
 }
 
 .content {
+    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -56,7 +59,7 @@
         gap: 4px;
 
         .priceNew {
-            color: #D70018;
+            color: #d70018;
             font-size: 18px;
             font-weight: 700;
             margin: 0;
@@ -72,7 +75,7 @@
 
         .priceNormal {
             margin: 0;
-            color: #D70018;
+            color: #d70018;
             font-size: 18px;
             font-weight: 700;
             line-height: 1.2;
@@ -105,6 +108,7 @@
     margin-top: 8px;
     padding: 4px 0;
     width: 100%;
+    transition: opacity 0.2s ease;
 
     span {
         font-size: 13px;
@@ -112,7 +116,8 @@
     }
 
     &.active span {
-        color: #E53935;
+        color: #e53935;
+        animation: heart-bounce 0.3s ease;
     }
 
     &:hover {
