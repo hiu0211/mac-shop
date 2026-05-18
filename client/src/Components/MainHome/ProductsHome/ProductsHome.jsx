@@ -2,8 +2,9 @@ import classNames from 'classnames/bind';
 import styles from './ProductsHome.module.scss';
 import CardBody from '../../CardBody/CardBody';
 import { Link, useLocation } from 'react-router-dom';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { requestGetProducts, requestSearchProduct } from '../../../Config/request';
+import { Pagination } from 'antd';
 
 const cx = classNames.bind(styles);
 
@@ -22,6 +23,9 @@ const scoreByKeyword = (name = '', keywordText = '') => {
 
 function ProductsHome() {
     const [products, setProducts] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalProducts, setTotalProducts] = useState(0);
+    const listRef = useRef(null);
     const location = useLocation();
 
     const { keyword, selectedBrand, hasSearchCriteria } = useMemo(() => {
@@ -37,39 +41,63 @@ function ProductsHome() {
     }, [location.search]);
 
     useEffect(() => {
+        // Reset page when search criteria changes
+        setCurrentPage(1);
+    }, [hasSearchCriteria, keyword, selectedBrand]);
+
+    useEffect(() => {
         const fetchData = async () => {
             try {
                 if (!hasSearchCriteria) {
                     const res = await requestGetProducts(8);
-                    setProducts(res?.metadata || []);
+                    setProducts(res?.metadata?.products || []);
+                    setTotalProducts(0); // Not paginated in default view
                     return;
                 }
 
-                const res = await requestSearchProduct(keyword, selectedBrand);
-                const sourceProducts = res?.metadata || [];
-                const normalizedKeyword = normalizeText(keyword);
-
-                if (!normalizedKeyword) {
-                    setProducts(sourceProducts);
-                    return;
+                const res = await requestSearchProduct(keyword, selectedBrand, currentPage, 12);
+                
+                // If the API returns pagination metadata
+                if (res?.metadata && res?.metadata?.products) {
+                    const sourceProducts = res.metadata.products || [];
+                    const normalizedKeyword = normalizeText(keyword);
+    
+                    if (!normalizedKeyword) {
+                        setProducts(sourceProducts);
+                        setTotalProducts(res.metadata.total || 0);
+                        return;
+                    }
+    
+                    const relatedProducts = sourceProducts.filter((item) =>
+                        normalizeText(item?.name || '').includes(normalizedKeyword),
+                    );
+    
+                    const productsToRender = (relatedProducts.length > 0 ? relatedProducts : sourceProducts).sort(
+                        (a, b) => scoreByKeyword(b?.name || '', keyword) - scoreByKeyword(a?.name || '', keyword),
+                    );
+    
+                    setProducts(productsToRender);
+                    setTotalProducts(res.metadata.total || 0);
+                } else {
+                    // Fallback
+                    setProducts(Array.isArray(res?.metadata) ? res.metadata : []);
+                    setTotalProducts(0);
                 }
-
-                const relatedProducts = sourceProducts.filter((item) =>
-                    normalizeText(item?.name || '').includes(normalizedKeyword),
-                );
-
-                const productsToRender = (relatedProducts.length > 0 ? relatedProducts : sourceProducts).sort(
-                    (a, b) => scoreByKeyword(b?.name || '', keyword) - scoreByKeyword(a?.name || '', keyword),
-                );
-
-                setProducts(productsToRender);
             } catch {
                 setProducts([]);
+                setTotalProducts(0);
             }
         };
 
         fetchData();
-    }, [hasSearchCriteria, keyword, selectedBrand]);
+    }, [hasSearchCriteria, keyword, selectedBrand, currentPage]);
+
+    const handlePageChange = (page) => {
+        setCurrentPage(page);
+        if (listRef.current) {
+            listRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
 
     const headingText = hasSearchCriteria ? null : 'Sản phẩm nổi bật';
 
@@ -78,7 +106,7 @@ function ProductsHome() {
         : '';
 
     return (
-        <div className={cx('wrapper')}>
+        <div className={cx('wrapper')} ref={listRef}>
             <div className={cx('inner')}>
                 <div className={cx('title')}>
                     <h2>{headingText}</h2>
@@ -89,6 +117,18 @@ function ProductsHome() {
                         <CardBody key={item._id} item={item} />
                     ))}
                 </div>
+
+                {hasSearchCriteria && totalProducts > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '40px' }}>
+                        <Pagination
+                            current={currentPage}
+                            pageSize={12}
+                            total={totalProducts}
+                            onChange={handlePageChange}
+                            showSizeChanger={false}
+                        />
+                    </div>
+                )}
 
                 {hasSearchCriteria && products.length === 0 && (
                     <p className={cx('empty-search')}>Không có sản phẩm phù hợp với từ khóa bạn đã tìm.</p>

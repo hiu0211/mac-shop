@@ -55,7 +55,7 @@ function Footer() {
                 </div>
             </div>
 
-            <p className={cx('copyright')}>Copyright © 2025 - H I U</p>
+            <p className={cx('copyright')}>Copyright © 2026 - Mac Shop</p>
         </div>
     );
 }

@@ -202,8 +202,8 @@ export const requestDeleteProduct = async (id) => {
     return res.data;
 };
 
-export const requestSearchProduct = async (keyword = '', brand = 'all') => {
-    const params = { keyword };
+export const requestSearchProduct = async (keyword = '', brand = 'all', page = 1, limit = 12) => {
+    const params = { keyword, page, limit };
 
     if (brand && brand !== 'all') {
         params.brand = brand;

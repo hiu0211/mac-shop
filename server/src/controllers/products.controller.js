@@ -611,17 +611,26 @@ class controllerProducts {
   }
 
   async getProducts(req, res) {
-    const limit = Number(req.query.limit);
+    const limit = Number(req.query.limit) || 12;
+    const page = Number(req.query.page) || 1;
+    const skip = (page - 1) * limit;
 
-    let query = modelProduct.find();
-    if (Number.isInteger(limit) && limit > 0) {
-      query = query.limit(limit);
-    }
+    const total = await modelProduct.countDocuments();
+    let query = modelProduct.find().skip(skip).limit(limit).sort({ createdAt: -1 });
 
-    const data = await query.sort({ createdAt: -1 });
+    const data = await query;
     const formattedData = await formatProductListOutput(data);
 
-    new OK({ message: "Lấy sản phẩm thông tin", metadata: formattedData }).send(res);
+    new OK({ 
+      message: "Lấy sản phẩm thông tin", 
+      metadata: {
+        products: formattedData,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    }).send(res);
   }
 
   async getProductById(req, res) {
@@ -813,6 +822,9 @@ class controllerProducts {
   async searchProduct(req, res) {
     const keyword = (req.query.keyword || "").trim();
     const brand = (req.query.brand || "").trim();
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 12;
+    const skip = (page - 1) * limit;
 
     const query = {};
 
@@ -826,14 +838,33 @@ class controllerProducts {
     }
 
     if (!query.$or && !query.brand) {
-      new OK({ message: "Tìm kiếm sản phẩm", metadata: [] }).send(res);
+      new OK({ 
+        message: "Tìm kiếm sản phẩm", 
+        metadata: {
+          products: [],
+          total: 0,
+          page,
+          limit,
+          totalPages: 0
+        }
+      }).send(res);
       return;
     }
 
-    const data = await modelProduct.find(query).sort({ createdAt: -1 });
+    const total = await modelProduct.countDocuments(query);
+    const data = await modelProduct.find(query).skip(skip).limit(limit).sort({ createdAt: -1 });
     const formattedData = await formatProductListOutput(data);
 
-    new OK({ message: "Tìm kiếm sản phẩm", metadata: formattedData }).send(res);
+    new OK({ 
+      message: "Tìm kiếm sản phẩm", 
+      metadata: {
+        products: formattedData,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      } 
+    }).send(res);
   }
 
   async filterProduct(req, res) {
@@ -874,6 +905,9 @@ class controllerProducts {
       });
     }
 
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 12;
+
     if (pricedes === "desc") {
       data.sort((a, b) => {
         const priceA = a.priceDiscount > 0 ? a.priceDiscount : a.price;
@@ -888,7 +922,19 @@ class controllerProducts {
       });
     }
 
-    new OK({ message: "Lọc sản phẩm thành công", metadata: data }).send(res);
+    const total = data.length;
+    const paginatedData = data.slice((page - 1) * limit, page * limit);
+
+    new OK({ 
+        message: "Lọc sản phẩm thành công", 
+        metadata: {
+            products: paginatedData,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        } 
+    }).send(res);
   }
 }
 

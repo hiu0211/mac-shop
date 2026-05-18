@@ -3,7 +3,7 @@ import styles from './Category.module.scss';
 import Header from '../../Components/Header/Header';
 import Footer from '../../Components/Footer/Footer';
 
-import { Select, Slider } from 'antd';
+import { Select, Slider, Pagination } from 'antd';
 import CardBody from '../../Components/CardBody/CardBody';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { requestFilterProduct, requestGetBrands } from '../../Config/request';
@@ -22,12 +22,17 @@ function Category() {
     const [productCompare, setProductCompare] = useState([]);
     const [brands, setBrands] = useState([]);
     const [filters, setFilters] = useState(DEFAULT_FILTERS);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalProducts, setTotalProducts] = useState(0);
 
     const [checkSelectCompare, setCheckSelectCompare] = useState(false);
 
-    const fetchProducts = useCallback(async (nextFilters) => {
+    const fetchProducts = useCallback(async (nextFilters, page = 1) => {
         try {
-            const params = {};
+            const params = {
+                page,
+                limit: 12
+            };
 
             if (nextFilters?.priceRange && Array.isArray(nextFilters.priceRange)) {
                 params.minPrice = nextFilters.priceRange[0];
@@ -47,7 +52,15 @@ function Category() {
             }
 
             const res = await requestFilterProduct(params);
-            setDataProduct(res.metadata || []);
+
+            if (res.metadata && res.metadata.products) {
+                setDataProduct(res.metadata.products || []);
+                setTotalProducts(res.metadata.total || 0);
+            } else {
+                // Fallback in case API hasn't been updated yet or returns array
+                setDataProduct(Array.isArray(res.metadata) ? res.metadata : []);
+                setTotalProducts(Array.isArray(res.metadata) ? res.metadata.length : 0);
+            }
         } catch (error) {
             console.error('Error filtering products:', error);
         }
@@ -68,7 +81,17 @@ function Category() {
             ...partialFilters,
         };
         setFilters(nextFilters);
-        fetchProducts(nextFilters);
+        setCurrentPage(1);
+        fetchProducts(nextFilters, 1);
+    };
+
+    const handlePageChange = (page) => {
+        setCurrentPage(page);
+        fetchProducts(filters, page);
+        // Scroll to top of products list
+        if (ref.current) {
+            ref.current.scrollIntoView({ behavior: 'smooth' });
+        }
     };
 
 
@@ -82,7 +105,8 @@ function Category() {
 
     const handleResetFilter = () => {
         setFilters(DEFAULT_FILTERS);
-        fetchProducts(DEFAULT_FILTERS);
+        setCurrentPage(1);
+        fetchProducts(DEFAULT_FILTERS, 1);
     };
 
     const navigate = useNavigate();
@@ -110,7 +134,7 @@ function Category() {
         const urlBrand = params.get('brand');
         const urlCategory = params.get('category');
         const urlPriceRange = params.get('priceRange');
-        
+
         let parsedPriceRange = DEFAULT_FILTERS.priceRange;
         if (urlPriceRange) {
             try {
@@ -127,7 +151,8 @@ function Category() {
             priceRange: parsedPriceRange,
         };
         setFilters(initialFilters);
-        fetchProducts(initialFilters);
+        setCurrentPage(1);
+        fetchProducts(initialFilters, 1);
     }, [fetchBrands, fetchProducts, location.search]);
 
     const brandOptions = [
@@ -185,22 +210,35 @@ function Category() {
                         </div>
                     </div>
 
-                    <div>
+                    <div className={cx('products-grid')}>
                         {dataProduct.map((item) => (
                             <CardBody
+                                key={item._id}
                                 item={item}
                                 checkSelectCompare={checkSelectCompare}
                                 handleCompare={handleCompare}
                             />
                         ))}
                     </div>
+
+                    {totalProducts > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '40px' }}>
+                            <Pagination
+                                current={currentPage}
+                                pageSize={12}
+                                total={totalProducts}
+                                onChange={handlePageChange}
+                                showSizeChanger={false}
+                            />
+                        </div>
+                    )}
                 </div>
-            </main>
+            </main >
 
             <footer>
                 <Footer />
             </footer>
-        </div>
+        </div >
     );
 }
 

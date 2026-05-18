@@ -128,7 +128,7 @@ function Header() {
             setIsSearching(true);
             try {
                 const res = await requestSearchProduct(debouncedValue.trim(), selectedBrand);
-                setResultSearch(res?.metadata || []);
+                setResultSearch(res?.metadata?.products || (Array.isArray(res?.metadata) ? res.metadata : []));
             } catch {
                 setResultSearch([]);
             } finally {
