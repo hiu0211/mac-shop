@@ -1,367 +1,454 @@
 
+
 # Class & Data Design — mac-shop (server/src/models)
 
-Mục tiêu: cung cấp mô tả chi tiết các entity (Mongoose models) và bảng thiết kế dữ liệu (theo form STT / Tên trường / Kiểu dữ liệu / Độ dài / Mô tả) để một agent có thể sinh sơ đồ class/ER và SQL DDL.
+Updated: 2026-05-19
 
-Tổng quan hệ thống:
-- Backend: Node.js + Express
-- Database: MongoDB (Mongoose schemas). Trong bảng dưới đây, cột "Kiểu dữ liệu" ghi cả kiểu Mongo và gợi ý kiểu SQL tương ứng.
+Mục tiêu: cung cấp mô tả chi tiết các entity (Mongoose models), controllers, services và relationships để sinh sơ đồ class/ER (Mermaid-ready). Phần nội dung dưới đây được sinh từ mã nguồn trong `server/src/`.
 
-Hướng dẫn vẽ sơ đồ class/ER:
-- Mỗi Mongoose model coi như một Entity class (box). Liệt kê fields bên trong box.
-- Các embedded subdocuments (ví dụ: `product.colorOptions`, `product.reviews`, `cart.product`, `payments.products`) hiển thị dưới dạng composition (filled diamond) từ parent → subdoc (1→0..n).
-- Các field có `ref` (ví dụ `userId`, `productId`, `couponId`) hiển thị là association (arrow) tới collection tham chiếu; thêm multiplicity khi xác định được (ví dụ user 1 → payments 0..n).
-- Các controllers (ví dụ `ProductsController`) vẽ dưới dạng stereotype «service» với dependency arrows tới models chúng dùng.
+FORMAT: mỗi class (Models / Controllers / Services / Utils) được mô tả theo định dạng yêu cầu:
+ClassName
+├── Fields
+│  - [visibility] fieldName: Type
+└── Methods
+	- [visibility] methodName(param: Type): ReturnType
 
----
-
-## Model: user (collection `user`)
-
-| STT | Tên trường | Kiểu dữ liệu | Độ dài | Mô tả |
-|-----|------------|--------------|--------|-------|
-| 1 | _id | ObjectId (Mongo) / CHAR(24) (SQL) | 24 | Khóa chính document (do Mongo tạo) |
-| 2 | fullName | String / VARCHAR | 255 | Tên đầy đủ người dùng |
-| 3 | email | String / VARCHAR | 255 | Email (unique nếu cần) |
-| 4 | password | String / VARCHAR | 255 | Hash mật khẩu |
-| 5 | phone | String / VARCHAR | 50 | Số điện thoại (lưu dưới dạng chuỗi) |
-| 6 | isAdmin | Boolean / BOOLEAN | - | Cờ admin (true/false) |
-| 7 | isActive | Boolean / BOOLEAN | - | Tài khoản có hoạt động |
-| 8 | wishlist | Array<ObjectId> / JSON or relation | - | Danh sách product ids (ref `product`) |
-| 9 | typeLogin | String / VARCHAR | 20 | 'email' hoặc 'google' |
-|10 | createdAt | Date / TIMESTAMP | - | Tạo lúc |
-|11 | updatedAt | Date / TIMESTAMP | - | Cập nhật lúc |
-
-Quan hệ:
-- `user._id` được tham chiếu bởi: `cart.userId`, `payments.userId`, `apikey.userId`, `coupon_usage.userId`, `otp.email` (theo email), `product.reviews.userId`, `payments.contactMessages.senderId`.
+Notes:
+- Visibility: schema fields mặc định là `+`. Fields có `select: false` hoặc nhạy cảm được ghi `-`.
+- Embedded subdocuments được liệt kê với tên `Parent_SubdocName` và đánh dấu là composition.
+- Controllers methods use `(req: Request, res: Response): Promise<void>` signature when exported handlers.
 
 ---
 
-## Model: apikey (collection `apikey`)
+User
+├── Fields
+│  - + _id: ObjectId
+│  - + fullName: String
+│  - + email: String
+│  - - password: String
+│  - + phone: String
+│  - + isAdmin: Boolean
+│  - + isActive: Boolean
+│  - + wishlist: Array<ObjectId> (ref: product)
+│  - + typeLogin: String ('email'|'google')
+│  - + createdAt: Date
+│  - + updatedAt: Date
+└── Methods
+	- (no schema instance/static methods defined in source)
 
-| STT | Tên trường | Kiểu dữ liệu | Độ dài | Mô tả |
-|-----|------------|--------------|--------|-------|
-| 1 | _id | ObjectId / CHAR(24) | 24 | PK |
-| 2 | userId | String(ObjectId) / CHAR(24) | 24 | Ref → `user._id` |
-| 3 | publicKey | String / TEXT | 2048 | Khóa public của API key |
-| 4 | privateKey | String / TEXT | 2048 | Khóa private (bảo mật) |
-| 5 | createdAt | Date / TIMESTAMP | - | Thời gian tạo |
-| 6 | updatedAt | Date / TIMESTAMP | - | Thời gian cập nhật |
+ApiKey
+├── Fields
+│  - + _id: ObjectId
+│  - + userId: String (ref: user)
+│  - + publicKey: String
+│  - + privateKey: String
+│  - + createdAt: Date
+│  - + updatedAt: Date
+└── Methods
+	- (no schema methods)
 
-Quan hệ:
-- `apikey.userId` → `user._id` (1 user có thể có nhiều api keys).
+Brand
+├── Fields
+│  - + _id: ObjectId
+│  - + name: String
+│  - + slug: String
+│  - + description: String
+│  - + logo: String
+│  - + isActive: Boolean
+│  - + createdAt: Date
+│  - + updatedAt: Date
+└── Methods
+	- (no schema methods)
 
----
+ProductType
+├── Fields
+│  - + _id: ObjectId
+│  - + code: String
+│  - + name: String
+│  - + attributesTemplate: Array<ProductType_Attribute>
+│  - + createdAt: Date
+│  - + updatedAt: Date
+└── Methods
+	- (no schema methods)
 
-## Model: brand (collection `brand`)
+ProductType_Attribute
+├── Fields
+│  - + key: String
+│  - + label: String
+│  - + inputType: String ('text'|'number'|'select')
+│  - + required: Boolean
+│  - + placeholder: String
+│  - + options: Array<String>
+│  - + order: Number
+└── Methods
+	- (subdoc)
 
-| STT | Tên trường | Kiểu dữ liệu | Độ dài | Mô tả |
-|-----|------------|--------------|--------|-------|
-| 1 | _id | ObjectId / CHAR(24) | 24 | PK |
-| 2 | name | String / VARCHAR | 255 | Tên hãng |
-| 3 | slug | String / VARCHAR | 255 | Chuỗi slug lowercase, unique, index |
-| 4 | description | String / TEXT | - | Mô tả |
-| 5 | isActive | Boolean / BOOLEAN | - | Flag kích hoạt |
-| 6 | createdAt | Date / TIMESTAMP | - | |
-| 7 | updatedAt | Date / TIMESTAMP | - | |
+Product
+├── Fields
+│  - + _id: ObjectId
+│  - + name: String
+│  - + brand: String
+│  - + category: ObjectId (ref: category)
+│  - + price: Number
+│  - + discount: Number
+│  - + costPrice: Number
+│  - + priceDiscount: Number
+│  - + images: Array<String>
+│  - + stock: Number
+│  - + componentType: String
+│  - + attributes: Mixed
+│  - + colorOptions: Array<Product_ColorOption> (embedded)
+│  - + reviews: Array<Product_Review> (embedded)
+│  - + createdAt: Date
+│  - + updatedAt: Date
+└── Methods
+	- (no schema methods)
 
-Quan hệ:
-- `product.brand` lưu tên hãng (string). Controller cập nhật products khi brand.name thay đổi (không dùng ObjectId ref).
+Product_ColorOption
+├── Fields
+│  - + key: String
+│  - + name: String
+│  - + image: String
+│  - + price: Number
+│  - + isDefault: Boolean
+└── Methods
+	- (embedded subdoc)
 
----
+Product_Review
+├── Fields
+│  - + userId: String (ref: user)
+│  - + orderId: String (ref: payments)
+│  - + rating: Number
+│  - + comment: String
+│  - + images: Array<String>
+│  - + fullName: String
+│  - + adminReply: Object { adminId: String (ref:user), adminName: String, message: String, repliedAt: Date }
+│  - + createdAt: Date
+└── Methods
+	- (embedded subdoc)
 
-## Model: productType (collection `productType`)
+Category
+├── Fields
+│  - + _id: ObjectId
+│  - + name: String
+│  - + slug: String
+│  - + description: String
+│  - + image: String
+│  - + isActive: Boolean
+│  - + createdAt: Date
+│  - + updatedAt: Date
+└── Methods
+	- (no schema methods)
 
-| STT | Tên trường | Kiểu dữ liệu | Độ dài | Mô tả |
-|-----|------------|--------------|--------|-------|
-| 1 | _id | ObjectId / CHAR(24) | 24 | PK |
-| 2 | code | String / VARCHAR | 100 | Mã loại (lowercase, unique, index) |
-| 3 | name | String / VARCHAR | 255 | Tên loại |
-| 4 | attributesTemplate | Array<subdoc> / JSON | - | Template thuộc tính động (mảng các object) |
-| 5 | createdAt | Date / TIMESTAMP | - | |
-| 6 | updatedAt | Date / TIMESTAMP | - | |
+Cart
+├── Fields
+│  - + _id: ObjectId
+│  - + userId: String (ref: user)
+│  - + product: Array<Cart_ProductItem>
+│  - + totalPrice: Number
+│  - + totalPriceAfterDiscount: Number
+│  - + discountAmount: Number
+│  - + couponId: String (ref: coupon) | null
+│  - + couponCode: String
+│  - + fullName: String
+│  - + phone: String
+│  - + address: String
+│  - + createdAt: Date
+│  - + updatedAt: Date
+└── Methods
+	- (no schema methods)
 
-Subdocument `attributesTemplate` (mỗi phần tử):
-| STT | Tên trường | Kiểu dữ liệu | Độ dài | Mô tả |
-|-----|------------|--------------|--------|-------|
-| 1 | key | String / VARCHAR | 100 | Khóa thuộc tính (lowercase, match pattern) |
-| 2 | label | String / VARCHAR | 255 | Nhãn hiển thị |
-| 3 | inputType | String / VARCHAR | 20 | 'text'|'number'|'select' |
-| 4 | required | Boolean / BOOLEAN | - | Bắt buộc hay không |
-| 5 | placeholder | String / VARCHAR | 255 | Placeholder |
-| 6 | options | Array<String> / JSON | - | Danh sách option (nếu select) |
-| 7 | order | Number / INT | - | Vị trí sắp xếp |
+Cart_ProductItem
+├── Fields
+│  - + productId: String (ref: product)
+│  - + quantity: Number
+│  - + selectedColorKey: String
+│  - + selectedColorName: String
+│  - + selectedColorHex: String
+│  - + selectedColorImage: String
+│  - + unitPrice: Number
+│  - + finalUnitPrice: Number
+└── Methods
+	- (embedded subdoc)
 
-Quan hệ:
-- `product.componentType` map tới `productType.code` (liên kết logic, không phải ref DB).
+Coupon
+├── Fields
+│  - + _id: ObjectId
+│  - + code: String
+│  - + type: String ('PERCENT'|'FIXED')
+│  - + value: Number
+│  - + minOrderValue: Number
+│  - + maxDiscount: Number
+│  - + totalUsageLimit: Number
+│  - + perUserUsageLimit: Number
+│  - + usedCount: Number
+│  - + startAt: Date
+│  - + endAt: Date
+│  - + status: String ('ACTIVE'|'INACTIVE')
+│  - + createdAt: Date
+│  - + updatedAt: Date
+└── Methods
+	- (no schema methods)
 
----
+CouponUsage
+├── Fields
+│  - + _id: ObjectId
+│  - + couponId: String (ref: coupon)
+│  - + userId: String (ref: user)
+│  - + orderId: String (ref: payments) | null
+│  - + usedAt: Date
+│  - + discountAmount: Number
+│  - + createdAt: Date
+│  - + updatedAt: Date
+└── Methods
+	- (no schema methods)
 
-## Model: product (collection `product`)
+OTP
+├── Fields
+│  - + _id: ObjectId
+│  - + email: String
+│  - + otp: String (hashed)
+│  - + time: Date (TTL index)
+│  - + type: String
+│  - + createdAt: Date
+│  - + updatedAt: Date
+└── Methods
+	- (no schema methods)
 
-| STT | Tên trường | Kiểu dữ liệu | Độ dài | Mô tả |
-|-----|------------|--------------|--------|-------|
-| 1 | _id | ObjectId / CHAR(24) | 24 | PK |
-| 2 | name | String / VARCHAR | 255 | Tên sản phẩm |
-| 3 | brand | String / VARCHAR | 255 | Tên hãng (lưu chuỗi) |
-| 4 | price | Number / DECIMAL(12,2) | - | Giá gốc |
-| 5 | discount | Number / INT | - | Phần trăm giảm (0-100) |
-| 6 | costPrice | Number / DECIMAL(12,2) | - | Giá vốn |
-| 7 | priceDiscount | Number / DECIMAL(12,2) | - | Legacy: giá đã giảm |
-| 8 | images | Array<String> / JSON | - | Mảng URL ảnh |
-| 9 | stock | Number / INT | - | Số lượng tồn kho |
-|10 | componentType | String / VARCHAR | 100 | Mã loại sản phẩm (maps to productType.code) |
-|11 | attributes | Mixed / JSON | - | Thuộc tính động (object hoặc JSON) |
-|12 | colorOptions | Array<subdoc> / JSON | - | Mảng color options (subdocs) |
-|13 | reviews | Array<subdoc> / JSON | - | Mảng đánh giá (embedded subdocs) |
-|14 | createdAt | Date / TIMESTAMP | - | |
-|15 | updatedAt | Date / TIMESTAMP | - | |
+Payments
+├── Fields
+│  - + _id: ObjectId
+│  - + userId: String (ref: user)
+│  - + products: Array<Payments_Product>
+│  - + fullName: String
+│  - + phone: Number
+│  - + address: String
+│  - + typePayments: String ('COD'|'MOMO'|'VNPAY')
+│  - + statusOrder: String ('pending'|'completed'|'shipping'|'delivered'|'cancelled')
+│  - + totalPrice: Number
+│  - + totalPriceBeforeDiscount: Number
+│  - + discountAmount: Number
+│  - + couponId: String (ref: coupon)
+│  - + couponCode: String
+│  - + productReviews: Array<Payments_ProductReview>
+│  - + contactMessages: Array<Payments_ContactMessage>
+│  - + createdAt: Date
+│  - + updatedAt: Date
+└── Methods
+	- (no schema methods)
 
-Subdocument `colorOptions`:
-| STT | Tên trường | Kiểu dữ liệu | Độ dài | Mô tả |
-|-----|------------|--------------|--------|-------|
-| 1 | key | String | 100 | Key nội bộ, lowercase |
-| 2 | name | String | 100 | Tên màu |
-| 3 | image | String | 1024 | URL ảnh màu |
-| 4 | price | Number / DECIMAL | - | Giá riêng cho màu (nếu khác) |
-| 5 | isDefault | Boolean | - | Flag mặc định |
+Payments_Product
+├── Fields
+│  - + productId: String (ref: product)
+│  - + quantity: Number
+│  - + selectedColorKey: String
+│  - + selectedColorName: String
+│  - + selectedColorHex: String
+│  - + selectedColorImage: String
+│  - + unitPrice: Number
+└── Methods
+	- (embedded subdoc)
 
-Subdocument `reviews`:
-| STT | Tên trường | Kiểu dữ liệu | Độ dài | Mô tả |
-|-----|------------|--------------|--------|-------|
-| 1 | userId | ObjectId / CHAR(24) | 24 | Ref → `user` |
-| 2 | orderId | ObjectId / CHAR(24) | 24 | Ref → `payments` |
-| 3 | rating | Number / INT | - | 1..5 |
-| 4 | comment | String / TEXT | - | Nội dung đánh giá |
-| 5 | images | Array<String> / JSON | - | Ảnh đánh giá |
-| 6 | fullName | String / VARCHAR | 255 | Tên người đánh giá (snapshot) |
-| 7 | adminReply | Object / JSON | - | { adminId, adminName, message, repliedAt } |
-| 8 | createdAt | Date / TIMESTAMP | - | Thời điểm đánh giá |
+Payments_ProductReview
+├── Fields
+│  - + productId: String (ref: product)
+│  - + rating: Number
+│  - + comment: String
+│  - + images: Array<String>
+│  - + createdAt: Date
+└── Methods
+	- (embedded subdoc)
 
-Quan hệ:
-- `product` tham chiếu bởi `cart.product[].productId` và `payments.products[].productId`.
-
----
-
-## Model: cart (collection `cart`)
-
-| STT | Tên trường | Kiểu dữ liệu | Độ dài | Mô tả |
-|-----|------------|--------------|--------|-------|
-| 1 | _id | ObjectId / CHAR(24) | 24 | PK |
-| 2 | userId | ObjectId / CHAR(24) | 24 | Ref → `user` |
-| 3 | product | Array<subdoc> / JSON | - | Mảng cart items (subdocs) |
-| 4 | totalPrice | Number / DECIMAL(12,2) | - | Tổng giá (snapshot) |
-| 5 | totalPriceAfterDiscount | Number / DECIMAL | - | Tổng sau áp dụng coupon |
-| 6 | discountAmount | Number / DECIMAL | - | Tổng tiền giảm |
-| 7 | couponId | ObjectId / CHAR(24) | 24 | Ref → `coupon` (nullable) |
-| 8 | couponCode | String / VARCHAR | 100 | Mã coupon đang áp dụng |
-| 9 | fullName | String / VARCHAR | 255 | Tên nhận hàng |
-|10 | phone | String / VARCHAR | 50 | SĐT liên hệ |
-|11 | address | String / TEXT | - | Địa chỉ giao hàng |
-|12 | createdAt | Date / TIMESTAMP | - | |
-|13 | updatedAt | Date / TIMESTAMP | - | |
-
-Subdocument cart item (`cart.product[]`):
-| STT | Tên trường | Kiểu dữ liệu | Độ dài | Mô tả |
-|-----|------------|--------------|--------|-------|
-| 1 | productId | ObjectId / CHAR(24) | 24 | Ref → `product` |
-| 2 | quantity | Number / INT | - | Số lượng |
-| 3 | selectedColorKey | String | 100 | Key màu được chọn |
-| 4 | selectedColorName | String | 100 | Tên màu |
-| 5 | selectedColorHex | String | 20 | Mã màu (hex) |
-| 6 | selectedColorImage | String | 1024 | Ảnh màu |
-| 7 | unitPrice | Number / DECIMAL | - | Giá đơn vị snapshot |
-| 8 | finalUnitPrice | Number / DECIMAL | - | Giá đơn vị sau discount snapshot |
-
-Quan hệ:
-- `cart.userId` → `user._id` (1 user thường có 0..1 cart theo logic app)
-
----
-
-## Model: coupon (collection `coupon`)
-
-| STT | Tên trường | Kiểu dữ liệu | Độ dài | Mô tả |
-|-----|------------|--------------|--------|-------|
-| 1 | _id | ObjectId / CHAR(24) | 24 | PK |
-| 2 | code | String / VARCHAR | 100 | Mã coupon (uppercase, index) |
-| 3 | type | String / VARCHAR | 10 | 'PERCENT' or 'FIXED' |
-| 4 | value | Number / DECIMAL | - | Giá trị giảm (số hoặc %) |
-| 5 | minOrderValue | Number / DECIMAL | - | Giá trị đơn tối thiểu để áp dụng |
-| 6 | maxDiscount | Number / DECIMAL | - | Giảm tối đa (nếu percent) |
-| 7 | totalUsageLimit | Number / INT | - | Tổng số lần có thể dùng |
-| 8 | perUserUsageLimit | Number / INT | - | Số lần tối đa 1 user dùng |
-| 9 | usedCount | Number / INT | - | Đếm đã dùng |
-|10 | startAt | Date / TIMESTAMP | - | Bắt đầu áp dụng |
-|11 | endAt | Date / TIMESTAMP | - | Kết thúc |
-|12 | status | String / VARCHAR | 20 | 'ACTIVE' / 'INACTIVE' |
-|13 | createdAt | Date / TIMESTAMP | - | |
-|14 | updatedAt | Date / TIMESTAMP | - | |
-
-Quan hệ:
-- `coupon_usage.couponId` liên kết tới coupon; `cart.couponId` và `payments.couponId` tham chiếu tới coupon khi áp dụng.
-
----
-
-## Model: coupon_usage (collection `coupon_usage`)
-
-| STT | Tên trường | Kiểu dữ liệu | Độ dài | Mô tả |
-|-----|------------|--------------|--------|-------|
-| 1 | _id | ObjectId / CHAR(24) | 24 | PK |
-| 2 | couponId | ObjectId / CHAR(24) | 24 | Ref → `coupon` |
-| 3 | userId | ObjectId / CHAR(24) | 24 | Ref → `user` |
-| 4 | orderId | ObjectId / CHAR(24) | 24 | Ref → `payments` (nullable) |
-| 5 | usedAt | Date / TIMESTAMP | - | Thời điểm dùng coupon |
-| 6 | discountAmount | Number / DECIMAL | - | Số tiền đã giảm |
-| 7 | createdAt | Date / TIMESTAMP | - | |
-| 8 | updatedAt | Date / TIMESTAMP | - | |
-
-Index: composite index (couponId, userId) tồn tại trong schema.
-
----
-
-## Model: otp (collection `otp`)
-
-| STT | Tên trường | Kiểu dữ liệu | Độ dài | Mô tả |
-|-----|------------|--------------|--------|-------|
-| 1 | _id | ObjectId / CHAR(24) | 24 | PK |
-| 2 | email | String / VARCHAR | 255 | Email người dùng (ref theo giá trị email) |
-| 3 | otp | String / VARCHAR | 255 | Hash OTP |
-| 4 | time | Date / TIMESTAMP (TTL) | - | Thời gian sinh; TTL index expires: 300s |
-| 5 | type | String / VARCHAR | 50 | Loại OTP (ví dụ 'forgot-password') |
-| 6 | createdAt | Date / TIMESTAMP | - | |
-| 7 | updatedAt | Date / TIMESTAMP | - | |
-
----
-
-## Model: payments (collection `payments`) — (Đơn hàng)
-
-| STT | Tên trường | Kiểu dữ liệu | Độ dài | Mô tả |
-|-----|------------|--------------|--------|-------|
-| 1 | _id | ObjectId / CHAR(24) | 24 | PK |
-| 2 | userId | ObjectId / CHAR(24) | 24 | Ref → `user` |
-| 3 | products | Array<subdoc> / JSON | - | Mảng order lines (snapshot) |
-| 4 | fullName | String / VARCHAR | 255 | Tên người nhận |
-| 5 | phone | Number / BIGINT or VARCHAR | - | SĐT (schema dùng Number) |
-| 6 | address | String / TEXT | - | Địa chỉ giao hàng |
-| 7 | typePayments | String / VARCHAR | 20 | 'COD'|'MOMO'|'VNPAY' |
-| 8 | statusOrder | String / VARCHAR | 20 | 'pending'|'completed'|'shipping'|'delivered'|'cancelled' |
-| 9 | totalPrice | Number / DECIMAL(12,2) | - | Tổng đơn hàng (sau giảm) |
-|10 | totalPriceBeforeDiscount | Number / DECIMAL | - | Tổng trước giảm |
-|11 | discountAmount | Number / DECIMAL | - | Tổng tiền giảm |
-|12 | couponId | ObjectId / CHAR(24) | 24 | Ref → `coupon` |
-|13 | couponCode | String / VARCHAR | 100 | Mã coupon đã áp dụng |
-|14 | productReviews | Array<subdoc> / JSON | - | Reviews ghi trong đơn (snapshot) |
-|15 | contactMessages | Array<subdoc> / JSON | - | Tin nhắn liên hệ giữa user/admin |
-|16 | createdAt | Date / TIMESTAMP | - | |
-|17 | updatedAt | Date / TIMESTAMP | - | |
-
-Subdocument `payments.products` (order line):
-| STT | Tên trường | Kiểu dữ liệu | Độ dài | Mô tả |
-|-----|------------|--------------|--------|-------|
-| 1 | productId | ObjectId / CHAR(24) | 24 | Ref → `product` |
-| 2 | quantity | Number / INT | - | Số lượng |
-| 3 | selectedColorKey | String | 100 | Key màu |
-| 4 | selectedColorName | String | 100 | Tên màu |
-| 5 | selectedColorHex | String | 20 | Mã màu |
-| 6 | selectedColorImage | String | 1024 | Ảnh màu |
-| 7 | unitPrice | Number / DECIMAL | - | Giá đơn vị (snapshot) |
-
-Subdocument `contactMessages`:
-| STT | Tên trường | Kiểu dữ liệu | Độ dài | Mô tả |
-|-----|------------|--------------|--------|-------|
-| 1 | senderType | String | 10 | 'user'|'admin' |
-| 2 | senderId | ObjectId / CHAR(24) | 24 | Ref → `user` |
-| 3 | senderName | String | 255 | Tên người gửi |
-| 4 | message | String / TEXT | - | Nội dung |
-| 5 | createdAt | Date / TIMESTAMP | - | Thời điểm gửi |
-
-Quan hệ:
-- `payments.userId` → `user._id` (1 user nhiều đơn hàng)
-- `payments.products[].productId` → `product._id`
-
----
-
-## Controllers (tóm tắt) — dùng để vẽ phần service/logic layer trong class diagram
-- `BrandsController` — create/get/update/delete brand; cập nhật `product.brand` khi brand đổi.
-- `ProductsController` — CRUD sản phẩm, upload ảnh (cloudinary), format output, search/filter.
-- `CartController` — add/get/update/delete cart items, tính toán giá snapshot, áp coupon (dùng `couponService`).
-- `CouponsController` — CRUD coupon, validate/apply/remove coupon, ghi `coupon_usage`.
-- `PaymentsController` — xử lý thanh toán (COD, VNPAY), tạo order (`payments`), xử lý callback VNPAY, quản lý reviews & contact messages.
-- `ProductTypeController` — CRUD productType, validate attributesTemplate.
-- `RevenueController` — thống kê doanh thu (dùng `payments`, `product`, `user`).
-- `UsersController` — auth/register/login/refresh/logout, manage users, API keys, OTP.
-- `WishlistController` — quản lý wishlist (lưu trong `user.wishlist`).
+Payments_ContactMessage
+├── Fields
+│  - + senderType: String ('user'|'admin')
+│  - + senderId: String (ref: user)
+│  - + senderName: String
+│  - + message: String
+│  - + createdAt: Date
+└── Methods
+	- (embedded subdoc)
 
 ---
 
-Gợi ý tiếp theo (tùy bạn chọn agent thực hiện):
-- Sinh sơ đồ Mermaid class/ER dựa trên các entity và quan hệ ở trên.
-- Sinh SQL DDL (MySQL / Postgres) mapping từ các bảng đã mô tả.
-- Nếu cần, tôi sẽ xuất file Mermaid hoặc SQL và/hoặc vẽ sơ đồ tự động.
+SERVICES / UTILITIES
 
-## 9. Gợi ý phương thức cho các class (Methods)
+CouponService (server/src/services/couponService.js)
+├── Fields
+│  - (module functions; no persisted fields)
+└── Methods
+	- + normalizeCode(code: String): String
+	- + computeDiscount(opts: { type: String, value: Number, cartTotal: Number, maxDiscount?: Number }): { discount: Number, finalTotal: Number }
+	- + validateCouponForCart(opts: { couponCode: String, userId: String, cartTotal: Number }): Promise<{ coupon: Object, discount: Number, finalTotal: Number }>
+	- + recalculateCartTotals(opts: { cart: Object, userId: String }): Promise<{ applied: Boolean, error?: Error }>
+	- + recordCouponUsage(opts: { couponId: String, userId: String, orderId?: String, discountAmount: Number }): Promise<void>
 
-Dưới đây là các phương thức gợi ý cho từng model và controller — tên ngắn và mô tả tóm tắt (tham số/giá trị trả về có thể mở rộng tuỳ implement).
+TokenService (server/src/services/tokenSevices.js)
+├── Fields
+│  - (uses ApiKey model)
+└── Methods
+	- + createApiKey(userId: String): Promise<ApiKeyDocument>
+	- + createToken(payload: any): Promise<String>
+	- + createRefreshToken(payload: any): Promise<String>
+	- + verifyToken(token: String): Promise<Object>
 
-### Identity (User / ApiKey / OTP)
-- `User.findByEmail(email)` : Tìm và trả về user theo email.
-- `User.createUser(data)` : Tạo user mới (hash password, validate fields) và trả về document.
-- `User.comparePassword(plainPassword)` : So sánh mật khẩu (instance method) -> boolean.
-- `User.setPassword(plainPassword)` : Hash và cập nhật password (instance method).
-- `User.toPublic()` : Trả object đã loại bỏ fields nhạy cảm (password, tokens).
-- `ApiKey.generateForUser(userId)` : Sinh cặp `publicKey`/`privateKey` và lưu.
-- `ApiKey.revoke(apiKeyId)` : Đánh dấu key là revoked/disabled.
-- `ApiKey.findByPublic(publicKey)` : Tìm apiKey theo publicKey.
-- `OTP.create(email, type)` : Sinh và lưu OTP có TTL, trả OTP (plain cho gửi mail/SMS).
-- `OTP.verify(email, otp, type)` : Kiểm tra OTP hợp lệ và consume nếu đúng -> boolean.
+MailForgotPassword / EmailService (server/src/services/MailForgotPassword.js)
+├── Fields
+│  - (uses OAuth2 env config)
+└── Methods
+	- + send(email: String, otp: String): Promise<void>
 
-### Catalog (Brand / ProductType / Product)
-- `Brand.create(data)` / `Brand.update(id, data)` / `Brand.findActive()` : Các thao tác CRUD cơ bản.
-- `Brand.rebuildProductsOnNameChange(brandId, newName)` : Khi brand.name đổi, cập nhật các product snapshot (nếu lưu tên string).
-- `ProductType.getTemplate(code)` : Lấy `attributesTemplate` theo `code`.
-- `ProductType.validateAttributes(code, attrs)` : Kiểm tra attrs khớp template -> {valid, errors}.
-- `Product.create(data)` : Tạo product với validation template và snapshots (price/stock).
-- `Product.search(filters, opts)` : Tìm sản phẩm có paging/sort, trả {items,total}.
-- `Product.getDiscountedPrice(product)` : Tính `price * (1 - discount/100)` (utility).
-- `Product.updateStock(productId, delta, session?)` : Cộng/ trừ tồn kho an toàn (transaction if provided).
-- `Product.addReview(productId, review)` : Thêm review subdoc và trigger recalc rating.
-- `Product.recalculateRating(productId)` : Tính lại rating trung bình và count.
+CloudinaryService (server/src/utils/cloudinary.js)
+├── Fields
+│  - + cloudinary: configured client
+└── Methods
+	- + uploadToCloudinary(buffer: Buffer, folder?: String): Promise<String>
+	- + uploadMultipleToCloudinary(buffers: Array<Buffer>, folder?: String): Promise<Array<String>>
 
-### Cart & Checkout (Cart / Payments / Coupon / CouponUsage)
-- `Cart.getByUser(userId)` : Lấy cart hiện tại của user.
-- `Cart.addItem(userId, productId, qty, options)` : Thêm hoặc merge cart item, trả cart mới.
-- `Cart.removeItem(userId, itemId)` : Xóa item khỏi cart.
-- `Cart.updateItemQty(userId, itemId, qty)` : Cập nhật số lượng và recalc totals.
-- `Cart.applyCoupon(userId, couponCode)` : Validate coupon, set couponId/code và recalc totals.
-- `Cart.calculateTotals(cartDoc)` : Tính subtotal, discount, total dựa trên discounted price.
-- `Payments.createOrderFromCart(userId, cartSnapshot, paymentType)` : Tạo payments document (tạo `idPayment` nhóm nếu cần).
-- `Payments.updateStatus(idPayment, status, meta)` : Cập nhật trạng thái đơn, trigger stock change và coupon usage.
-- `Payments.cancelOrder(idPayment)` : Hủy đơn, rollback stock và couponUsage nếu cần.
-- `Coupon.isApplicable(couponCode, userId, amount)` : Kiểm tra điều kiện áp dụng (date, limit, per-user).
-- `Coupon.calculateDiscount(coupon, amount)` : Tính discountAmount theo type (PERCENT/FIXED).
-- `Coupon.incrementUsage(couponId, userId, orderId, amount)` : Ghi `coupon_usage` và tăng `usedCount`.
-- `Coupon.revertUsage(orderId)` : Rollback khi huỷ đơn.
+---
 
-### OTP & Auth flows
-- `UsersController.register(req,res)` : Tạo user, gửi OTP/email xác thực nếu cần.
-- `UsersController.login(req,res)` : Xác thực, trả JWT/token.
-- `UsersController.forgotPassword(req,res)` : Tạo OTP/Link reset và gửi mail.
+CONTROLLERS (exported instances; methods signatures simplified)
 
-### Controllers & Services (chung)
-- `ProductsController.create(req,res)` : Tạo product (validate template, upload ảnh).
-- `ProductsController.bulkImport(file)` : Import CSV/Excel -> tạo nhiều product.
-- `CartController.addToCart(req,res)` : API add/merge cart, trả cart preview.
-- `CartController.preview(req,res)` : Trả preview totals + coupon info.
-- `PaymentsController.createPaymentSession(req,res)` : Khởi tạo payload VNPAY/MOMO và trả redirect/url.
-- `PaymentsController.handleVnPayCallback(req,res)` : Xác thực callback, finalize order.
-- `CouponsController.applyCoupon(req,res)` : Validate + áp coupon cho cart (gọi coupon service).
-- `CouponService.recalculateForUser(userId)` : Tính lại coupon khi cart thay đổi.
-- `TokenService.createApiKey(userId)` : Sinh API key pair và persist.
+UsersController
+├── Fields
+│  - (module helpers: getCookieConfig, setAuthCookies, clearAuthCookies)
+└── Methods
+	- + register(req: Request, res: Response): Promise<void>
+	- + login(req: Request, res: Response): Promise<void>
+	- + loginGoogle(req: Request, res: Response): Promise<void>
+	- + loginAdmin(req: Request, res: Response): Promise<void>
+	- + authUser(req: Request, res: Response): Promise<void>
+	- + logout(req: Request, res: Response): Promise<void>
+	- + refreshToken(req: Request, res: Response): Promise<void>
+	- + getAdminStats(req: Request, res: Response): Promise<void>
+	- + getAllUser(req: Request, res: Response): Promise<void>
+	- + updateUserRole(req: Request, res: Response): Promise<void>
+	- + updateUserStatus(req: Request, res: Response): Promise<void>
+	- + changePassword(req: Request, res: Response): Promise<void>
+	- + sendMailForgotPassword(req: Request, res: Response): Promise<void>
+	- + verifyOtp(req: Request, res: Response): Promise<void>
+	- + updateInfoUser(req: Request, res: Response): Promise<void>
+	- + updatePassword(req: Request, res: Response): Promise<void>
+	- + authAdmin(req: Request, res: Response): Promise<void>
+Dependencies: modelUser, modelPayments, modelApiKey, modelOtp, TokenService, MailForgotPassword
 
-### Utility / Background jobs
-- `cron.syncExpiredCoupons()` : Job hàng ngày đổi `coupon.status` theo `endAt`.
-- `job.recalculateProductRatings()` : Tính lại rating cache cho products theo schedule.
-- `utils.sendOrderEmail(order)` : Soạn và gửi email xác nhận/hủy đơn.
+BrandsController
+├── Methods
+	- + createBrand(req: Request, res: Response): Promise<void>
+	- + getBrands(req: Request, res: Response): Promise<void>
+	- + updateBrand(req: Request, res: Response): Promise<void>
+	- + deleteBrand(req: Request, res: Response): Promise<void>
+Dependencies: modelBrand, modelProduct
 
-Gợi ý: khi vẽ sơ đồ mermaid chỉ cần liệt kê tên phương thức chính (controller/service). Chi tiết tham số/kiểu trả về nên tách vào phần mô tả API hoặc tài liệu kỹ thuật riêng.
+ProductTypeController
+├── Methods
+	- + create(req: Request, res: Response): Promise<void>
+	- + getAll(req: Request, res: Response): Promise<void>
+	- + update(req: Request, res: Response): Promise<void>
+	- + delete(req: Request, res: Response): Promise<void>
+	- + checkCodeExists(req: Request, res: Response): Promise<void>
+Dependencies: modelProductType, modelProduct
+
+ProductsController
+├── Methods
+	- + addProduct(req: Request, res: Response): Promise<void>
+	- + uploadImage(req: Request, res: Response): Promise<void>
+	- + getProducts(req: Request, res: Response): Promise<void>
+	- + getProductById(req: Request, res: Response): Promise<void>
+	- + getAllProduct(req: Request, res: Response): Promise<void>
+	- + editProduct(req: Request, res: Response): Promise<void>
+	- + deleteProduct(req: Request, res: Response): Promise<void>
+	- + searchProduct(req: Request, res: Response): Promise<void>
+	- + filterProduct(req: Request, res: Response): Promise<void>
+Dependencies: modelProduct, modelProductType, modelCategory, CloudinaryService
+
+CartController
+├── Methods
+	- + addToCart(req: Request, res: Response): Promise<void>
+	- + getCart(req: Request, res: Response): Promise<void>
+	- + deleteProductCart(req: Request, res: Response): Promise<void>
+	- + updateInfoUserCart(req: Request, res: Response): Promise<void>
+	- + updateQuantity(req: Request, res: Response): Promise<void>
+Dependencies: modelCart, modelProduct, CouponService
+
+CouponsController
+├── Methods
+	- + createCoupon(req: Request, res: Response): Promise<void>
+	- + listCoupons(req: Request, res: Response): Promise<void>
+	- + getCoupon(req: Request, res: Response): Promise<void>
+	- + updateCoupon(req: Request, res: Response): Promise<void>
+	- + updateCouponStatus(req: Request, res: Response): Promise<void>
+	- + deleteCoupon(req: Request, res: Response): Promise<void>
+	- + validateCoupon(req: Request, res: Response): Promise<void>
+	- + applyCoupon(req: Request, res: Response): Promise<void>
+	- + removeCoupon(req: Request, res: Response): Promise<void>
+	- + getAvailableCoupons(req: Request, res: Response): Promise<void>
+	- + recordCouponUsage(opts: { couponId: String, userId: String, orderId?: String, discountAmount: Number }): Promise<void>
+Dependencies: modelCoupon, modelCouponUsage, modelCart, CouponService
+
+PaymentsController
+├── Methods
+	- + payment(req: Request, res: Response): Promise<void>
+	- (other internal payment handlers and helpers exist in file)
+Dependencies: modelPayments, modelCart, modelProduct, modelUser, modelCoupon, modelCouponUsage, CouponService, VNPay
+
+CategoriesController
+├── Methods
+	- + create(req: Request, res: Response): Promise<void>
+	- + getAll(req: Request, res: Response): Promise<void>
+	- + getById(req: Request, res: Response): Promise<void>
+	- + update(req: Request, res: Response): Promise<void>
+	- + delete(req: Request, res: Response): Promise<void>
+	- + getAllActive(req: Request, res: Response): Promise<void>
+Dependencies: modelCategory, modelProduct
+
+RevenueController
+├── Methods
+	- + getRevenueStatistics(req: Request, res: Response): Promise<void>
+Dependencies: modelPayments, modelProduct, modelUser
+
+WishlistController
+├── Methods
+	- + getWishlist(req: Request, res: Response): Promise<void>
+	- + addWishlist(req: Request, res: Response): Promise<void>
+	- + removeWishlist(req: Request, res: Response): Promise<void>
+Dependencies: modelUser, modelProduct
+
+---
+
+RELATIONSHIPS (tóm tắt — dùng để vẽ biểu đồ)
+
+SourceRelationshipTargetMultiplicityNote
+User - - → ApiKey : 1 → 0..* (apiKey.userId ref user)
+User → Cart : 1 → 0..* (cart.userId ref user)
+User → Payments : 1 → 0..* (payments.userId ref user)
+User → CouponUsage : 1 → 0..* (couponUsage.userId ref user)
+User - - → OTP : 1 → 0..* (linked by email value)
+Product ◆→ Product_ColorOption : 1 → 0..* (embedded)
+Product ◆→ Product_Review : 1 → 0..* (embedded)
+Product → Category : * → 1 (product.category ref category)
+Product - - → Brand : * → 1 (brand stored as String)
+ProductType - - → Product : 1 → 0..* (product.componentType == productType.code)
+Cart → Product (via cart.product[].productId) : 1 → 0..*
+Payments → Product (via payments.products[].productId) : 1 → 0..*
+Payments → Coupon : * → 1 (payments.couponId)
+Cart → Coupon : * → 1 (cart.couponId)
+Coupon → CouponUsage : 1 → 0..*
+Controllers/Services ⇢ Models : controllers and services depend on respective models
+
+Legend:
+- ◆→ composition (embedded subdoc)
+- → association (ObjectId ref)
+- - → logical link (string/code match)
+- ⇢ dependency (module uses another module)
+
+---
+
+Next steps you may want:
+- Export Mermaid `classDiagram` from these class blocks (I can generate it).
+- Generate SQL DDL mapping for relational export.
+
+File updated: [server/src/models/Class.md](server/src/models/Class.md)
+
 
 

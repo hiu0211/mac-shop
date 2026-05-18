@@ -1,0 +1,306 @@
+classDiagram
+
+%% Models
+class User {
+  +ObjectId _id
+  +String fullName
+  +String email
+  -String password
+  +String phone
+  +Boolean isAdmin
+  +Boolean isActive
+  +Array wishlist
+  +String typeLogin
+  +Date createdAt
+  +Date updatedAt
+  +register(req, res)
+  +login(req, res)
+  +refreshToken(req, res)
+}
+
+class ApiKey {
+  +ObjectId _id
+  +String userId
+  +String publicKey
+  +String privateKey
+  +Date createdAt
+  +Date updatedAt
+}
+
+class Brand {
+  +ObjectId _id
+  +String name
+  +String slug
+  +String description
+  +String logo
+  +Boolean isActive
+}
+
+class ProductType {
+  +ObjectId _id
+  +String code
+  +String name
+  +Array attributesTemplate
+}
+
+class Product {
+  +ObjectId _id
+  +String name
+  +String brand
+  +ObjectId category
+  +Number price
+  +Number discount
+  +Number costPrice
+  +Number priceDiscount
+  +Array images
+  +Number stock
+  +String componentType
+  +Mixed attributes
+  +Array colorOptions
+  +Array reviews
+}
+
+class Category {
+  +ObjectId _id
+  +String name
+  +String slug
+  +String description
+  +String image
+  +Boolean isActive
+}
+
+class Cart {
+  +ObjectId _id
+  +String userId
+  +Array product
+  +Number totalPrice
+  +Number totalPriceAfterDiscount
+  +Number discountAmount
+  +String couponId
+  +String couponCode
+  +String fullName
+  +String phone
+  +String address
+}
+
+class Coupon {
+  +ObjectId _id
+  +String code
+  +String type
+  +Number value
+  +Number minOrderValue
+  +Number maxDiscount
+  +Number totalUsageLimit
+  +Number perUserUsageLimit
+  +Number usedCount
+  +Date startAt
+  +Date endAt
+  +String status
+}
+
+class CouponUsage {
+  +ObjectId _id
+  +String couponId
+  +String userId
+  +String orderId
+  +Date usedAt
+  +Number discountAmount
+}
+
+class OTP {
+  +ObjectId _id
+  +String email
+  -String otp
+  +Date time
+  +String type
+}
+
+class Payments {
+  +ObjectId _id
+  +String userId
+  +Array products
+  +String fullName
+  +String phone
+  +String address
+  +String typePayments
+  +String statusOrder
+  +Number totalPrice
+  +Number totalPriceBeforeDiscount
+  +Number discountAmount
+  +String couponId
+  +String couponCode
+}
+
+%% Embedded subdocs (composition)
+class Product_ColorOption {
+  +String key
+  +String name
+  +String image
+  +Number price
+  +Boolean isDefault
+}
+
+class Product_Review {
+  +String userId
+  +String orderId
+  +Number rating
+  +String comment
+  +Array images
+  +String fullName
+}
+
+class Cart_ProductItem {
+  +String productId
+  +Number quantity
+  +String selectedColorKey
+  +Number unitPrice
+  +Number finalUnitPrice
+}
+
+class Payments_Product {
+  +String productId
+  +Number quantity
+  +Number unitPrice
+}
+
+class Payments_ProductReview {
+  +String productId
+  +Number rating
+  +String comment
+}
+
+class Payments_ContactMessage {
+  +String senderType
+  +String senderId
+  +String senderName
+  +String message
+}
+
+%% Services & Utils
+class CouponService {
+  +normalizeCode(code)
+  +computeDiscount(opts)
+  +validateCouponForCart(opts)
+  +recalculateCartTotals(opts)
+  +recordCouponUsage(opts)
+}
+
+class TokenService {
+  +createApiKey(userId)
+  +createToken(payload)
+  +createRefreshToken(payload)
+  +verifyToken(token)
+}
+
+class MailForgotPassword {
+  +send(email, otp)
+}
+
+class CloudinaryService {
+  +uploadToCloudinary(buffer, folder)
+  +uploadMultipleToCloudinary(buffers, folder)
+}
+
+%% Controllers
+class UsersController {
+  +register(req, res)
+  +login(req, res)
+  +loginGoogle(req, res)
+  +logout(req, res)
+  +refreshToken(req, res)
+  +getAdminStats(req, res)
+}
+
+class BrandsController {
+  +createBrand(req, res)
+  +getBrands(req, res)
+  +updateBrand(req, res)
+  +deleteBrand(req, res)
+}
+
+class ProductTypeController {
+  +create(req, res)
+  +getAll(req, res)
+  +update(req, res)
+  +delete(req, res)
+}
+
+class ProductsController {
+  +addProduct(req, res)
+  +uploadImage(req, res)
+  +getProducts(req, res)
+  +getProductById(req, res)
+  +editProduct(req, res)
+  +deleteProduct(req, res)
+}
+
+class CartController {
+  +addToCart(req, res)
+  +getCart(req, res)
+  +updateQuantity(req, res)
+  +deleteProductCart(req, res)
+}
+
+class CouponsController {
+  +createCoupon(req, res)
+  +validateCoupon(req, res)
+  +applyCoupon(req, res)
+  +removeCoupon(req, res)
+}
+
+class PaymentsController {
+  +payment(req, res)
+}
+
+class CategoriesController {
+  +create(req, res)
+  +getAll(req, res)
+}
+
+class RevenueController {
+  +getRevenueStatistics(req, res)
+}
+
+class WishlistController {
+  +getWishlist(req, res)
+  +addWishlist(req, res)
+}
+
+%% Relationships (multiplicities)
+User "1" -- "0..*" ApiKey : "apiKeys"
+User "1" -- "0..*" Cart : "carts"
+User "1" -- "0..*" Payments : "payments"
+User "1" -- "0..*" CouponUsage : "couponUsages"
+User "1" -- "0..*" OTP : "otps (by email)"
+
+Product *-- Product_ColorOption : "colorOptions"
+Product *-- Product_Review : "reviews"
+Product "*" -- "1" Category : "category"
+Product "*" -- "1" Brand : "brand"
+ProductType "1" -- "0..*" Product : "products (by code)"
+
+Cart "1" -- "0..*" Product : "productItems"
+Payments "1" -- "0..*" Product : "products"
+Payments "*" -- "1" Coupon : "coupon"
+Cart "*" -- "1" Coupon : "coupon"
+Coupon "1" -- "0..*" CouponUsage : "usages"
+
+%% Dependencies: controllers/services -> models
+UsersController ..> User
+UsersController ..> ApiKey
+UsersController ..> OTP
+BrandsController ..> Brand
+ProductsController ..> Product
+ProductsController ..> ProductType
+ProductsController ..> Category
+CartController ..> Cart
+CartController ..> Product
+CouponsController ..> Coupon
+CouponsController ..> CouponUsage
+PaymentsController ..> Payments
+PaymentsController ..> Product
+CouponService ..> Coupon
+CouponService ..> Cart
+TokenService ..> ApiKey
+MailForgotPassword ..> OTP
+CloudinaryService ..> Product
