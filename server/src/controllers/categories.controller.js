@@ -139,7 +139,15 @@ class CategoriesController {
 
   async getAllActive(req, res) {
     const categories = await modelCategory.find({ isActive: true }).sort({ name: 1 });
-    new OK({ message: "Lấy danh mục active thành công", metadata: categories }).send(res);
+
+    const result = await Promise.all(
+      categories.map(async (cat) => {
+        const brands = await modelProduct.distinct("brand", { category: cat._id });
+        return { ...cat.toObject(), brands };
+      })
+    );
+
+    new OK({ message: "Lấy danh mục active thành công", metadata: result }).send(res);
   }
 }
 

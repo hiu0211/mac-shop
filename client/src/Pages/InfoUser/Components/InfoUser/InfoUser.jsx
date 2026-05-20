@@ -603,7 +603,7 @@ function InfoUser({ isOpen, setIsOpen }) {
                     columns={columns}
                     rowKey="orderId"
                     pagination={{
-                        pageSize: 10,
+                        pageSize: 5,
                         showSizeChanger: true,
                         pageSizeOptions: ['10', '20', '50'],
                         showTotal: (total) => `Tổng ${total} đơn hàng`,

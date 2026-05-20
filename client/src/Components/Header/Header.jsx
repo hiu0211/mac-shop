@@ -281,7 +281,9 @@ function Header() {
                                         <div className={cx('filter-section')}>
                                             <h4>Hãng sản xuất</h4>
                                             <div className={cx('filter-grid')}>
-                                                {brands.map(brand => (
+                                                {brands
+                                                    .filter(brand => hoveredCat.brands ? hoveredCat.brands.includes(brand.name) : true)
+                                                    .map(brand => (
                                                     <Link to={`/category?brand=${brand.name}&category=${hoveredCat._id}`} key={brand._id} className={cx('filter-item')} onClick={() => setIsCatOpen(false)}>
                                                         {brand.name}
                                                     </Link>
