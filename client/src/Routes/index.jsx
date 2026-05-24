@@ -14,9 +14,8 @@ import ProtectedAdminRoute from './ProtectedAdminRoute';
 import Dashboard from '../Pages/Admin/Components/Dashboard';
 import ProductManagement from '../Pages/Admin/Components/ProductManagement';
 import UserManagement from '../Pages/Admin/Components/UserManagement';
-import AddProduct from '../Pages/Admin/Pages/AddProduct';
+import UpsertProduct from '../Pages/Admin/Pages/UpsertProduct';
 import OrderManagement from '../Pages/Admin/Components/OrderManagement';
-import EditProduct from '../Pages/Admin/Pages/EditProduct';
 import CouponManagement from '../Pages/Admin/Components/CouponManagement';
 import MessageManagement from '../Pages/Admin/Components/MessageManagement';
 import ReviewManagement from '../Pages/Admin/Components/ReviewManagement';
@@ -49,8 +48,8 @@ const privateRoutes = [
         children: [
             { index: true, component: <Dashboard /> },
             { path: 'products', component: <ProductManagement /> },
-            { path: 'products/add', component: <AddProduct /> },
-            { path: 'products/:productId/edit', component: <EditProduct /> },
+            { path: 'products/add', component: <UpsertProduct /> },
+            { path: 'products/:productId/edit', component: <UpsertProduct /> },
             { path: 'product-types', component: <ManagerProductType /> },
             { path: 'product-types/add', component: <ManagerProductTypeEditor /> },
             { path: 'product-types/:productTypeId/edit', component: <ManagerProductTypeEditor /> },

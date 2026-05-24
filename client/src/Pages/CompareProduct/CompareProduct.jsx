@@ -12,61 +12,6 @@ import { requestGetProductById, requestCompareProduct } from '../../Config/reque
 
 const cx = classNames.bind(styles);
 
-const LEGACY_SPEC_FIELDS = [
-    { key: 'cpu', label: 'Bộ xử lý CPU' },
-    { key: 'ram', label: 'Ram' },
-    { key: 'screen', label: 'Màn hình' },
-    { key: 'gpu', label: 'GPU' },
-    { key: 'storage', label: 'Ổ cứng' },
-    { key: 'weight', label: 'Kích thước' },
-    { key: 'camera', label: 'Camera' },
-    { key: 'battery', label: 'Pin' },
-];
-
-const normalizeAttributes = (attributes) => {
-    if (!attributes) {
-        return {};
-    }
-
-    if (typeof attributes === 'string') {
-        try {
-            const parsed = JSON.parse(attributes);
-            return parsed && typeof parsed === 'object' ? parsed : {};
-        } catch {
-            return {};
-        }
-    }
-
-    if (typeof attributes === 'object' && !Array.isArray(attributes)) {
-        return { ...attributes };
-    }
-
-    return {};
-};
-
-const formatSpecLabel = (key) => {
-    return String(key || '')
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, (char) => char.toUpperCase());
-};
-
-const buildSpecs = (product = {}) => {
-    const dynamicAttributes = normalizeAttributes(product.attributes);
-    const dynamicEntries = Object.entries(dynamicAttributes).filter(([, value]) => value != null && String(value).trim() !== '');
-
-    if (dynamicEntries.length > 0) {
-        return dynamicEntries.map(([key, value]) => ({
-            label: formatSpecLabel(key),
-            value,
-        }));
-    }
-
-    return LEGACY_SPEC_FIELDS.filter((field) => product[field.key] != null && String(product[field.key]).trim() !== '').map((field) => ({
-        label: field.label,
-        value: product[field.key],
-    }));
-};
-
 function CompareProduct() {
     const { id1, id2 } = useParams();
     const [product1, setProduct1] = useState({});
@@ -86,9 +31,6 @@ function CompareProduct() {
         fetchData();
         compareRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [id1, id2]);
-
-    const product1Specs = buildSpecs(product1);
-    const product2Specs = buildSpecs(product2);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -114,6 +56,13 @@ function CompareProduct() {
                     <div>
                         <div className={cx('product-info')}>
                             <h1>{product1?.name}</h1>
+                            <div className={cx('product-thumbnail-wrapper')}>
+                                <img
+                                    src={product1?.thumbnail || product1?.image || product1?.images?.[0]}
+                                    alt={product1?.name}
+                                    className={cx('product-thumbnail')}
+                                />
+                            </div>
                             <p>{product1?.price?.toLocaleString()} đ</p>
                             <ul>
                                 <li>
@@ -165,21 +114,19 @@ function CompareProduct() {
                                 </li>
                             </ul>
 
-                            <div className={cx('specs')}>
-                                <h4>Thông số kỹ thuật</h4>
-                                {product1Specs.map((item) => (
-                                    <div key={`product1-${item.label}`}>
-                                        <h5>{item.label}</h5>
-                                        <p>{item.value}</p>
-                                    </div>
-                                ))}
-                            </div>
                         </div>
                     </div>
 
                     <div>
                         <div className={cx('product-info')}>
                             <h1>{product2?.name}</h1>
+                            <div className={cx('product-thumbnail-wrapper')}>
+                                <img
+                                    src={product2?.thumbnail || product2?.image || product2?.images?.[0]}
+                                    alt={product2?.name}
+                                    className={cx('product-thumbnail')}
+                                />
+                            </div>
                             <p>{product2?.price?.toLocaleString()} đ</p>
                             <ul>
                                 <li>
@@ -231,15 +178,6 @@ function CompareProduct() {
                                 </li>
                             </ul>
 
-                            <div className={cx('specs')}>
-                                <h4>Thông số kỹ thuật</h4>
-                                {product2Specs.map((item) => (
-                                    <div key={`product2-${item.label}`}>
-                                        <h5>{item.label}</h5>
-                                        <p>{item.value}</p>
-                                    </div>
-                                ))}
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -256,8 +194,113 @@ function CompareProduct() {
                                     </div>
                                     <p className={cx('loading-text')}>Đang phân tích so sánh...</p>
                                 </div>
+                            ) : typeof compare === 'object' && compare !== null && compare.quickSummary ? (
+                                <div className={cx('ai-comparison')}>
+                                    <div className={cx('quick-summary')}>
+                                        <div className={cx('product-col')}>
+                                            <h3>{compare.quickSummary.product1?.name}</h3>
+                                            <div className={cx('pros-cons')}>
+                                                <h4>Ưu điểm</h4>
+                                                <ul>
+                                                    {compare.quickSummary.product1?.pros?.map((pro, idx) => (
+                                                        <li key={idx}><span className={cx('icon', 'pro')}>✅</span> {pro}</li>
+                                                    ))}
+                                                </ul>
+                                                <h4>Nhược điểm</h4>
+                                                <ul>
+                                                    {compare.quickSummary.product1?.cons?.map((con, idx) => (
+                                                        <li key={idx}><span className={cx('icon', 'con')}>❌</span> {con}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        <div className={cx('product-col')}>
+                                            <h3>{compare.quickSummary.product2?.name}</h3>
+                                            <div className={cx('pros-cons')}>
+                                                <h4>Ưu điểm</h4>
+                                                <ul>
+                                                    {compare.quickSummary.product2?.pros?.map((pro, idx) => (
+                                                        <li key={idx}><span className={cx('icon', 'pro')}>✅</span> {pro}</li>
+                                                    ))}
+                                                </ul>
+                                                <h4>Nhược điểm</h4>
+                                                <ul>
+                                                    {compare.quickSummary.product2?.cons?.map((con, idx) => (
+                                                        <li key={idx}><span className={cx('icon', 'con')}>❌</span> {con}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className={cx('score-section')}>
+                                        <h3>Điểm Đánh Giá</h3>
+                                        <div className={cx('score-legend')}>
+                                            <div className={cx('legend-item')}>
+                                                <div className={cx('legend-dot', 'prod1')}></div>
+                                                <span>{compare.quickSummary.product1?.name}</span>
+                                            </div>
+                                            <div className={cx('legend-item')}>
+                                                <div className={cx('legend-dot', 'prod2')}></div>
+                                                <span>{compare.quickSummary.product2?.name}</span>
+                                            </div>
+                                        </div>
+                                        <div className={cx('score-chart')}>
+                                            {compare.scores?.categories?.map((cat, idx) => (
+                                                <div key={idx} className={cx('score-row')}>
+                                                    <span className={cx('score-label')}>{cat}</span>
+                                                    <div className={cx('score-bars')}>
+                                                        <div className={cx('bar-wrapper')}>
+                                                            <div className={cx('bar', 'prod1')} style={{ width: `${(compare.scores.product1Scores[idx] / 10) * 100}%` }}>
+                                                                <span className={cx('score-value')}>{compare.scores.product1Scores[idx]}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className={cx('bar-wrapper')}>
+                                                            <div className={cx('bar', 'prod2')} style={{ width: `${(compare.scores.product2Scores[idx] / 10) * 100}%` }}>
+                                                                <span className={cx('score-value')}>{compare.scores.product2Scores[idx]}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className={cx('spec-section')}>
+                                        <h3>So sánh thông số chi tiết</h3>
+                                        <table className={cx('spec-table')}>
+                                            <thead>
+                                                <tr>
+                                                    <th>Tiêu chí</th>
+                                                    <th>{compare.quickSummary.product1?.name}</th>
+                                                    <th>{compare.quickSummary.product2?.name}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {compare.specComparison?.map((spec, idx) => (
+                                                    <tr key={idx}>
+                                                        <td className={cx('spec-label')}>{spec.label}</td>
+                                                        <td className={cx({ winner: spec.winner === 1 })}>{spec.value1}</td>
+                                                        <td className={cx({ winner: spec.winner === 2 })}>{spec.value2}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <div className={cx('verdict-box')}>
+                                        <div className={cx('verdict', 'prod1')}>
+                                            <h4>Nên chọn {compare.quickSummary.product1?.name} nếu:</h4>
+                                            <p>{compare.verdict?.buyProduct1If}</p>
+                                        </div>
+                                        <div className={cx('verdict', 'prod2')}>
+                                            <h4>Nên chọn {compare.quickSummary.product2?.name} nếu:</h4>
+                                            <p>{compare.verdict?.buyProduct2If}</p>
+                                        </div>
+                                    </div>
+                                </div>
                             ) : (
-                                <p dangerouslySetInnerHTML={{ __html: compare }} />
+                                <div dangerouslySetInnerHTML={{ __html: typeof compare === 'string' ? compare : JSON.stringify(compare) }} />
                             )}
                         </div>
                     </div>

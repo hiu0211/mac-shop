@@ -252,7 +252,11 @@ const UserManagement = () => {
                 columns={columns}
                 dataSource={filteredData}
                 loading={loading}
-                pagination={{ pageSize: 10, showSizeChanger: false }}
+                pagination={{
+                    pageSize: 10,
+                    showSizeChanger: true,
+                    showTotal: (total) => `Tổng số ${total} người dùng`,
+                }}
             />
 
             <Drawer

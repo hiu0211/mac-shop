@@ -8,17 +8,7 @@ const { uploadMultipleToCloudinary } = require("../utils/cloudinary");
 
 const escapeRegex = (keyword = "") => keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-const LEGACY_SPEC_KEYS = [
-  "cpu",
-  "screen",
-  "gpu",
-  "storage",
-  "screenHz",
-  "ram",
-  "battery",
-  "camera",
-  "weight",
-];
+
 
 const normalizeComponentType = (componentType = "") =>
   String(componentType || "")
@@ -131,50 +121,7 @@ const getDefaultColorOption = (colorOptions = []) => {
   return colorOptions.find((item) => item?.isDefault) || colorOptions[0] || null;
 };
 
-const normalizeAttributes = (attributes) => {
-  if (attributes == null) {
-    return {};
-  }
 
-  let parsedAttributes = attributes;
-
-  if (typeof parsedAttributes === "string") {
-    try {
-      parsedAttributes = JSON.parse(parsedAttributes);
-    } catch {
-      throw new BadRequestError("attributes khong dung dinh dang JSON");
-    }
-  }
-
-  if (Array.isArray(parsedAttributes)) {
-    const obj = {};
-    parsedAttributes.forEach((item) => {
-      if (!item || typeof item !== "object") {
-        return;
-      }
-      const key = String(item.key || item.name || "").trim();
-      if (!key) {
-        return;
-      }
-      obj[key] = item.value ?? "";
-    });
-    return obj;
-  }
-
-  if (typeof parsedAttributes === "object") {
-    const obj = {};
-    Object.entries(parsedAttributes).forEach(([key, value]) => {
-      const normalizedKey = String(key || "").trim();
-      if (!normalizedKey) {
-        return;
-      }
-      obj[normalizedKey] = value;
-    });
-    return obj;
-  }
-
-  throw new BadRequestError("attributes khong hop le");
-};
 
 const toNullableNumber = (value) => {
   if (value === undefined || value === null || value === "") {
@@ -263,28 +210,7 @@ const normalizeImages = (images) => {
   return [];
 };
 
-const buildAttributesFromLegacyProduct = (product = {}) => {
-  const result = {};
 
-  LEGACY_SPEC_KEYS.forEach((key) => {
-    const value = product[key];
-    if (value != null && String(value).trim() !== "") {
-      result[key] = value;
-    }
-  });
-
-  return result;
-};
-
-const stripLegacySpecFields = (product = {}) => {
-  const sanitizedProduct = { ...product };
-
-  LEGACY_SPEC_KEYS.forEach((key) => {
-    delete sanitizedProduct[key];
-  });
-
-  return sanitizedProduct;
-};
 
 const normalizeAttributeValueByTemplate = (value, field) => {
   const inputType = String(field?.inputType || "text").trim().toLowerCase();
@@ -315,7 +241,7 @@ const normalizeAttributeValueByTemplate = (value, field) => {
   return normalizedText;
 };
 
-const ensureRequiredAttributes = (attributes, attributesTemplate = []) => {
+const ensureRequiredSpecifications = (specifications = [], attributesTemplate = []) => {
   if (!Array.isArray(attributesTemplate) || attributesTemplate.length === 0) {
     return;
   }
@@ -324,11 +250,9 @@ const ensureRequiredAttributes = (attributes, attributesTemplate = []) => {
     .filter((field) => Boolean(field?.required))
     .filter((field) => {
       const key = String(field?.key || "").trim();
-      if (!key) {
-        return false;
-      }
-      const value = attributes[key];
-      return value == null || String(value).trim() === "";
+      if (!key) return false;
+      const spec = specifications.find((s) => s && s.key === key);
+      return !spec || spec.value == null || String(spec.value).trim() === "";
     })
     .map((field) => field.label || field.key);
 
@@ -337,28 +261,27 @@ const ensureRequiredAttributes = (attributes, attributesTemplate = []) => {
   }
 };
 
-const normalizeAttributesByTemplate = (attributes, attributesTemplate = []) => {
-  const normalizedAttributes = normalizeAttributes(attributes);
-
-  if (!Array.isArray(attributesTemplate) || attributesTemplate.length === 0) {
-    return normalizedAttributes;
+const normalizeSpecificationsByTemplate = (specifications = [], attributesTemplate = []) => {
+  if (!Array.isArray(specifications)) return [];
+  const templateMap = new Map();
+  if (Array.isArray(attributesTemplate)) {
+    attributesTemplate.forEach((t) => templateMap.set(t.key, t));
   }
 
-  const nextAttributes = { ...normalizedAttributes };
-
-  attributesTemplate.forEach((field) => {
-    const key = String(field?.key || "").trim();
-    if (!key) {
-      return;
+  return specifications.map((spec) => {
+    if (!spec || typeof spec !== 'object') return null;
+    const template = templateMap.get(spec.key);
+    let value = spec.value;
+    if (template) {
+      value = normalizeAttributeValueByTemplate(value, template);
     }
-
-    nextAttributes[key] = normalizeAttributeValueByTemplate(nextAttributes[key], field);
-  });
-
-  return nextAttributes;
+    return {
+      key: String(spec.key || "").trim(),
+      label: String(spec.label || spec.key || "").trim(),
+      value
+    };
+  }).filter((s) => s && s.key && s.value != null && String(s.value).trim() !== "");
 };
-
-const isDisplayableAttributeValue = (value) => value != null && String(value).trim() !== "";
 
 const formatSpecLabel = (key = "") =>
   String(key || "")
@@ -387,41 +310,7 @@ const normalizeAttributesTemplate = (attributesTemplate = []) => {
     .sort((a, b) => a.order - b.order);
 };
 
-const buildSpecifications = (attributes = {}, attributesTemplate = []) => {
-  const specs = [];
-  const template = normalizeAttributesTemplate(attributesTemplate);
-  const mappedKeys = new Set();
 
-  template.forEach((field) => {
-    const value = attributes[field.key];
-    if (!isDisplayableAttributeValue(value)) {
-      return;
-    }
-
-    mappedKeys.add(field.key);
-    specs.push({
-      key: field.key,
-      label: field.label || formatSpecLabel(field.key),
-      value,
-    });
-  });
-
-  Object.entries(attributes).forEach(([key, value]) => {
-    const normalizedKey = String(key || "").trim();
-
-    if (!normalizedKey || mappedKeys.has(normalizedKey) || !isDisplayableAttributeValue(value)) {
-      return;
-    }
-
-    specs.push({
-      key: normalizedKey,
-      label: formatSpecLabel(normalizedKey),
-      value,
-    });
-  });
-
-  return specs;
-};
 
 const buildProductTypeMap = async (products = []) => {
   const typeCodes = [...new Set(products.map((item) => normalizeComponentType(item?.componentType)).filter(Boolean))];
@@ -451,15 +340,9 @@ const buildCategoryMap = async (products = []) => {
 
 const formatProductOutput = (productDoc, productTypeDoc = null) => {
   const product = productDoc?.toObject ? productDoc.toObject() : { ...productDoc };
-  const sanitizedProduct = stripLegacySpecFields(product);
-  const attributes = normalizeAttributes(product.attributes || {});
   const normalizedColorOptions = safeNormalizeColorOptions(product.colorOptions);
   const defaultColorOption = getDefaultColorOption(normalizedColorOptions);
-  const legacyAttributes = buildAttributesFromLegacyProduct(product);
-  const resolvedAttributes = Object.keys(attributes).length > 0 ? attributes : legacyAttributes;
   const normalizedComponentType = normalizeComponentType(product.componentType);
-  const attributesTemplate = normalizeAttributesTemplate(productTypeDoc?.attributesTemplate || []);
-  const specifications = buildSpecifications(resolvedAttributes, attributesTemplate);
 
   const discountInfo = resolveDiscountInfo({
     price: product.price,
@@ -468,14 +351,12 @@ const formatProductOutput = (productDoc, productTypeDoc = null) => {
   });
 
   return {
-    ...sanitizedProduct,
+    ...product,
     componentType: normalizedComponentType,
     componentTypeName: String(productTypeDoc?.name || normalizedComponentType || "").trim(),
     colorOptions: normalizedColorOptions,
     defaultColorKey: defaultColorOption?.key || "",
-    attributes: resolvedAttributes,
-    attributesTemplate,
-    specifications,
+    specifications: product.specifications || [],
     discount: discountInfo.discount,
     priceDiscount: discountInfo.priceDiscount,
     finalPrice: discountInfo.finalPrice,
@@ -507,7 +388,7 @@ class controllerProducts {
       price,
       images,
       stock,
-      attributes,
+      specifications,
       componentType,
       discount,
       costPrice,
@@ -553,8 +434,8 @@ class controllerProducts {
       throw new BadRequestError('Danh mục sản phẩm không tồn tại');
     }
 
-    const normalizedAttributes = normalizeAttributesByTemplate(attributes, productType.attributesTemplate);
-    ensureRequiredAttributes(normalizedAttributes, productType.attributesTemplate);
+    const normalizedSpecifications = normalizeSpecificationsByTemplate(specifications, productType.attributesTemplate);
+    ensureRequiredSpecifications(normalizedSpecifications, productType.attributesTemplate);
     const normalizedColorOptions = normalizeColorOptions(colorOptions);
 
     const discountInfo = resolveDiscountInfo({
@@ -574,7 +455,7 @@ class controllerProducts {
       images: normalizedImages,
       stock: normalizedStock,
       componentType: normalizedComponentType,
-      attributes: normalizedAttributes,
+      specifications: normalizedSpecifications,
       colorOptions: normalizedColorOptions,
     });
 
@@ -692,7 +573,7 @@ class controllerProducts {
         price,
         images,
         stock,
-        attributes,
+        specifications,
         componentType,
         discount,
         costPrice,
@@ -736,23 +617,9 @@ class controllerProducts {
         throw new BadRequestError('Vui lòng chọn danh mục sản phẩm');
       }
 
-      const currentAttributes = {
-        ...buildAttributesFromLegacyProduct(product),
-        ...normalizeAttributes(product.attributes || {}),
-      };
-
-      const incomingAttributes = attributes !== undefined ? normalizeAttributes(attributes) : {};
-
-      const mergedAttributes =
-        attributes !== undefined
-          ? {
-              ...currentAttributes,
-              ...incomingAttributes,
-            }
-          : currentAttributes;
-
-      const nextAttributes = normalizeAttributesByTemplate(mergedAttributes, productType.attributesTemplate);
-      ensureRequiredAttributes(nextAttributes, productType.attributesTemplate);
+      const incomingSpecifications = specifications !== undefined ? specifications : (product.specifications || []);
+      const nextSpecifications = normalizeSpecificationsByTemplate(incomingSpecifications, productType.attributesTemplate);
+      ensureRequiredSpecifications(nextSpecifications, productType.attributesTemplate);
       const persistedColorOptions = safeNormalizeColorOptions(product.colorOptions);
       const nextColorOptions = colorOptions !== undefined ? normalizeColorOptions(colorOptions) : persistedColorOptions;
 
@@ -775,7 +642,7 @@ class controllerProducts {
         images: normalizedImages,
         stock: nextStock == null ? product.stock : nextStock,
         componentType: nextComponentType,
-        attributes: nextAttributes,
+        specifications: nextSpecifications,
         colorOptions: nextColorOptions,
         costPrice: nextCostPrice == null ? Number(product.costPrice || 0) : nextCostPrice,
         discount: discountInfo.discount,
@@ -816,7 +683,7 @@ class controllerProducts {
       throw new BadRequestError("Không tìm thấy sản phẩm");
     }
     const productData = product?.toObject ? product.toObject() : { ...product };
-    new OK({ message: "Xoá sản phẩm thành công", metadata: stripLegacySpecFields(productData) }).send(res);
+    new OK({ message: "Xoá sản phẩm thành công", metadata: productData }).send(res);
   }
 
   async searchProduct(req, res) {

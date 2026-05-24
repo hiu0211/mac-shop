@@ -204,6 +204,10 @@ function Category() {
                                 options={brandOptions}
                             />
 
+                            <button onClick={handleResetFilter}>
+                                Bỏ lọc
+                            </button>
+
                             <button onClick={() => setCheckSelectCompare(!checkSelectCompare)}>
                                 {checkSelectCompare ? 'Bỏ so sánh' : 'So sánh'}
                             </button>
@@ -227,6 +231,7 @@ function Category() {
                                 current={currentPage}
                                 pageSize={12}
                                 total={totalProducts}
+                                showTotal={(total) => `Tổng ${total} sản phẩm`}
                                 onChange={handlePageChange}
                                 showSizeChanger={false}
                             />

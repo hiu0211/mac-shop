@@ -15,7 +15,16 @@ const modelProduct = new Schema(
     images: { type: [String], required: true, default: [] },
     stock: { type: Number, required: true, min: 0 },
     componentType: { type: String, trim: true, lowercase: true, default: "" },
-    attributes: { type: Schema.Types.Mixed, default: {} },
+    specifications: {
+      type: [
+        {
+          key: { type: String },
+          label: { type: String },
+          value: { type: Schema.Types.Mixed },
+        },
+      ],
+      default: [],
+    },
     colorOptions: {
       type: [
         {

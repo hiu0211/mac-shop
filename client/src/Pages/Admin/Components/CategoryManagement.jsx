@@ -231,7 +231,11 @@ const CategoryManagement = () => {
                     dataSource={categories}
                     rowKey={(record) => record._id}
                     loading={loading}
-                    pagination={false}
+                    pagination={{
+                        pageSize: 10,
+                        showSizeChanger: true,
+                        showTotal: (total) => `Tổng số ${total} danh mục`,
+                    }}
                 />
 
                 <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>

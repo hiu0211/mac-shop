@@ -264,7 +264,11 @@ const BrandManagement = () => {
                 />
             </Card>
 
-            <Table columns={columns} dataSource={dataSource} loading={loading} />
+            <Table columns={columns} dataSource={dataSource} loading={loading} pagination={{
+                pageSize: 10,
+                showSizeChanger: true,
+                showTotal: (total) => `Tổng số ${total} hãng sản xuất`,
+            }} />
 
             <Modal
                 title={editingBrand ? 'Cập nhật hãng sản xuất' : 'Thêm mới hãng sản xuất'}

@@ -7,19 +7,7 @@ const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 const modelProduct = require("../models/products.model");
 
-const normalizeAttributes = (attributes) => {
-  if (!attributes) return {};
-  if (typeof attributes === "string") {
-    try {
-      const parsed = JSON.parse(attributes);
-      return parsed && typeof parsed === "object" ? parsed : {};
-    } catch {
-      return {};
-    }
-  }
-  if (typeof attributes === "object" && !Array.isArray(attributes)) return { ...attributes };
-  return {};
-};
+
 
 const getDisplayPrice = (product) => {
   const price = Number(product?.price || 0);
@@ -54,17 +42,22 @@ const toDisplayValue = (value) => {
 };
 
 const getSpecsText = (product) => {
-  const dynamicAttributes = normalizeAttributes(product?.attributes);
+  const specifications = Array.isArray(product?.specifications) ? product.specifications : [];
+
+  const specMap = Object.fromEntries(
+    specifications.map((s) => [String(s.key || "").trim().toLowerCase(), s.value])
+  );
+
   const brandFromProduct = String(product?.brand || product?.manufacturer || "").trim();
-  const brandFromAttributes = toDisplayValue(dynamicAttributes?.brand || dynamicAttributes?.manufacturer);
+  const brandFromAttributes = toDisplayValue(specMap.brand || specMap.manufacturer);
   const brand = brandFromProduct || brandFromAttributes;
 
-  const entries = Object.entries(dynamicAttributes)
-    .filter(([key]) => !["brand", "manufacturer"].includes(String(key || "").trim().toLowerCase()))
-    .map(([key, value]) => [formatSpecLabel(key), toDisplayValue(value)])
-    .filter(([key, value]) => key && value);
+  const entries = specifications
+    .filter((s) => !["brand", "manufacturer"].includes(String(s.key || "").trim().toLowerCase()))
+    .map((s) => [s.label || formatSpecLabel(s.key), toDisplayValue(s.value)])
+    .filter(([label, value]) => label && value);
 
-  const specs = [...(brand ? [`Hãng: ${brand}`] : []), ...entries.map(([key, value]) => `${key}: ${value}`)];
+  const specs = [...(brand ? [`Hãng: ${brand}`] : []), ...entries.map(([label, value]) => `${label}: ${value}`)];
   return specs.join(" | ");
 };
 
@@ -80,7 +73,7 @@ async function askQuestion(question) {
           : `${Number(p.price || 0).toLocaleString("vi-VN")}đ`;
         const specsText = getSpecsText(p);
         const status = p.stock > 0 ? `Còn ${p.stock} máy` : "HẾT HÀNG";
-        return `- **${p.name}**: **${price}**${specsText ? ` | ${specsText}` : " | Chưa có thông số attributes"} | ${status}`;
+        return `- **${p.name}**: **${price}**${specsText ? ` | ${specsText}` : " | Chưa có thông số kỹ thuật"} | ${status}`;
       })
       .join("\n");
 
@@ -105,7 +98,7 @@ Hãy trả lời theo định dạng trên.`;
     const answer = result.response.text();
 
     // Extract mentioned product names using the exact pattern we asked the model to use
-    const mentionRegex = /-\s*\*\*(.+?)\*\*\s*[:\-–]\s*\*\*([\d.,]+\s*(?:VNĐ|vnđ|Đ|đ))\*\*/gi;
+    const mentionRegex = /-\s*\*\*(.+?)\*\*\s*[:\-–]\s*\*\*(.*?)\*\*/gi;
     const mentioned = [];
     let m;
     while ((m = mentionRegex.exec(answer)) !== null) {
@@ -145,8 +138,13 @@ Hãy trả lời theo định dạng trên.`;
         imgs = [];
       }
 
-      const first = Array.isArray(imgs) && imgs.length > 0 ? imgs[0] : null;
-      if (first) productImages[p.name] = first;
+      let first = Array.isArray(imgs) && imgs.length > 0 ? imgs[0] : null;
+      if (first && typeof first === "object") {
+        first = first.secure_url || first.url || first;
+      }
+      if (first && typeof first === "string") {
+        productImages[p.name] = first;
+      }
     });
 
     return { text: answer, productImages };

@@ -318,6 +318,11 @@ const CouponManagement = () => {
                 columns={columns}
                 dataSource={dataSource}
                 loading={loading}
+                pagination={{
+                    pageSize: 10,
+                    showSizeChanger: true,
+                    showTotal: (total) => `Tổng số ${total} mã giảm giá`,
+                }}
             />
 
             <Modal

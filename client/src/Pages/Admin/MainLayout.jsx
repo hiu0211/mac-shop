@@ -43,6 +43,11 @@ const MainLayout = () => {
             label: 'Quản lý loại sản phẩm',
         },
         {
+            key: 'orders',
+            icon: <ShoppingCartOutlined />,
+            label: 'Quản lý đơn hàng',
+        },
+        {
             key: 'categories',
             icon: <TagOutlined />,
             label: 'Quản lý danh mục',
@@ -51,11 +56,6 @@ const MainLayout = () => {
             key: 'brands',
             icon: <MobileOutlined />,
             label: 'Quản lý hãng sản xuất',
-        },
-        {
-            key: 'orders',
-            icon: <ShoppingCartOutlined />,
-            label: 'Quản lý đơn hàng',
         },
         {
             key: 'users',

@@ -304,11 +304,9 @@ const ProductManagement = () => {
                 dataSource={filteredData}
                 loading={loading}
                 pagination={{
-                    total: filteredData.length,
                     pageSize: 10,
                     showSizeChanger: true,
-                    showQuickJumper: true,
-                    showTotal: (total) => `Tổng ${total} sản phẩm`,
+                    showTotal: (total) => `Tổng số ${total} sản phẩm`,
                 }}
             />
         </div>

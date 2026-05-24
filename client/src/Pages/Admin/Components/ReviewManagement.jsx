@@ -188,7 +188,11 @@ function ReviewManagement() {
                 columns={columns}
                 dataSource={filteredReviews}
                 loading={loading}
-                pagination={{ pageSize: 8 }}
+                pagination={{
+                    pageSize: 10,
+                    showSizeChanger: true,
+                    showTotal: (total) => `Tổng số ${total} đánh giá`,
+                }}
                 locale={{
                     emptyText: <Empty description='Chưa có đánh giá nào' />,
                 }}

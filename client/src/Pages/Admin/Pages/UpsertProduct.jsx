@@ -3,6 +3,7 @@ import { Form, Input, InputNumber, Upload, Button, Card, message, Space, Select,
 import { UploadOutlined } from '@ant-design/icons';
 import {
     requestAddProduct,
+    requestEditProduct,
     requestGetAllProductTypes,
     requestGetBrands,
     requestGetActiveCategories,
@@ -17,6 +18,7 @@ import {
     hasDefaultColorOption,
     syncProductPriceWithDefaultColor,
 } from './colorPriceSync';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 const normalizeTemplate = (template) => {
     if (!Array.isArray(template)) {
@@ -95,6 +97,22 @@ const normalizeColorOptions = (colorOptions = []) => {
     return normalized;
 };
 
+const mapColorOptionsToFormValues = (colorOptions = []) => {
+    return normalizeColorOptions(colorOptions).map((item, index) => ({
+        ...item,
+        image: item.image
+            ? [
+                {
+                    uid: `color-image-${item.key || index}`,
+                    name: item.name || `color-${index + 1}`,
+                    status: 'done',
+                    url: item.image,
+                },
+            ]
+            : [],
+    }));
+};
+
 const resolveColorImageUrlFromValue = (imageValue) => {
     if (typeof imageValue === 'string') {
         return imageValue.trim();
@@ -158,18 +176,24 @@ const uploadColorOptionImages = async (colorOptions = []) => {
     });
 };
 
-import { useNavigate, useSearchParams } from 'react-router-dom';
-
-const AddProduct = () => {
+const UpsertProduct = () => {
     const navigate = useNavigate();
+    const { productId } = useParams();
     const [searchParams] = useSearchParams();
     const duplicateProductId = searchParams.get('duplicate');
+
+    const isEditMode = Boolean(productId);
+    const isAddMode = !isEditMode;
+    const isDuplicateMode = isAddMode && Boolean(duplicateProductId);
+
     const [form] = Form.useForm();
-    const [uploading, setUploading] = useState(false);
     const [brands, setBrands] = useState([]);
     const [productTypes, setProductTypes] = useState([]);
     const [categories, setCategories] = useState([]);
     const [selectedTypeCode, setSelectedTypeCode] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [hiddenAttributes, setHiddenAttributes] = useState([]);
     const uploadCounterRef = React.useRef(0);
     const watchedColorOptions = Form.useWatch('colorOptions', form);
 
@@ -208,6 +232,7 @@ const AddProduct = () => {
 
     const handleComponentTypeChange = (nextTypeCode) => {
         setSelectedTypeCode(nextTypeCode);
+        setHiddenAttributes([]);
 
         const currentAttributes = form.getFieldValue('attributes') || {};
         const mergedAttributes = buildAttributesByType(nextTypeCode, currentAttributes);
@@ -221,6 +246,7 @@ const AddProduct = () => {
     useEffect(() => {
         const bootstrap = async () => {
             try {
+                setLoading(true);
                 const [brandsResponse, productTypesResponse, categoriesResponse] = await Promise.all([
                     requestGetBrands({ active: true }),
                     requestGetAllProductTypes(),
@@ -236,7 +262,8 @@ const AddProduct = () => {
                 setCategories(nextCategories);
 
                 if (nextTypes.length === 0) {
-                    message.warning('Vui lòng tạo loại sản phẩm trước khi thêm sản phẩm mới');
+                    message.error('Vui lòng tạo loại sản phẩm trước khi thao tác');
+                    navigate('/admin/product-types');
                     return;
                 }
 
@@ -244,21 +271,75 @@ const AddProduct = () => {
                     message.warning('Chưa có danh mục nào. Vui lòng tạo danh mục trước.');
                 }
 
-                if (duplicateProductId) {
+                if (isEditMode) {
+                    const productResponse = await requestGetProductById(productId);
+                    const product = productResponse?.metadata;
+                    if (!product) {
+                        message.error('Không thể tải thông tin sản phẩm!');
+                        navigate('/admin/products');
+                        return;
+                    }
+
+                    const reconstructedAttributes = {};
+                    if (Array.isArray(product.specifications)) {
+                        product.specifications.forEach(spec => {
+                            reconstructedAttributes[spec.key] = spec.value;
+                        });
+                    }
+
+                    const typeCode = product.componentType || nextTypes[0]?.code || '';
+                    const template = normalizeTemplate(nextTypes.find((item) => item.code === typeCode)?.attributesTemplate);
+                    const mergedAttributes = { ...reconstructedAttributes };
+                    const initialHidden = [];
+                    template.forEach((field) => {
+                        if (mergedAttributes[field.key] == null) {
+                            mergedAttributes[field.key] = undefined;
+                            initialHidden.push(field.key);
+                        }
+                    });
+                    setHiddenAttributes(initialHidden);
+
+                    const imageFileList = (product?.images || []).map((url, index) => ({
+                        uid: `-${index}`,
+                        name: `image-${index}`,
+                        status: 'done',
+                        url: url,
+                    }));
+
+                    setSelectedTypeCode(typeCode);
+
+                    form.setFieldsValue({
+                        ...product,
+                        componentType: typeCode,
+                        category: product.categoryId || product.category || null,
+                        discount: Number(product?.discount || 0),
+                        costPrice: Number(product?.costPrice || 0),
+                        attributes: mergedAttributes,
+                        colorOptions: mapColorOptionsToFormValues(product?.colorOptions || []),
+                        image: imageFileList,
+                    });
+                } else if (isDuplicateMode) {
                     const productResponse = await requestGetProductById(duplicateProductId);
                     const product = productResponse?.metadata;
                     if (product) {
-                        const parsedAttributes = {
-                            ...(product.attributes || {}),
-                        };
+                        const reconstructedAttributes = {};
+                        if (Array.isArray(product.specifications)) {
+                            product.specifications.forEach(spec => {
+                                reconstructedAttributes[spec.key] = spec.value;
+                            });
+                        }
                         const typeCode = product.componentType || nextTypes[0]?.code || '';
                         const template = normalizeTemplate(nextTypes.find((item) => item.code === typeCode)?.attributesTemplate);
-                        const mergedAttributes = { ...parsedAttributes };
+                        const mergedAttributes = { ...reconstructedAttributes };
+                        const initialHidden = [];
                         template.forEach((field) => {
                             if (mergedAttributes[field.key] == null) {
-                                mergedAttributes[field.key] = '';
+                                mergedAttributes[field.key] = undefined;
+                                initialHidden.push(field.key);
                             }
                         });
+                        setHiddenAttributes(initialHidden);
+
                         const imageFileList = (product?.images || []).map((url, index) => ({
                             uid: `-${index}`,
                             name: `image-${index}`,
@@ -267,7 +348,6 @@ const AddProduct = () => {
                         }));
                         setSelectedTypeCode(typeCode);
 
-                        // Extract only properties we want to duplicate, avoiding IDs
                         form.setFieldsValue({
                             ...product,
                             name: `${product.name} (Bản sao)`,
@@ -276,37 +356,29 @@ const AddProduct = () => {
                             discount: Number(product?.discount || 0),
                             costPrice: Number(product?.costPrice || 0),
                             attributes: mergedAttributes,
-                            colorOptions: (product?.colorOptions || []).map((item, index) => ({
-                                ...item,
-                                image: item.image
-                                    ? [
-                                          {
-                                              uid: `color-image-${item.key || index}`,
-                                              name: item.name || `color-${index + 1}`,
-                                              status: 'done',
-                                              url: item.image,
-                                          },
-                                      ]
-                                    : [],
-                            })),
+                            colorOptions: mapColorOptionsToFormValues(product?.colorOptions || []),
                             image: imageFileList,
                         });
-                        return;
                     }
+                } else {
+                    form.setFieldsValue({
+                        discount: 0,
+                        costPrice: 0,
+                    });
                 }
-
-                form.setFieldsValue({
-                    discount: 0,
-                    costPrice: 0,
-                });
             } catch (error) {
                 console.error('Không thể tải dữ liệu khởi tạo:', error);
                 message.error('Không thể tải dữ liệu khởi tạo');
+                if (isEditMode) {
+                    navigate('/admin/products');
+                }
+            } finally {
+                setLoading(false);
             }
         };
 
         bootstrap();
-    }, [form, duplicateProductId]);
+    }, [form, duplicateProductId, productId, isEditMode, isDuplicateMode, navigate]);
 
     useEffect(() => {
         const currentColorOptions = Array.isArray(watchedColorOptions) ? watchedColorOptions : [];
@@ -349,7 +421,7 @@ const AddProduct = () => {
 
     const onFinish = async (values) => {
         try {
-            setUploading(true);
+            setSubmitting(true);
             let imageUrls = [];
 
             const oldImages = (values.image || []).filter((file) => file.url && !file.originFileObj);
@@ -366,7 +438,7 @@ const AddProduct = () => {
 
             if (!imageUrls || imageUrls.length === 0) {
                 message.error('Vui lòng tải lên ít nhất một hình ảnh!');
-                setUploading(false);
+                setSubmitting(false);
                 return;
             }
 
@@ -379,11 +451,20 @@ const AddProduct = () => {
 
             if (normalizedColorOptions.length !== rawColorOptions.length) {
                 message.error('Danh sách màu có dữ liệu không hợp lệ hoặc bị trùng tên');
-                setUploading(false);
+                setSubmitting(false);
                 return;
             }
 
+            const specifications = selectedTypeTemplate
+                .filter(field => !hiddenAttributes.includes(field.key))
+                .map((field) => ({
+                    key: field.key,
+                    label: field.label,
+                    value: values.attributes?.[field.key] ?? '',
+                }));
+
             const productData = {
+                ...(isEditMode ? { _id: productId } : {}),
                 name: values.name,
                 brand: values.brand,
                 category: values.category,
@@ -393,23 +474,27 @@ const AddProduct = () => {
                 stock: values.stock,
                 images: imageUrls,
                 componentType: values.componentType,
-                attributes: values.attributes || {},
+                specifications,
                 colorOptions: normalizedColorOptions,
             };
 
-            await requestAddProduct(productData);
-
-            message.success('Thêm sản phẩm thành công');
-            form.resetFields();
+            if (isEditMode) {
+                await requestEditProduct(productData);
+                message.success('Cập nhật sản phẩm thành công');
+            } else {
+                await requestAddProduct(productData);
+                message.success('Thêm sản phẩm thành công');
+                form.resetFields();
+            }
 
             setTimeout(() => {
                 navigate('/admin/products');
             }, 100);
         } catch (error) {
             console.error(error);
-            message.error(error?.response?.data?.message || 'Có lỗi xảy ra khi thêm sản phẩm!');
+            message.error(error?.response?.data?.message || `Có lỗi xảy ra khi ${isEditMode ? 'cập nhật' : 'thêm'} sản phẩm!`);
         } finally {
-            setUploading(false);
+            setSubmitting(false);
         }
     };
 
@@ -465,6 +550,21 @@ const AddProduct = () => {
         syncProductPriceWithDefaultColor(form, nextColorOptions);
     };
 
+    const handleHideAttribute = (key) => {
+        setHiddenAttributes((prev) => [...prev, key]);
+        const currentAttributes = form.getFieldValue('attributes') || {};
+        form.setFieldsValue({
+            attributes: {
+                ...currentAttributes,
+                [key]: undefined
+            }
+        });
+    };
+
+    const handleRestoreAttribute = (key) => {
+        setHiddenAttributes((prev) => prev.filter((k) => k !== key));
+    };
+
     const renderAttributeInput = (field) => {
         if (field.inputType === 'number') {
             return (
@@ -491,21 +591,21 @@ const AddProduct = () => {
         <Card
             title={
                 <Space>
-                    <span>Thêm mới sản phẩm</span>
+                    <span>{isEditMode ? 'Chỉnh sửa sản phẩm' : 'Thêm mới sản phẩm'}</span>
                 </Space>
             }
             extra={
                 <Space>
-                    <Button onClick={handleBack} disabled={uploading}>
+                    <Button onClick={handleBack} disabled={submitting}>
                         Quay lại
                     </Button>
-                    <Button type="primary" onClick={() => form.submit()} loading={uploading} disabled={productTypes.length === 0 || (categories || []).length === 0}>
-                        Thêm sản phẩm
+                    <Button type="primary" onClick={() => form.submit()} loading={submitting} disabled={productTypes.length === 0 || (categories || []).length === 0}>
+                        {isEditMode ? 'Cập nhật sản phẩm' : 'Thêm sản phẩm'}
                     </Button>
                 </Space>
             }
         >
-            <Form form={form} layout="vertical" onFinish={onFinish} autoComplete="off">
+            <Form form={form} layout="vertical" onFinish={onFinish} autoComplete="off" disabled={loading}>
                 <Row gutter={[16, 0]}>
                     <Col xs={24} md={24}>
                         <Form.Item
@@ -573,7 +673,7 @@ const AddProduct = () => {
                     <Col xs={24} md={12}>
                         <Form.Item
                             name="price"
-                            label="Giá sản phẩm"
+                            label={isEditMode ? "Giá gốc" : "Giá sản phẩm"}
                             rules={[
                                 { required: true, message: 'Vui lòng nhập giá!' },
                                 { type: 'number', min: 0, message: 'Giá phải lớn hơn 0!' },
@@ -583,7 +683,7 @@ const AddProduct = () => {
                                 style={{ width: '100%' }}
                                 formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                                 parser={(value) => (value || '').replace(/\$\s?|(,*)/g, '')}
-                                placeholder="Nhập giá sản phẩm"
+                                placeholder={isEditMode ? "Nhập giá gốc" : "Nhập giá sản phẩm"}
                                 min={0}
                                 disabled={isPriceLockedByDefaultColor}
                             />
@@ -762,26 +862,60 @@ const AddProduct = () => {
                             <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Chọn loại sản phẩm để xem cấu hình thuộc tính" />
                         ) : (
                             <Row gutter={[16, 0]}>
-                                {selectedTypeTemplate.map((field) => (
-                                    <Col key={field.key} xs={24} md={12}>
-                                        <Form.Item
-                                            name={['attributes', field.key]}
-                                            label={field.label}
-                                            rules={[
-                                                {
-                                                    validator: (_, value) => {
-                                                        if (!field.required || !isEmptyValue(value)) {
-                                                            return Promise.resolve();
-                                                        }
-                                                        return Promise.reject(new Error(`Vui lòng nhập ${field.label}`));
+                                {selectedTypeTemplate
+                                    .filter(field => !hiddenAttributes.includes(field.key))
+                                    .map((field) => (
+                                        <Col key={field.key} xs={24} md={12}>
+                                            <Form.Item
+                                                name={['attributes', field.key]}
+                                                label={
+                                                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                        <span>{field.label}</span>
+                                                        <a
+                                                            style={{ marginLeft: 8, fontSize: 13, color: '#ff4d4f', fontWeight: 'normal' }}
+                                                            onClick={() => handleHideAttribute(field.key)}
+                                                        >
+                                                            (Ẩn)
+                                                        </a>
+                                                    </div>
+                                                }
+                                                rules={[
+                                                    {
+                                                        validator: (_, value) => {
+                                                            if (!field.required || !isEmptyValue(value)) {
+                                                                return Promise.resolve();
+                                                            }
+                                                            return Promise.reject(new Error(`Vui lòng nhập ${field.label}`));
+                                                        },
                                                     },
-                                                },
-                                            ]}
-                                        >
-                                            {renderAttributeInput(field)}
-                                        </Form.Item>
+                                                ]}
+                                            >
+                                                {renderAttributeInput(field)}
+                                            </Form.Item>
+                                        </Col>
+                                    ))}
+                                {hiddenAttributes.length > 0 && (
+                                    <Col span={24}>
+                                        <div style={{ margin: '0px 0px 24px', padding: '12px 16px', background: '#fafafa', borderRadius: 8, border: '1px dashed #d9d9d9' }}>
+                                            <span style={{ marginRight: 8, fontWeight: 500, color: '#8c8c8c' }}>Thuộc tính đã ẩn:</span>
+                                            {hiddenAttributes.map(key => {
+                                                const field = selectedTypeTemplate.find(f => f.key === key);
+                                                if (!field) return null;
+                                                return (
+                                                    <Button
+                                                        key={key}
+                                                        type="dashed"
+                                                        size="small"
+                                                        onClick={() => handleRestoreAttribute(key)}
+                                                        style={{ marginRight: 8, marginBottom: 8 }}
+                                                    >
+                                                        + {field.label}
+                                                    </Button>
+                                                )
+                                            })}
+                                        </div>
                                     </Col>
-                                ))}
+                                )}
                             </Row>
                         )}
                     </Col>
@@ -789,10 +923,10 @@ const AddProduct = () => {
                     <Col span={24}>
                         <Form.Item>
                             <Space>
-                                <Button type="primary" htmlType="submit" loading={uploading} disabled={productTypes.length === 0 || (categories || []).length === 0}>
-                                    {uploading ? 'Đang xử lý...' : 'Thêm sản phẩm'}
+                                <Button type="primary" htmlType="submit" loading={submitting} disabled={productTypes.length === 0 || (categories || []).length === 0}>
+                                    {isEditMode ? 'Cập nhật sản phẩm' : 'Thêm sản phẩm'}
                                 </Button>
-                                <Button onClick={handleBack} disabled={uploading}>
+                                <Button onClick={handleBack} disabled={submitting}>
                                     Quay lại
                                 </Button>
                             </Space>
@@ -804,4 +938,4 @@ const AddProduct = () => {
     );
 };
 
-export default AddProduct;
+export default UpsertProduct;

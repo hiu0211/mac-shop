@@ -4,7 +4,10 @@ import Header from '../../Components/Header/Header';
 import Footer from '../../Components/Footer/Footer';
 
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { EffectFade, Navigation, Pagination, Autoplay } from 'swiper/modules';
+import { Navigation, Pagination, Autoplay } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 import { faCheckCircle, faShieldHalved, faTruckFast, faRotateLeft, faPhoneVolume, faCheck } from '@fortawesome/free-solid-svg-icons';
@@ -234,10 +237,9 @@ function DetailProduct() {
                                 loop={true}
                                 speed={800}
                                 spaceBetween={30}
-                                effect={'fade'}
                                 navigation={true}
                                 pagination={{ clickable: true }}
-                                modules={[EffectFade, Navigation, Pagination, Autoplay]}
+                                modules={[Navigation, Pagination, Autoplay]}
                                 className="mySwiper"
                             >
                                 {displayImages.map((item, index) => (

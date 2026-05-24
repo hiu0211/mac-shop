@@ -214,7 +214,11 @@ const OrderManagement = () => {
                     style={{ width: 220 }}
                 />
             </Space>
-            <Table columns={columns} dataSource={filteredOrders} loading={loading} />
+            <Table columns={columns} dataSource={filteredOrders} loading={loading} pagination={{
+                pageSize: 10,
+                showSizeChanger: true,
+                showTotal: (total) => `Tổng số ${total} đơn hàng`,
+            }} />
             <ModalDetailOrder
                 isModalVisible={isModalVisible}
                 setIsModalVisible={setIsModalVisible}

@@ -231,7 +231,11 @@ function MessageManagement() {
                 columns={columns}
                 dataSource={filteredOrders}
                 loading={loading}
-                pagination={{ pageSize: 8 }}
+                pagination={{
+                    pageSize: 10,
+                    showSizeChanger: true,
+                    showTotal: (total) => `Tổng số ${total} tin nhắn`,
+                }}
             />
 
             <Modal
