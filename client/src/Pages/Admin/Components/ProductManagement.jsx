@@ -88,17 +88,15 @@ const ProductManagement = () => {
             render: (componentTypeLabel) => <Tag color="purple">{componentTypeLabel || 'Chưa cập nhật'}</Tag>,
         },
         {
-            title: 'Giá gốc',
-            dataIndex: 'price',
-            key: 'price',
-            hidden: true,
-            render: (price) => `${price.toLocaleString()} VNĐ`,
-            sorter: (a, b) => a.price - b.price,
-        },
-        {
-            title: 'Giá sản phẩm',
+            title: 'Giá bán',
             dataIndex: 'displayPrice',
             key: 'displayPrice',
+            render: (price) => `${price.toLocaleString()} VNĐ`,
+        },
+        {
+            title: 'Giá nhập',
+            dataIndex: 'costPrice',
+            key: 'costPrice',
             render: (price) => `${price.toLocaleString()} VNĐ`,
         },
         {
@@ -154,7 +152,12 @@ const ProductManagement = () => {
             }
 
             const res = await requestGetAllProduct(params);
-            setProducts(sortProducts(res.metadata || []));
+            const sorted = sortProducts(res.metadata || []);
+            setProducts(sorted);
+
+            if (!params.brand && !params.componentType && !params.category) {
+                setFilterOptions(buildFilterOptions(sorted));
+            }
         } catch (error) {
             console.error('Lỗi khi lấy danh sách sản phẩm:', error);
             message.error('Không thể tải danh sách sản phẩm');
@@ -163,24 +166,17 @@ const ProductManagement = () => {
         }
     };
 
-    const fetchFilterOptions = async () => {
+    const fetchCategories = async () => {
         try {
-            const res = await requestGetAllProduct();
-            const allProducts = sortProducts(res.metadata || []);
-            setFilterOptions(buildFilterOptions(allProducts));
-            try {
-                const catRes = await requestGetActiveCategories();
-                setCategories(catRes?.metadata || []);
-            } catch (err) {
-                console.warn('Không thể tải danh mục', err);
-            }
-        } catch (error) {
-            console.error('Lỗi khi lấy bộ lọc sản phẩm:', error);
+            const catRes = await requestGetActiveCategories();
+            setCategories(catRes?.metadata || []);
+        } catch (err) {
+            console.warn('Không thể tải danh mục', err);
         }
     };
 
     useEffect(() => {
-        fetchFilterOptions();
+        fetchCategories();
     }, []);
 
     useEffect(() => {
@@ -196,8 +192,9 @@ const ProductManagement = () => {
         componentTypeLabel: product.componentTypeName || product.componentType,
         categoryName: product.categoryName || '',
         price: product.price,
+        costPrice: product.costPrice,
         priceDiscount: product.priceDiscount,
-        displayPrice: product.priceDiscount > 0 ? product.priceDiscount : product.price,
+        displayPrice: product.finalPrice || product.price,
         stock: product.stock,
         image: product.images[0],
     }));
@@ -231,7 +228,7 @@ const ProductManagement = () => {
             await requestDeleteProduct(key);
             await Promise.all([
                 fetchData({ brand: brandFilter, componentType: componentTypeFilter }),
-                fetchFilterOptions(),
+                fetchCategories(),
             ]);
             message.success('Xóa sản phẩm thành công');
         } catch (error) {

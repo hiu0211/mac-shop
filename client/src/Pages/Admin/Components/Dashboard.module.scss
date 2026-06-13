@@ -1,0 +1,355 @@
+// ─── Design Tokens (SaaS Admin Style) ───────────────────────────────────────
+$primary: #1677ff;
+$bg-app: #f6f8fa;
+$white: #ffffff;
+$text-main: #1f2328;
+$text-muted: #636c76;
+$border-light: #d0d7de;
+$radius-base: 12px;
+$shadow-sm: 0 1px 3px rgba(31, 35, 40, 0.08);
+$shadow-md: 0 4px 12px rgba(31, 35, 40, 0.06);
+
+.dashboard-container {
+    padding: 24px 32px;
+    background-color: $bg-app;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 600px;
+    background: $white;
+}
+
+// ─── Header Style ────────────────────────────────────────────────────────
+.dash-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+
+    .realtime-badge {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: $white;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 13px;
+        color: $text-muted;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        box-shadow: $shadow-sm;
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            background-color: #52c41a;
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse 2s infinite;
+        }
+    }
+}
+
+// ─── Modern Stat Cards ───────────────────────────────────────────────────
+.stat-card-modern {
+    height: 100%;
+    border-radius: $radius-base !important;
+    border: 1px solid rgba(0, 0, 0, 0.04) !important;
+    box-shadow: $shadow-sm;
+    transition: transform 0.2s, box-shadow 0.2s;
+
+    :global(.ant-card-body) {
+        padding: 16px 20px;
+    }
+
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: $shadow-md;
+    }
+
+    &__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    &__label {
+        font-size: 13px;
+        color: $text-muted;
+        font-weight: 500;
+    }
+
+    &__icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+    }
+
+    &__value {
+        font-size: 24px;
+        font-weight: 700;
+        color: $text-main;
+        letter-spacing: -0.02em;
+    }
+
+    &__sub {
+        font-size: 12px;
+        color: $text-muted;
+        margin-top: 6px;
+    }
+}
+
+.blue-card { .stat-card-modern__icon { background: #e6f4ff; color: #1677ff; }}
+.purple-card { .stat-card-modern__icon { background: #f9f0ff; color: #722ed1; }}
+.green-card { .stat-card-modern__icon { background: #f6ffed; color: #52c41a; }}
+.amber-card { .stat-card-modern__icon { background: #fff7e6; color: #fa8c16; }}
+
+// ─── Control Filter Card ──────────────────────────────────────────────────
+.control-card {
+    border-radius: $radius-base !important;
+    margin-bottom: 24px;
+    box-shadow: $shadow-sm;
+    border: none !important;
+}
+
+.control-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+// ─── Biểu đồ xu hướng chính ───────────────────────────────────────────────
+.main-chart-card {
+    border-radius: $radius-base !important;
+    box-shadow: $shadow-sm;
+    height: 100%; 
+    display: flex;
+    flex-direction: column;
+
+    :global(.ant-card-body) {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 20px 24px;
+    }
+    
+    .chart-box {
+        width: 100%;
+        height: 340px; 
+        position: relative;
+    }
+}
+
+// ─── Khu vực Tài chính nhanh ──────────────────────────────────────────────
+.finance-summary-card {
+    border-radius: $radius-base !important;
+    box-shadow: $shadow-sm;
+    height: 100%; 
+    display: flex;
+    flex-direction: column;
+
+    :global(.ant-card-body) {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between; 
+        padding: 20px 24px;
+    }
+
+    .revenue-primary-display {
+        background: linear-gradient(135deg, #f0f7ff 0%, #e6f4ff 100%);
+        padding: 14px 16px;
+        border-radius: 8px;
+        margin-bottom: 12px;
+    }
+}
+
+.financial-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.mini-metric {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.02);
+    display: flex;
+    flex-direction: column;
+
+    &__label {
+        font-size: 12px;
+        color: $text-muted;
+        margin-bottom: 4px;
+    }
+
+    &__value {
+        font-size: 14px;
+        font-weight: 600;
+        color: $text-main;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+}
+
+.payment-split-section {
+    border-top: 1px dashed $border-light;
+    padding-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .split-item {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        
+        .split-val {
+            font-weight: 500;
+            color: $text-main;
+        }
+    }
+}
+
+.pie-card-v2 {
+    border-radius: $radius-base !important;
+    box-shadow: $shadow-sm;
+}
+
+// ─── Product Cell Table Render ─────────────────────────────────────────────
+.product-cell-layout {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.product-img-v2 {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    flex-shrink: 0;
+}
+
+.product-img-v2-placeholder {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    background: #eaf0f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: bold;
+    color: $text-muted;
+
+    &.error-place {
+        background: #fff0f6;
+        color: #ff4d4f;
+    }
+}
+
+.product-cell-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.product-name-v2 {
+    font-size: 13px;
+    font-weight: 500;
+    color: $text-main;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 500px;
+
+    &.muted-name {
+        color: #bfbfbf;
+        font-style: italic;
+    }
+}
+
+.product-tag-v2 {
+    width: max-content;
+    font-size: 10px !important;
+    padding: 0 4px !important;
+    line-height: 16px !important;
+}
+
+// ─── Tables Overwrites ──────────────────────────────────────────────────────
+.main-table-card, .table-card-v2 {
+    border-radius: $radius-base !important;
+    box-shadow: $shadow-sm;
+
+    :global {
+        .ant-table-thead > tr > th {
+            background-color: #f8f9fa !important;
+            font-weight: 600;
+            color: $text-muted;
+            font-size: 13px;
+        }
+        .ant-table-tbody > tr:hover > td {
+            background-color: #f4f8ff !important;
+        }
+    }
+}
+
+// Utilities Helpers
+.text-bold { font-weight: 600; color: $text-main; }
+.text-success { color: #52c41a; font-weight: 600; }
+.text-danger { color: #ff4d4f; font-weight: 600; }
+.text-ellipsis {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+}
+
+.kpi-value--profit {
+    color: #52C41A;
+    font-weight: 600;
+}
+
+.kpi-value--negative {
+    color: #F5222D;
+    font-weight: 600;
+}
+
+@keyframes pulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(82, 196, 26, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(82, 196, 26, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(82, 196, 26, 0); }
+}
+
+// Responsive
+@media (max-width: 992px) {
+    .dashboard-container { padding: 16px; }
+    .dash-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    .control-flex { flex-direction: column; align-items: stretch; }
+    .action-controls { width: 100%; justify-content: flex-start; }
+}

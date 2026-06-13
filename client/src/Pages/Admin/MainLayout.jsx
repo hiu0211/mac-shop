@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Button, Layout, Menu } from 'antd';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Avatar, Badge, Layout, Menu, Tooltip } from 'antd';
 import {
     HomeOutlined,
     UserOutlined,
@@ -14,72 +14,100 @@ import {
     MobileOutlined,
     TagOutlined,
     AppstoreOutlined,
+    BellOutlined,
+    SettingOutlined,
+    EllipsisOutlined,
 } from '@ant-design/icons';
 
 import { requestAdmin, requestLogout } from '../../Config/request';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
+import classNames from 'classnames/bind';
+import styles from './MainLayout.module.scss';
 
 const { Header, Sider, Content } = Layout;
+const cx = classNames.bind(styles);
 
 const MainLayout = () => {
     const [collapsed, setCollapsed] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
 
-    const menuItems = [
+    const menuItems = useMemo(() => [
         {
-            key: 'dashboard',
-            icon: <HomeOutlined />,
-            label: 'Trang chủ',
+            type: 'group',
+            label: 'TỔNG QUAN',
+            children: [
+                {
+                    key: 'dashboard',
+                    icon: <HomeOutlined />,
+                    label: 'Trang chủ',
+                },
+            ],
         },
         {
-            key: 'products',
-            icon: <ProductOutlined />,
-            label: 'Quản lý sản phẩm',
+            type: 'group',
+            label: 'DANH MỤC',
+            children: [
+                {
+                    key: 'products',
+                    icon: <ProductOutlined />,
+                    label: 'Sản phẩm',
+                },
+                {
+                    key: 'product-types',
+                    icon: <AppstoreOutlined />,
+                    label: 'Loại sản phẩm',
+                },
+                {
+                    key: 'categories',
+                    icon: <TagOutlined />,
+                    label: 'Danh mục',
+                },
+                {
+                    key: 'brands',
+                    icon: <MobileOutlined />,
+                    label: 'Hãng sản xuất',
+                },
+            ],
         },
         {
-            key: 'product-types',
-            icon: <AppstoreOutlined />,
-            label: 'Quản lý loại sản phẩm',
+            type: 'group',
+            label: 'BÁN HÀNG',
+            children: [
+                {
+                    key: 'orders',
+                    icon: <ShoppingCartOutlined />,
+                    label: 'Đơn hàng',
+                },
+                {
+                    key: 'coupons',
+                    icon: <GiftOutlined />,
+                    label: 'Mã giảm giá',
+                },
+                {
+                    key: 'users',
+                    icon: <UserOutlined />,
+                    label: 'Người dùng',
+                },
+            ],
         },
         {
-            key: 'orders',
-            icon: <ShoppingCartOutlined />,
-            label: 'Quản lý đơn hàng',
+            type: 'group',
+            label: 'TƯƠNG TÁC',
+            children: [
+                {
+                    key: 'messages',
+                    icon: <MessageOutlined />,
+                    label: 'Tin nhắn',
+                },
+                {
+                    key: 'reviews',
+                    icon: <CommentOutlined />,
+                    label: 'Đánh giá',
+                },
+            ],
         },
-        {
-            key: 'categories',
-            icon: <TagOutlined />,
-            label: 'Quản lý danh mục',
-        },
-        {
-            key: 'brands',
-            icon: <MobileOutlined />,
-            label: 'Quản lý hãng sản xuất',
-        },
-        {
-            key: 'users',
-            icon: <UserOutlined />,
-            label: 'Quản lý người dùng',
-        },
-        {
-            key: 'messages',
-            icon: <MessageOutlined />,
-            label: 'Tin nhắn',
-        },
-        {
-            key: 'reviews',
-            icon: <CommentOutlined />,
-            label: 'Đánh giá sản phẩm',
-        },
-        {
-            key: 'coupons',
-            icon: <GiftOutlined />,
-            label: 'Quản lý mã giảm giá',
-        },
-    ];
-
-
+    ], []);
 
     useEffect(() => {
         const fetchAdmin = async () => {
@@ -117,42 +145,100 @@ const MainLayout = () => {
     const pathSegments = location.pathname.split('/').filter(Boolean);
     const currentKey = pathSegments.length > 1 ? pathSegments[1] : 'dashboard';
 
+    const getCurrentPageTitle = () => {
+        switch (currentKey) {
+            case 'dashboard': return 'Tổng quan';
+            case 'products': return 'Quản lý sản phẩm';
+            case 'product-types': return 'Quản lý loại sản phẩm';
+            case 'orders': return 'Quản lý đơn hàng';
+            case 'categories': return 'Quản lý danh mục';
+            case 'brands': return 'Quản lý hãng sản xuất';
+            case 'users': return 'Quản lý người dùng';
+            case 'messages': return 'Tin nhắn';
+            case 'reviews': return 'Đánh giá sản phẩm';
+            case 'coupons': return 'Quản lý mã giảm giá';
+            default: return 'Trang quản trị';
+        }
+    };
+
     return (
-        <Layout style={{ minHeight: '100vh' }}>
-            <Sider trigger={null} collapsible collapsed={collapsed} width={280} style={{ paddingTop: '40px' }}>
+        <Layout className={cx('wrapper')}>
+            <Sider
+                collapsible
+                collapsed={collapsed}
+                width={280}
+                onCollapse={(value) => setCollapsed(value)}
+                className={cx('sider')}
+                trigger={null}
+            >
+                <div className={cx('logo-container')}>
+                    <div className={cx('logo-icon')}>M</div>
+                    {!collapsed && <span className={cx('logo-text')}>Mac Shop</span>}
+                </div>
                 <Menu
                     theme="dark"
                     mode="inline"
                     selectedKeys={[currentKey]}
                     items={menuItems}
                     onClick={handleMenuClick}
-                    style={{ fontSize: '16px' }}
                 />
+                <div className={cx('user-footer')}>
+                    <Avatar className={cx('user-avatar')}>AD</Avatar>
+                    {!collapsed && (
+                        <div className={cx('user-info')}>
+                            <span className={cx('user-name')}>Admin</span>
+                            <span className={cx('user-role')}>Quản trị viên</span>
+                        </div>
+                    )}
+                </div>
             </Sider>
             <Layout>
-                <Header
-                    style={{
-                        padding: 0,
-                        background: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                    }}
-                >
-                    {React.createElement(collapsed ? MenuUnfoldOutlined : MenuFoldOutlined, {
-                        className: 'trigger',
-                        onClick: () => setCollapsed(!collapsed),
-                        style: { fontSize: '18px', padding: '0 24px', cursor: 'pointer' },
-                    })}
-                    <Button
-                        icon={<LogoutOutlined />}
-                        onClick={handleLogout}
-                        style={{ marginRight: '16px' }}
-                    >
-                        Đăng xuất
-                    </Button>
+                <Header className={cx('header')}>
+                    <div className={cx('header-left')}>
+                        <button
+                            type="button"
+                            className={cx('collapse-btn')}
+                            onClick={() => setCollapsed(!collapsed)}
+                        >
+                            {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                        </button>
+                        <div className={cx('breadcrumbs')}>
+                            <HomeOutlined className={cx('breadcrumb-home')} onClick={() => {
+                                navigate('/admin');
+                            }} />
+                            <span className={cx('breadcrumb-separator')}>/</span>
+                            <span className={cx('breadcrumb-current')}>{getCurrentPageTitle()}</span>
+                        </div>
+                    </div>
+
+                    <div className={cx('header-right')}>
+                        <Badge dot color="#ef4444" offset={[-2, 2]}>
+                            <button className={cx('icon-btn')}>
+                                <BellOutlined />
+                            </button>
+                        </Badge>
+
+                        <button className={cx('icon-btn')}>
+                            <SettingOutlined />
+                        </button>
+
+                        <Tooltip title="Đăng xuất">
+                            <button className={cx('icon-btn')} onClick={handleLogout}>
+                                <LogoutOutlined />
+                            </button>
+                        </Tooltip>
+
+                        <div className={cx('header-user')}>
+                            <Avatar className={cx('header-avatar')}>A</Avatar>
+                            <button className={cx('more-btn')}>
+                                <EllipsisOutlined />
+                            </button>
+                        </div>
+                    </div>
                 </Header>
-                <Content style={{ margin: '24px 16px', padding: 24, background: '#fff' }}><Outlet /></Content>
+                <Content className={cx('content')}>
+                    <Outlet />
+                </Content>
             </Layout>
         </Layout>
     );
