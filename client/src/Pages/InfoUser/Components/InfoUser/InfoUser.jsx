@@ -498,14 +498,26 @@ function InfoUser({ isOpen, setIsOpen }) {
                     <div className={cx('grid')}>
                         {wishlistData.slice(0, 6).map((p) => {
                             const originalPrice = Number(p.price || 0);
-                            const rawDiscount = Number(p.discount);
-                            const discountPercent = Number.isFinite(rawDiscount)
-                                ? Math.min(Math.max(Math.round(rawDiscount), 0), 100)
-                                : 0;
-                            const hasDiscount = originalPrice > 0 && discountPercent > 0;
-                            const discountedPrice = hasDiscount
-                                ? Math.max(0, Math.round((originalPrice * (100 - discountPercent)) / 100))
-                                : originalPrice;
+                            let discountPercent = 0;
+                            let hasDiscount = false;
+                            let discountedPrice = originalPrice;
+                            let isFlashSale = false;
+
+                            if (p.flashSale) {
+                                discountedPrice = Number(p.flashSale.flashSalePrice) || 0;
+                                discountPercent = originalPrice > 0 ? Math.max(0, Math.round(((originalPrice - discountedPrice) / originalPrice) * 100)) : 0;
+                                hasDiscount = true;
+                                isFlashSale = true;
+                            } else {
+                                const rawDiscount = Number(p.discount);
+                                discountPercent = Number.isFinite(rawDiscount)
+                                    ? Math.min(Math.max(Math.round(rawDiscount), 0), 100)
+                                    : 0;
+                                hasDiscount = originalPrice > 0 && discountPercent > 0;
+                                discountedPrice = hasDiscount
+                                    ? Math.max(0, Math.round((originalPrice * (100 - discountPercent)) / 100))
+                                    : originalPrice;
+                            }
 
                             return (
                                 <div key={p._id} className={cx('item')} onClick={() => navigate(`/product/${p._id}`)}>
@@ -518,6 +530,9 @@ function InfoUser({ isOpen, setIsOpen }) {
                                             <span className={cx('priceNew')}>{formatPrice(discountedPrice)}đ</span>
                                             {hasDiscount && (
                                                 <span className={cx('priceOld')}>{formatPrice(originalPrice)}đ</span>
+                                            )}
+                                            {isFlashSale && (
+                                                <span className={cx('flashSaleTag')} style={{ color: '#ff4d4f', fontWeight: 'bold', marginLeft: '6px', fontSize: '11px', display: 'inline-flex', alignItems: 'center' }}>⚡ Flash Sale</span>
                                             )}
                                         </div>
                                     </div>
@@ -553,14 +568,26 @@ function InfoUser({ isOpen, setIsOpen }) {
                         <div className={cx('list')}>
                             {wishlistData.map((p) => {
                                 const originalPrice = Number(p.price || 0);
-                                const rawDiscount = Number(p.discount);
-                                const discountPercent = Number.isFinite(rawDiscount)
-                                    ? Math.min(Math.max(Math.round(rawDiscount), 0), 100)
-                                    : 0;
-                                const hasDiscount = originalPrice > 0 && discountPercent > 0;
-                                const discountedPrice = hasDiscount
-                                    ? Math.max(0, Math.round((originalPrice * (100 - discountPercent)) / 100))
-                                    : originalPrice;
+                                let discountPercent = 0;
+                                let hasDiscount = false;
+                                let discountedPrice = originalPrice;
+                                let isFlashSale = false;
+
+                                if (p.flashSale) {
+                                    discountedPrice = Number(p.flashSale.flashSalePrice) || 0;
+                                    discountPercent = originalPrice > 0 ? Math.max(0, Math.round(((originalPrice - discountedPrice) / originalPrice) * 100)) : 0;
+                                    hasDiscount = true;
+                                    isFlashSale = true;
+                                } else {
+                                    const rawDiscount = Number(p.discount);
+                                    discountPercent = Number.isFinite(rawDiscount)
+                                        ? Math.min(Math.max(Math.round(rawDiscount), 0), 100)
+                                        : 0;
+                                    hasDiscount = originalPrice > 0 && discountPercent > 0;
+                                    discountedPrice = hasDiscount
+                                        ? Math.max(0, Math.round((originalPrice * (100 - discountPercent)) / 100))
+                                        : originalPrice;
+                                }
 
                                 return (
                                     <div
@@ -578,6 +605,9 @@ function InfoUser({ isOpen, setIsOpen }) {
                                                 <span className={cx('priceNew')}>{formatPrice(discountedPrice)}đ</span>
                                                 {hasDiscount && (
                                                     <span className={cx('priceOld')}>{formatPrice(originalPrice)}đ</span>
+                                                )}
+                                                {isFlashSale && (
+                                                    <span className={cx('flashSaleTag')} style={{ color: '#ff4d4f', fontWeight: 'bold', marginLeft: '6px', fontSize: '11px', display: 'inline-flex', alignItems: 'center' }}>⚡ FS</span>
                                                 )}
                                             </div>
                                         </div>

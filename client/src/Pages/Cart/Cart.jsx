@@ -1,7 +1,7 @@
 import classNames from 'classnames/bind';
 import styles from './Cart.module.scss';
 import Header from '../../Components/Header/Header';
-import { Button, Table, Form, Input, AutoComplete, InputNumber, Divider, message, Select, Tag, Space } from 'antd';
+import { Button, Table, Form, Input, AutoComplete, InputNumber, Spin, Divider, message, Select, Tag, Space } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import {
     requestApplyCoupon,
@@ -34,6 +34,7 @@ function Cart() {
     const [loading, setLoading] = useState(false);
     const [updatingQuantity, setUpdatingQuantity] = useState({});
     const [availableCoupons, setAvailableCoupons] = useState([]);
+    const [initialLoading, setInitialLoading] = useState(true);
 
     const [addressOptions, setAddressOptions] = useState([]);
     const [valueAddress, setValueAddress] = useState('');
@@ -72,6 +73,8 @@ function Cart() {
             }
 
             message.error(error?.response?.data?.message || 'Không thể tải giỏ hàng');
+        } finally {
+            setInitialLoading(false);
         }
     }, [navigate]);
 
@@ -417,7 +420,11 @@ function Cart() {
                 <div className={cx('container')}>
                     <h2 className={cx('page-title')}>Giỏ hàng</h2>
 
-                    {cart.length === 0 ? (
+                    {initialLoading ? (
+                        <div style={{ textAlign: 'center', padding: '80px 0' }}>
+                            <Spin size="large" tip="Đang tải giỏ hàng..." />
+                        </div>
+                    ) : cart.length === 0 ? (
                         <div className={cx('empty-cart')}>
                             <ShoppingCartOutlined className={cx('empty-icon')} />
                             <p>Không có sản phẩm nào trong giỏ hàng</p>

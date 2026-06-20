@@ -369,17 +369,29 @@ const formatProductListOutput = async (products = []) => {
   const productTypeMap = await buildProductTypeMap(products);
   const categoryMap = await buildCategoryMap(products);
 
-  return products.map((item) => {
-    const product = item?.toObject ? item.toObject() : { ...item };
-    const componentType = normalizeComponentType(product.componentType);
-    const base = formatProductOutput(item, productTypeMap[componentType]);
+  return Promise.all(
+    products.map(async (item) => {
+      const product = item?.toObject ? item.toObject() : { ...item };
+      const componentType = normalizeComponentType(product.componentType);
+      const base = formatProductOutput(item, productTypeMap[componentType]);
+      
+      const activeFlashSale = await getActiveFlashSaleForProduct(product._id || product.id);
 
-    return {
-      ...base,
-      categoryId: product.category ? String(product.category) : null,
-      categoryName: product.category ? (categoryMap[String(product.category)]?.name || "") : "",
-    };
-  });
+      return {
+        ...base,
+        categoryId: product.category ? String(product.category) : null,
+        categoryName: product.category ? (categoryMap[String(product.category)]?.name || "") : "",
+        flashSale: activeFlashSale ? {
+          _id: activeFlashSale._id,
+          flashSalePrice: activeFlashSale.flashSalePrice,
+          quantity: activeFlashSale.quantity,
+          soldQuantity: activeFlashSale.soldQuantity,
+          startDate: activeFlashSale.startDate,
+          endDate: activeFlashSale.endDate,
+        } : null,
+      };
+    })
+  );
 };
 
 class controllerProducts {

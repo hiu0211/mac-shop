@@ -14,6 +14,19 @@ const toPriceNumber = (value) => {
 
 const buildPricing = (product = {}) => {
     const originalPrice = toPriceNumber(product?.price);
+    
+    if (product?.flashSale) {
+        const discountedPrice = Number(product.flashSale.flashSalePrice) || 0;
+        const discountPercent = originalPrice > 0 ? Math.max(0, Math.round(((originalPrice - discountedPrice) / originalPrice) * 100)) : 0;
+        return {
+            originalPrice,
+            discountPercent,
+            hasDiscount: true,
+            discountedPrice,
+            isFlashSale: true,
+        };
+    }
+
     const rawDiscount = Number(product?.discount);
     const discountPercent = Number.isFinite(rawDiscount)
         ? Math.min(Math.max(Math.round(rawDiscount), 0), 100)
@@ -29,6 +42,7 @@ const buildPricing = (product = {}) => {
         discountPercent,
         hasDiscount,
         discountedPrice,
+        isFlashSale: false,
     };
 };
 
@@ -75,11 +89,16 @@ function CardBody({ item, checkSelectCompare, handleCompare }) {
         discountPercent,
         hasDiscount,
         discountedPrice,
+        isFlashSale,
     } = buildPricing(item);
 
     return (
         <div className={cx('wrapper')}>
-            {hasDiscount && <span className={cx('discountBadge')}>-{discountPercent}%</span>}
+            {isFlashSale ? (
+                <span className={cx('flashSaleBadge')}>⚡ SALE {discountPercent}%</span>
+            ) : (
+                hasDiscount && <span className={cx('discountBadge')}>-{discountPercent}%</span>
+            )}
             {checkSelectCompare && (
                 <button onClick={() => handleCompare(item._id)} className={cx('compare')}>
                     So sánh
