@@ -17,7 +17,9 @@ import {
     BellOutlined,
     SettingOutlined,
     EllipsisOutlined,
+    ThunderboltOutlined,
 } from '@ant-design/icons';
+
 
 import { requestAdmin, requestLogout } from '../../Config/request';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
@@ -85,11 +87,17 @@ const MainLayout = () => {
                     label: 'Mã giảm giá',
                 },
                 {
+                    key: 'flash-sales',
+                    icon: <ThunderboltOutlined />,
+                    label: 'Flash Sale',
+                },
+                {
                     key: 'users',
                     icon: <UserOutlined />,
                     label: 'Người dùng',
                 },
             ],
+
         },
         {
             type: 'group',
@@ -155,9 +163,11 @@ const MainLayout = () => {
             case 'brands': return 'Quản lý hãng sản xuất';
             case 'users': return 'Quản lý người dùng';
             case 'messages': return 'Tin nhắn';
-            case 'reviews': return 'Đánh giá sản phẩm';
+            case 'reviews': return 'Quản lý đánh giá';
             case 'coupons': return 'Quản lý mã giảm giá';
+            case 'flash-sales': return 'Quản lý Flash Sale';
             default: return 'Trang quản trị';
+
         }
     };
 

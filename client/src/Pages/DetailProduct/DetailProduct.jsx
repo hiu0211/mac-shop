@@ -117,6 +117,20 @@ const resolveInitialColorKey = (product = {}, colorOptions = []) => {
 
 const buildPricingData = (product = {}, selectedColorOption = null) => {
     const originalPrice = selectedColorOption ? Number(selectedColorOption.price || 0) : Number(product?.price) || 0;
+    
+    if (product?.flashSale) {
+        const discountedPrice = Number(product.flashSale.flashSalePrice) || 0;
+        const discountPercent = originalPrice > 0 ? Math.max(0, Math.round(((originalPrice - discountedPrice) / originalPrice) * 100)) : 0;
+        return {
+            originalPrice,
+            discountPercent,
+            hasDiscount: true,
+            discountedPrice,
+            savingAmount: Math.max(0, originalPrice - discountedPrice),
+            isFlashSale: true
+        };
+    }
+
     const discountPercent = clampDiscountPercent(product?.discount);
     const hasDiscount = originalPrice > 0 && discountPercent > 0;
     const discountedPrice = hasDiscount
@@ -129,6 +143,7 @@ const buildPricingData = (product = {}, selectedColorOption = null) => {
         hasDiscount,
         discountedPrice,
         savingAmount: Math.max(0, originalPrice - discountedPrice),
+        isFlashSale: false
     };
 };
 
@@ -141,6 +156,7 @@ function DetailProduct() {
     const { id } = useParams();
     const [dataProduct, setDataProduct] = useState({});
     const [selectedColorKey, setSelectedColorKey] = useState('');
+    const [flashSaleTimeLeft, setFlashSaleTimeLeft] = useState('');
 
     useEffect(() => {
         const fetchData = async () => {
@@ -157,6 +173,33 @@ function DetailProduct() {
     useEffect(() => {
         ref.current?.scrollIntoView({ behavior: 'smooth' });
     }, [id]);
+
+    useEffect(() => {
+        if (!dataProduct?.flashSale?.endDate) return;
+
+        const updateTimer = () => {
+            const now = new Date().getTime();
+            const target = new Date(dataProduct.flashSale.endDate).getTime();
+            const difference = target - now;
+
+            if (difference <= 0) {
+                setFlashSaleTimeLeft('Đã kết thúc');
+                return;
+            }
+
+            const hrs = Math.floor(difference / (1000 * 60 * 60));
+            const mins = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+            const secs = Math.floor((difference % (1000 * 60)) / 1000);
+
+            setFlashSaleTimeLeft(
+                `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+            );
+        };
+
+        updateTimer();
+        const intervalId = setInterval(updateTimer, 1000);
+        return () => clearInterval(intervalId);
+    }, [dataProduct?.flashSale]);
 
     const handleAddToCart = async () => {
         const token = cookies.get('logged');
@@ -257,6 +300,19 @@ function DetailProduct() {
                         <div className={cx('productHeader')}>
                             <h1>{dataProduct?.name}</h1>
                         </div>
+
+                        {dataProduct?.flashSale && (
+                            <div className={cx('flashSaleDetailBanner')}>
+                                <div className={cx('flashSaleLeft')}>
+                                    <span className={cx('lightningIcon')}>⚡</span>
+                                    <span>FLASH SALE ĐANG DIỄN RA</span>
+                                </div>
+                                <div className={cx('flashSaleRight')}>
+                                    <span className={cx('timerLabel')}>Kết thúc sau:</span>
+                                    <span className={cx('timerValue')}>{flashSaleTimeLeft}</span>
+                                </div>
+                            </div>
+                        )}
 
                         <div className={cx('priceBox')}>
                             {hasDiscount ? (

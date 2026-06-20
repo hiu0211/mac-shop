@@ -5,6 +5,8 @@ const modelProduct = require("../models/products.model");
 const modelProductType = require("../models/productType.model");
 const modelCategory = require("../models/category.model");
 const { uploadMultipleToCloudinary } = require("../utils/cloudinary");
+const { getActiveFlashSaleForProduct } = require("../services/flashSaleService");
+
 
 const escapeRegex = (keyword = "") => keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -529,11 +531,21 @@ class controllerProducts {
     const productType = componentType ? await modelProductType.findOne({ code: componentType }) : null;
     const categoryDoc = data.category ? await modelCategory.findById(data.category) : null;
 
+    const activeFlashSale = await getActiveFlashSaleForProduct(data._id);
+
     const formatted = formatProductOutput(data, productType);
     const result = {
       ...formatted,
       categoryId: data.category ? String(data.category) : null,
       categoryName: categoryDoc ? categoryDoc.name : '',
+      flashSale: activeFlashSale ? {
+        _id: activeFlashSale._id,
+        flashSalePrice: activeFlashSale.flashSalePrice,
+        quantity: activeFlashSale.quantity,
+        soldQuantity: activeFlashSale.soldQuantity,
+        startDate: activeFlashSale.startDate,
+        endDate: activeFlashSale.endDate,
+      } : null,
     };
 
     new OK({ message: "Lấy sản phẩm thông tin", metadata: result }).send(res);

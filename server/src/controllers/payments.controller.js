@@ -5,6 +5,12 @@ const modelUser = require("../models/users.model");
 const modelCoupon = require("../models/coupon.model");
 const modelCouponUsage = require("../models/couponUsage.model");
 const {
+  getActiveFlashSaleForProduct,
+  incrementFlashSaleSoldQuantity,
+  decrementFlashSaleSoldQuantity
+} = require("../services/flashSaleService");
+
+const {
   validateCouponForCart,
   recordCouponUsage,
   recalculateCartTotals,
@@ -118,10 +124,15 @@ const resolveFallbackProductImage = (product = null) => {
 };
 
 const resolveCartLineFinalUnitPrice = ({ cartItem = {}, product = null }) => {
+  if (product?.activeFlashSale) {
+    return product.activeFlashSale.flashSalePrice;
+  }
+
   const storedFinalUnitPrice = toNonNegativeNumber(cartItem?.finalUnitPrice, -1);
   if (storedFinalUnitPrice >= 0) {
     return storedFinalUnitPrice;
   }
+
 
   const baseUnitPrice = toNonNegativeNumber(cartItem?.unitPrice, 0);
   const discount = toNonNegativeNumber(product?.discount, 0);
@@ -139,8 +150,15 @@ const resolveCartLineFinalUnitPrice = ({ cartItem = {}, product = null }) => {
 
 const buildOrderProductsFromCart = async (cartProducts = []) => {
   const productDocs = await Promise.all(
-    cartProducts.map(async (item) => modelProduct.findById(item.productId).catch(() => null))
+    cartProducts.map(async (item) => {
+      const product = await modelProduct.findById(item.productId).catch(() => null);
+      if (product) {
+        product.activeFlashSale = await getActiveFlashSaleForProduct(product._id);
+      }
+      return product;
+    })
   );
+
 
   return cartProducts.map((item, index) => {
     const product = productDocs[index];
@@ -283,6 +301,10 @@ class PaymentsController {
       });
       await newPayment.save();
 
+      for (const item of orderProducts) {
+        await incrementFlashSaleSoldQuantity(item.productId, item.quantity);
+      }
+
       await recordCouponUsage({
         couponId,
         userId: id,
@@ -371,6 +393,10 @@ class PaymentsController {
         couponCode,
       });
       await newPayment.save();
+
+      for (const item of newPayment.products) {
+        await incrementFlashSaleSoldQuantity(item.productId, item.quantity);
+      }
 
       await recordCouponUsage({
         couponId,
@@ -519,9 +545,18 @@ class PaymentsController {
     if (!findPayment) {
       throw new BadRequestError("Không tìm thấy đơn hàng");
     }
+    const previousStatus = findPayment.statusOrder;
     findPayment.statusOrder = normalizedStatusOrder;
     await findPayment.save();
+
+    if (normalizedStatusOrder === "cancelled" && previousStatus !== "cancelled") {
+      for (const item of findPayment.products) {
+        await decrementFlashSaleSoldQuantity(item.productId, item.quantity);
+      }
+    }
+
     new OK({ message: "Thành công", metadata: findPayment }).send(res);
+
   }
 
   async deleteOrderByAdmin(req, res) {
@@ -575,7 +610,12 @@ class PaymentsController {
     order.statusOrder = "cancelled";
     await order.save();
 
+    for (const item of order.products) {
+      await decrementFlashSaleSoldQuantity(item.productId, item.quantity);
+    }
+
     new OK({ message: "Hủy đơn hàng thành công", metadata: order }).send(res);
+
   }
 
   async reorder(req, res) {

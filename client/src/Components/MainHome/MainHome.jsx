@@ -1,6 +1,7 @@
 import classNames from 'classnames/bind';
 import styles from './MainHome.module.scss';
 import SlideHome from './SlideHome/SlideHome';
+import FlashSaleSection from './FlashSaleSection';
 import ProductsHome from './ProductsHome/ProductsHome';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faDollarSign, faRotateRight, faThumbsUp, faTruck } from '@fortawesome/free-solid-svg-icons';
@@ -14,6 +15,10 @@ function MainHome() {
             </div>
             <div className={cx('title')}>
                 <h3>MACONE - Đại lý uỷ quyền chính thức của Apple Việt Nam (AAR)</h3>
+            </div>
+            
+            <div>
+                <FlashSaleSection />
             </div>
             <div>
                 <ProductsHome />
@@ -29,7 +34,7 @@ function MainHome() {
                             <p>Miễn phí giao hàng nội thành</p>
                         </div>
                     </div>
-                    
+
                     <div className={cx('delivery-item')}>
                         <FontAwesomeIcon icon={faTruck} />
                         <div>

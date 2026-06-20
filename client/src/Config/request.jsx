@@ -406,6 +406,31 @@ export const requestGetAvailableCoupons = async () => {
     return res.data;
 };
 
+export const requestGetFlashSales = async () => {
+    const res = await request.get('/api/admin/flash-sales');
+    return res.data;
+};
+
+export const requestCreateFlashSale = async (data) => {
+    const res = await request.post('/api/admin/flash-sales', data);
+    return res.data;
+};
+
+export const requestUpdateFlashSale = async (data) => {
+    const res = await request.put('/api/admin/flash-sales', data);
+    return res.data;
+};
+
+export const requestDeleteFlashSale = async (id) => {
+    const res = await request.delete('/api/admin/flash-sales', { params: { id } });
+    return res.data;
+};
+
+export const requestGetActiveFlashSales = async () => {
+    const res = await request.get('/api/flash-sales/active');
+    return res.data;
+};
+
 let isRefreshing = false;
 let failedRequestsQueue = [];
 

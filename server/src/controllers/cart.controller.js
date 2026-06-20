@@ -3,7 +3,9 @@ const modelCart = require("../models/cart.model");
 const { BadRequestError } = require("../core/error.response");
 const { OK } = require("../core/success.response");
 const { recalculateCartTotals } = require("../services/couponService");
+const { getActiveFlashSaleForProduct } = require("../services/flashSaleService");
 const mongoose = require("mongoose");
+
 
 const normalizeColorKey = (value = "") =>
   String(value || "")
@@ -96,10 +98,15 @@ const resolveItemUnitPrice = ({ cartItem, product }) => {
 };
 
 const resolveCartLineFinalUnitPrice = ({ cartItem, product }) => {
+  if (product?.activeFlashSale) {
+    return product.activeFlashSale.flashSalePrice;
+  }
+
   const storedFinalUnitPrice = toNonNegativeNumber(cartItem?.finalUnitPrice, -1);
   if (storedFinalUnitPrice >= 0) {
     return storedFinalUnitPrice;
   }
+
 
   const baseUnitPrice = resolveItemUnitPrice({ cartItem, product });
   const discount = toNonNegativeNumber(product?.discount, 0);
@@ -160,7 +167,11 @@ class controllerCart {
       throw new BadRequestError("Không tìm thấy sản phẩm");
     }
 
+    const activeFlashSale = await getActiveFlashSaleForProduct(findProduct._id);
+    findProduct.activeFlashSale = activeFlashSale;
+
     const findCart = await modelCart.findOne({ userId: id });
+
     const selectedColorSnapshot = resolveColorSnapshotForCart({
       product: findProduct,
       selectedColorKey,
@@ -305,7 +316,11 @@ class controllerCart {
           return null;
         }
 
-          const unitPrice = resolveItemUnitPrice({ cartItem: item, product });
+        const activeFlashSale = await getActiveFlashSaleForProduct(product._id);
+        product.activeFlashSale = activeFlashSale;
+
+        const unitPrice = resolveItemUnitPrice({ cartItem: item, product });
+
           const finalUnitPrice = resolveCartLineFinalUnitPrice({ cartItem: item, product });
 
         return {
@@ -547,7 +562,11 @@ class controllerCart {
     throw new BadRequestError("Không tìm thấy sản phẩm");
   }
 
+  const activeFlashSale = await getActiveFlashSaleForProduct(product._id);
+  product.activeFlashSale = activeFlashSale;
+
   const matchedIndexes = cart.product.reduce((accumulator, item, index) => {
+
     if (item.productId.toString() !== normalizedProductId) {
       return accumulator;
     }

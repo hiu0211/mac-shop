@@ -23,6 +23,8 @@ import BrandManagement from '../Pages/Admin/Components/BrandManagement';
 import ManagerProductType from '../Pages/Admin/Components/ManagerProductType/ManagerProductType';
 import ManagerProductTypeEditor from '../Pages/Admin/Components/ManagerProductType/ManagerProductTypeEditor';
 import CategoryManagement from '../Pages/Admin/Components/CategoryManagement';
+import FlashSaleManagement from '../Pages/Admin/Components/FlashSaleManagement';
+
 
 const publicRoutes = [
     { path: '/', component: <App /> },
@@ -60,8 +62,10 @@ const privateRoutes = [
             { path: 'messages', component: <MessageManagement /> },
             { path: 'reviews', component: <ReviewManagement /> },
             { path: 'coupons', component: <CouponManagement /> },
+            { path: 'flash-sales', component: <FlashSaleManagement /> },
         ],
     },
 ];
+
 
 export { publicRoutes, privateRoutes };

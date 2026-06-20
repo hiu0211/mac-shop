@@ -7,6 +7,8 @@ const paymentsRoutes = require("./payments.routes");
 const couponsRoutes = require("./coupons.routes");
 const productTypeRoutes = require("./productType.routes");
 const revenueRoutes = require("./revenue.route");
+const flashSaleRoutes = require("./flashSale.routes");
+
 
 function routes(app) {
   app.post("/api/register", userRoutes);
@@ -100,6 +102,13 @@ function routes(app) {
   app.post("/api/coupons/remove", couponsRoutes);
 
   app.use("/api/revenue", revenueRoutes);
+
+  app.post("/api/admin/flash-sales", flashSaleRoutes);
+  app.get("/api/admin/flash-sales", flashSaleRoutes);
+  app.put("/api/admin/flash-sales", flashSaleRoutes);
+  app.delete("/api/admin/flash-sales", flashSaleRoutes);
+  app.get("/api/flash-sales/active", flashSaleRoutes);
 }
+
 
 module.exports = routes;
