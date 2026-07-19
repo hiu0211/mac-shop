@@ -14,7 +14,7 @@ import ProtectedAdminRoute from './ProtectedAdminRoute';
 import Dashboard from '../Pages/Admin/Components/Dashboard';
 import ProductManagement from '../Pages/Admin/Components/ProductManagement';
 import UserManagement from '../Pages/Admin/Components/UserManagement';
-import UpsertProduct from '../Pages/Admin/Pages/UpsertProduct';
+import UpsertProduct from '../Pages/Admin/Components/UpsertProduct';
 import OrderManagement from '../Pages/Admin/Components/OrderManagement';
 import CouponManagement from '../Pages/Admin/Components/CouponManagement';
 import MessageManagement from '../Pages/Admin/Components/MessageManagement';

@@ -16,6 +16,9 @@ class User {
   +register(req, res)
   +login(req, res)
   +refreshToken(req, res)
+  +verifyPassword(password: String) Boolean
+  +addToWishlist(productId: ObjectId) void
+  +removeFromWishlist(productId: ObjectId) void
 }
 
 class ApiKey {
@@ -25,6 +28,8 @@ class ApiKey {
   +String privateKey
   +Date createdAt
   +Date updatedAt
+  +generateKeyPair() void
+  +isValid() Boolean
 }
 
 class Brand {
@@ -34,6 +39,11 @@ class Brand {
   +String description
   +String logo
   +Boolean isActive
+  +Date createdAt
+  +Date updatedAt
+  +generateSlug() void
+  +activate() void
+  +deactivate() void
 }
 
 class ProductType {
@@ -41,6 +51,21 @@ class ProductType {
   +String code
   +String name
   +Array attributesTemplate
+  +Date createdAt
+  +Date updatedAt
+  +validateAttributes(attributes: Object) Boolean
+  +addAttributeTemplate(attribute: Object) void
+}
+
+class ProductType_Attribute {
+  +String key
+  +String label
+  +String inputType
+  +Boolean required
+  +String placeholder
+  +Array options
+  +Number order
+  +validateValue(value: Mixed) Boolean
 }
 
 class Product {
@@ -55,9 +80,15 @@ class Product {
   +Array images
   +Number stock
   +String componentType
-  +Mixed attributes
+  +Array specifications
   +Array colorOptions
   +Array reviews
+  +Date createdAt
+  +Date updatedAt
+  +updateStock(quantity: Number) void
+  +calculateDiscountedPrice() Number
+  +addReview(review: Object) void
+  +isAvailable() Boolean
 }
 
 class Category {
@@ -67,6 +98,11 @@ class Category {
   +String description
   +String image
   +Boolean isActive
+  +Date createdAt
+  +Date updatedAt
+  +generateSlug() void
+  +activate() void
+  +deactivate() void
 }
 
 class Cart {
@@ -81,6 +117,13 @@ class Cart {
   +String fullName
   +String phone
   +String address
+  +Date createdAt
+  +Date updatedAt
+  +addProductItem(productId: String, quantity: Number, colorKey: String) void
+  +removeProductItem(productId: String, colorKey: String) void
+  +clearCart() void
+  +calculateTotals() void
+  +applyCoupon(coupon: Object) void
 }
 
 class Coupon {
@@ -96,6 +139,12 @@ class Coupon {
   +Date startAt
   +Date endAt
   +String status
+  +Date createdAt
+  +Date updatedAt
+  +isValidForUser(userId: String) Boolean
+  +isValidForOrder(orderValue: Number) Boolean
+  +incrementUsedCount() void
+  +isExpired() Boolean
 }
 
 class CouponUsage {
@@ -105,6 +154,9 @@ class CouponUsage {
   +String orderId
   +Date usedAt
   +Number discountAmount
+  +Date createdAt
+  +Date updatedAt
+  +recordUsage(couponId: String, userId: String, orderId: String, discountAmount: Number) void
 }
 
 class OTP {
@@ -113,6 +165,10 @@ class OTP {
   -String otp
   +Date time
   +String type
+  +Date createdAt
+  +Date updatedAt
+  +isValid(otpCode: String) Boolean
+  +isExpired() Boolean
 }
 
 class Payments {
@@ -120,7 +176,7 @@ class Payments {
   +String userId
   +Array products
   +String fullName
-  +String phone
+  +Number phone
   +String address
   +String typePayments
   +String statusOrder
@@ -129,6 +185,30 @@ class Payments {
   +Number discountAmount
   +String couponId
   +String couponCode
+  +Array productReviews
+  +Array contactMessages
+  +Date createdAt
+  +Date updatedAt
+  +calculateOrderTotals() void
+  +updateOrderStatus(status: String) void
+  +addReview(productId: String, review: Object) void
+  +addContactMessage(senderType: String, message: String) void
+}
+
+class FlashSale {
+  +ObjectId _id
+  +ObjectId product
+  +Number flashSalePrice
+  +Number quantity
+  +Number soldQuantity
+  +Date startDate
+  +Date endDate
+  +Boolean isActive
+  +Date createdAt
+  +Date updatedAt
+  +isValid() Boolean
+  +updateSoldQuantity(quantity: Number) void
+  +isExpired() Boolean
 }
 
 %% Embedded subdocs (composition)
@@ -138,6 +218,7 @@ class Product_ColorOption {
   +String image
   +Number price
   +Boolean isDefault
+  +updatePrice(newPrice: Number) void
 }
 
 class Product_Review {
@@ -147,26 +228,41 @@ class Product_Review {
   +String comment
   +Array images
   +String fullName
+  +Object adminReply
+  +Date createdAt
+  +addAdminReply(adminId: String, adminName: String, message: String) void
 }
 
 class Cart_ProductItem {
   +String productId
   +Number quantity
   +String selectedColorKey
+  +String selectedColorName
+  +String selectedColorHex
+  +String selectedColorImage
   +Number unitPrice
   +Number finalUnitPrice
+  +calculateItemTotal() Number
 }
 
 class Payments_Product {
   +String productId
   +Number quantity
+  +String selectedColorKey
+  +String selectedColorName
+  +String selectedColorHex
+  +String selectedColorImage
   +Number unitPrice
+  +getItemTotal() Number
 }
 
 class Payments_ProductReview {
   +String productId
   +Number rating
   +String comment
+  +Array images
+  +Date createdAt
+  +getReviewDetails() Object
 }
 
 class Payments_ContactMessage {
@@ -174,6 +270,8 @@ class Payments_ContactMessage {
   +String senderId
   +String senderName
   +String message
+  +Date createdAt
+  +getMessageDetails() Object
 }
 
 %% Services & Utils
@@ -209,6 +307,17 @@ class UsersController {
   +logout(req, res)
   +refreshToken(req, res)
   +getAdminStats(req, res)
+  +loginAdmin(req, res)
+  +authUser(req, res)
+  +getAllUser(req, res)
+  +updateUserRole(req, res)
+  +updateUserStatus(req, res)
+  +changePassword(req, res)
+  +sendMailForgotPassword(req, res)
+  +verifyOtp(req, res)
+  +updateInfoUser(req, res)
+  +updatePassword(req, res)
+  +authAdmin(req, res)
 }
 
 class BrandsController {
@@ -223,6 +332,7 @@ class ProductTypeController {
   +getAll(req, res)
   +update(req, res)
   +delete(req, res)
+  +checkCodeExists(req, res)
 }
 
 class ProductsController {
@@ -232,6 +342,9 @@ class ProductsController {
   +getProductById(req, res)
   +editProduct(req, res)
   +deleteProduct(req, res)
+  +getAllProduct(req, res)
+  +searchProduct(req, res)
+  +filterProduct(req, res)
 }
 
 class CartController {
@@ -239,6 +352,7 @@ class CartController {
   +getCart(req, res)
   +updateQuantity(req, res)
   +deleteProductCart(req, res)
+  +updateInfoUserCart(req, res)
 }
 
 class CouponsController {
@@ -246,15 +360,41 @@ class CouponsController {
   +validateCoupon(req, res)
   +applyCoupon(req, res)
   +removeCoupon(req, res)
+  +listCoupons(req, res)
+  +getCoupon(req, res)
+  +updateCoupon(req, res)
+  +updateCouponStatus(req, res)
+  +deleteCoupon(req, res)
+  +getAvailableCoupons(req, res)
 }
 
 class PaymentsController {
   +payment(req, res)
+  +checkPaymentVnpay(req, res)
+  +getHistoryOrder(req, res)
+  +getOnePayment(req, res)
+  +updateStatusOrder(req, res)
+  +deleteOrderByAdmin(req, res)
+  +cancelOrderByUser(req, res)
+  +reorder(req, res)
+  +getOrderContactMessages(req, res)
+  +addOrderContactMessage(req, res)
+  +addOrderContactMessageByAdmin(req, res)
+  +deleteOrderContactMessageByAdmin(req, res)
+  +createOrderReview(req, res)
+  +getProductReviewsAdmin(req, res)
+  +replyProductReviewByAdmin(req, res)
+  +deleteProductReviewByAdmin(req, res)
+  +getOrderAdmin(req, res)
 }
 
 class CategoriesController {
   +create(req, res)
   +getAll(req, res)
+  +getById(req, res)
+  +update(req, res)
+  +delete(req, res)
+  +getAllActive(req, res)
 }
 
 class RevenueController {
@@ -264,6 +404,7 @@ class RevenueController {
 class WishlistController {
   +getWishlist(req, res)
   +addWishlist(req, res)
+  +removeWishlist(req, res)
 }
 
 %% Relationships (multiplicities)
@@ -276,14 +417,20 @@ User "1" -- "0..*" OTP : "otps (by email)"
 Product *-- Product_ColorOption : "colorOptions"
 Product *-- Product_Review : "reviews"
 Product "*" -- "1" Category : "category"
-Product "*" -- "1" Brand : "brand"
-ProductType "1" -- "0..*" Product : "products (by code)"
+Product "*" -- "1" Brand : "brand (logical link)"
+ProductType "1" -- "0..*" Product : "products (by code logical link)"
+ProductType *-- ProductType_Attribute : "attributesTemplate"
 
-Cart "1" -- "0..*" Product : "productItems"
-Payments "1" -- "0..*" Product : "products"
+Cart *-- Cart_ProductItem : "productItems"
+Payments *-- Payments_Product : "products"
+Payments *-- Payments_ProductReview : "productReviews"
+Payments *-- Payments_ContactMessage : "contactMessages"
+
 Payments "*" -- "1" Coupon : "coupon"
 Cart "*" -- "1" Coupon : "coupon"
 Coupon "1" -- "0..*" CouponUsage : "usages"
+
+FlashSale "*" -- "1" Product : "product"
 
 %% Dependencies: controllers/services -> models
 UsersController ..> User

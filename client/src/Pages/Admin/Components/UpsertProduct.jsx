@@ -17,7 +17,7 @@ import {
     getDefaultColorPrice,
     hasDefaultColorOption,
     syncProductPriceWithDefaultColor,
-} from './colorPriceSync';
+} from '../Utils/colorPriceSync';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 const normalizeTemplate = (template) => {
@@ -196,6 +196,44 @@ const UpsertProduct = () => {
     const [hiddenAttributes, setHiddenAttributes] = useState([]);
     const uploadCounterRef = React.useRef(0);
     const watchedColorOptions = Form.useWatch('colorOptions', form);
+    const [draggedIndex, setDraggedIndex] = useState(null);
+
+    const itemRender = useCallback((originNode, file, fileList) => {
+        if (!fileList || fileList.length === 0) return originNode;
+        const index = fileList.indexOf(file);
+
+        return React.cloneElement(originNode, {
+            draggable: true,
+            onDragStart: (e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                setDraggedIndex(index);
+            },
+            onDragEnd: () => {
+                setDraggedIndex(null);
+            },
+            onDragOver: (e) => {
+                e.preventDefault();
+            },
+            onDragEnter: (e) => {
+                e.preventDefault();
+                if (draggedIndex !== null && draggedIndex !== index) {
+                    const newFileList = [...fileList];
+                    const draggedItem = newFileList[draggedIndex];
+                    newFileList.splice(draggedIndex, 1);
+                    newFileList.splice(index, 0, draggedItem);
+
+                    setDraggedIndex(index);
+                    form.setFieldsValue({ image: newFileList });
+                }
+            },
+            style: {
+                ...originNode.props.style,
+                cursor: 'move',
+                opacity: draggedIndex === index ? 0.4 : 1,
+                transition: 'opacity 0.2s ease',
+            }
+        });
+    }, [draggedIndex, form]);
 
     const isPriceLockedByDefaultColor = useMemo(() => {
         const currentColorOptions = Array.isArray(watchedColorOptions) ? watchedColorOptions : [];
@@ -313,7 +351,7 @@ const UpsertProduct = () => {
                         componentType: typeCode,
                         category: product.categoryId || product.category || null,
                         discount: Number(product?.discount || 0),
-                        costPrice: Number(product?.costPrice || 0),
+                        costPrice: product?.costPrice,
                         attributes: mergedAttributes,
                         colorOptions: mapColorOptionsToFormValues(product?.colorOptions || []),
                         image: imageFileList,
@@ -354,7 +392,7 @@ const UpsertProduct = () => {
                             componentType: typeCode,
                             category: product.categoryId || product.category || null,
                             discount: Number(product?.discount || 0),
-                            costPrice: Number(product?.costPrice || 0),
+                            costPrice: product?.costPrice,
                             attributes: mergedAttributes,
                             colorOptions: mapColorOptionsToFormValues(product?.colorOptions || []),
                             image: imageFileList,
@@ -363,7 +401,6 @@ const UpsertProduct = () => {
                 } else {
                     form.setFieldsValue({
                         discount: 0,
-                        costPrice: 0,
                     });
                 }
             } catch (error) {
@@ -424,17 +461,23 @@ const UpsertProduct = () => {
             setSubmitting(true);
             let imageUrls = [];
 
-            const oldImages = (values.image || []).filter((file) => file.url && !file.originFileObj);
-            const newImages = (values.image || []).filter((file) => file.originFileObj);
-
-            const oldImageUrls = oldImages.map((file) => file.url);
+            const imageFileList = values.image || [];
+            const newImages = imageFileList.filter((file) => file.originFileObj);
 
             let newImageUrls = [];
             if (newImages.length > 0) {
                 newImageUrls = await handleUpload(newImages);
             }
 
-            imageUrls = [...oldImageUrls, ...newImageUrls];
+            let newImageCursor = 0;
+            imageUrls = imageFileList
+                .map((file) => {
+                    if (file.originFileObj) {
+                        return newImageUrls[newImageCursor++];
+                    }
+                    return file.url;
+                })
+                .filter(Boolean);
 
             if (!imageUrls || imageUrls.length === 0) {
                 message.error('Vui lòng tải lên ít nhất một hình ảnh!');
@@ -470,7 +513,7 @@ const UpsertProduct = () => {
                 category: values.category,
                 price: defaultColorPrice ?? values.price,
                 discount: values.discount || 0,
-                costPrice: values.costPrice || 0,
+                costPrice: values.costPrice,
                 stock: values.stock,
                 images: imageUrls,
                 componentType: values.componentType,
@@ -672,8 +715,8 @@ const UpsertProduct = () => {
 
                     <Col xs={24} md={12}>
                         <Form.Item
-                            name="price"
-                            label={isEditMode ? "Giá gốc" : "Giá sản phẩm"}
+                            name="costPrice"
+                            label="Giá nhập sản phẩm"
                             rules={[
                                 { required: true, message: 'Vui lòng nhập giá!' },
                                 { type: 'number', min: 0, message: 'Giá phải lớn hơn 0!' },
@@ -683,9 +726,7 @@ const UpsertProduct = () => {
                                 style={{ width: '100%' }}
                                 formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                                 parser={(value) => (value || '').replace(/\$\s?|(,*)/g, '')}
-                                placeholder={isEditMode ? "Nhập giá gốc" : "Nhập giá sản phẩm"}
-                                min={0}
-                                disabled={isPriceLockedByDefaultColor}
+                                placeholder="Nhập giá nhập sản phẩm"
                             />
                         </Form.Item>
                     </Col>
@@ -711,16 +752,20 @@ const UpsertProduct = () => {
 
                     <Col xs={24} md={12}>
                         <Form.Item
-                            name="costPrice"
-                            label="Giá nhập"
-                            rules={[{ type: 'number', min: 0, message: 'Giá nhập phải lớn hơn hoặc bằng 0!' }]}
+                            name="price"
+                            label="Giá bán sản phẩm"
+                            rules={[
+                                { required: true, message: 'Vui lòng nhập giá!' },
+                                { type: 'number', min: 0, message: 'Giá phải lớn hơn 0!' },
+                            ]}
                         >
                             <InputNumber
                                 style={{ width: '100%' }}
                                 formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                                 parser={(value) => (value || '').replace(/\$\s?|(,*)/g, '')}
-                                placeholder="Nhập giá nhập"
+                                placeholder="Nhập giá bán sản phẩm"
                                 min={0}
+                                disabled={isPriceLockedByDefaultColor}
                             />
                         </Form.Item>
                     </Col>
@@ -757,6 +802,7 @@ const UpsertProduct = () => {
                                 maxCount={10}
                                 beforeUpload={beforeUpload}
                                 accept="image/*"
+                                itemRender={itemRender}
                             >
                                 <div>
                                     <UploadOutlined />
