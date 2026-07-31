@@ -7,7 +7,7 @@ const modelCouponUsage = require("../models/couponUsage.model");
 const {
   getActiveFlashSaleForProduct,
   incrementFlashSaleSoldQuantity,
-  decrementFlashSaleSoldQuantity
+  decrementFlashSaleSoldQuantity,
 } = require("../services/flashSaleService");
 
 const {
@@ -75,12 +75,17 @@ const rollbackCouponUsageByOrder = async ({ orderId, couponId }) => {
     return;
   }
 
-  const coupon = await modelCoupon.findById(normalizedCouponId).select("usedCount");
+  const coupon = await modelCoupon
+    .findById(normalizedCouponId)
+    .select("usedCount");
   if (!coupon) {
     return;
   }
 
-  coupon.usedCount = Math.max(0, Number(coupon.usedCount || 0) - usageRecords.length);
+  coupon.usedCount = Math.max(
+    0,
+    Number(coupon.usedCount || 0) - usageRecords.length,
+  );
   await coupon.save();
 };
 
@@ -120,7 +125,9 @@ const resolveFallbackProductImage = (product = null) => {
     return "";
   }
 
-  return product.images.map((item) => String(item || "").trim()).find(Boolean) || "";
+  return (
+    product.images.map((item) => String(item || "").trim()).find(Boolean) || ""
+  );
 };
 
 const resolveCartLineFinalUnitPrice = ({ cartItem = {}, product = null }) => {
@@ -128,11 +135,13 @@ const resolveCartLineFinalUnitPrice = ({ cartItem = {}, product = null }) => {
     return product.activeFlashSale.flashSalePrice;
   }
 
-  const storedFinalUnitPrice = toNonNegativeNumber(cartItem?.finalUnitPrice, -1);
+  const storedFinalUnitPrice = toNonNegativeNumber(
+    cartItem?.finalUnitPrice,
+    -1,
+  );
   if (storedFinalUnitPrice >= 0) {
     return storedFinalUnitPrice;
   }
-
 
   const baseUnitPrice = toNonNegativeNumber(cartItem?.unitPrice, 0);
   const discount = toNonNegativeNumber(product?.discount, 0);
@@ -151,19 +160,25 @@ const resolveCartLineFinalUnitPrice = ({ cartItem = {}, product = null }) => {
 const buildOrderProductsFromCart = async (cartProducts = []) => {
   const productDocs = await Promise.all(
     cartProducts.map(async (item) => {
-      const product = await modelProduct.findById(item.productId).catch(() => null);
+      const product = await modelProduct
+        .findById(item.productId)
+        .catch(() => null);
       if (product) {
-        product.activeFlashSale = await getActiveFlashSaleForProduct(product._id);
+        product.activeFlashSale = await getActiveFlashSaleForProduct(
+          product._id,
+        );
       }
       return product;
-    })
+    }),
   );
-
 
   return cartProducts.map((item, index) => {
     const product = productDocs[index];
     const snapshot = resolveOrderItemSnapshot({ orderItem: item, product });
-    const finalUnitPrice = resolveCartLineFinalUnitPrice({ cartItem: item, product });
+    const finalUnitPrice = resolveCartLineFinalUnitPrice({
+      cartItem: item,
+      product,
+    });
 
     return {
       ...(item?.toObject ? item.toObject() : item),
@@ -190,20 +205,27 @@ const resolveOrderItemSnapshot = ({ orderItem = {}, product = null }) => {
       selectedColorName: snapshotColorName,
       selectedColorHex: snapshotColorHex,
       selectedColorImage: snapshotColorImage || fallbackProductImage,
-      unitPrice: snapshotUnitPrice >= 0 ? snapshotUnitPrice : fallbackProductPrice,
+      unitPrice:
+        snapshotUnitPrice >= 0 ? snapshotUnitPrice : fallbackProductPrice,
     };
   }
 
   if (snapshotColorKey) {
-    const matchedColor = normalizedOptions.find((item) => item.key === snapshotColorKey);
+    const matchedColor = normalizedOptions.find(
+      (item) => item.key === snapshotColorKey,
+    );
     if (matchedColor) {
       const matchedColorImage = String(matchedColor.image || "").trim();
       return {
         selectedColorKey: matchedColor.key,
         selectedColorName: snapshotColorName || matchedColor.name,
         selectedColorHex: snapshotColorHex || matchedColor.hex,
-        selectedColorImage: snapshotColorImage || matchedColorImage || fallbackProductImage,
-        unitPrice: snapshotUnitPrice >= 0 ? snapshotUnitPrice : toNonNegativeNumber(matchedColor.price, fallbackProductPrice),
+        selectedColorImage:
+          snapshotColorImage || matchedColorImage || fallbackProductImage,
+        unitPrice:
+          snapshotUnitPrice >= 0
+            ? snapshotUnitPrice
+            : toNonNegativeNumber(matchedColor.price, fallbackProductPrice),
       };
     }
   }
@@ -218,14 +240,16 @@ const resolveOrderItemSnapshot = ({ orderItem = {}, product = null }) => {
     };
   }
 
-  const defaultColor = normalizedOptions.find((item) => item.isDefault) || normalizedOptions[0];
+  const defaultColor =
+    normalizedOptions.find((item) => item.isDefault) || normalizedOptions[0];
   const defaultColorImage = String(defaultColor?.image || "").trim();
 
   return {
     selectedColorKey: defaultColor?.key || "",
     selectedColorName: defaultColor?.name || "",
     selectedColorHex: defaultColor?.hex || "",
-    selectedColorImage: snapshotColorImage || defaultColorImage || fallbackProductImage,
+    selectedColorImage:
+      snapshotColorImage || defaultColorImage || fallbackProductImage,
     unitPrice: toNonNegativeNumber(defaultColor?.price, fallbackProductPrice),
   };
 };
@@ -284,7 +308,9 @@ class PaymentsController {
     }
 
     if (typePayment === "COD") {
-      const orderProducts = await buildOrderProductsFromCart(findCart.product || []);
+      const orderProducts = await buildOrderProductsFromCart(
+        findCart.product || [],
+      );
       const newPayment = new modelPayments({
         userId: id,
         products: orderProducts,
@@ -322,8 +348,8 @@ class PaymentsController {
 
     if (typePayment === "VNPAY") {
       const vnpay = new VNPay({
-        tmnCode: "9KO1RM00",
-        secureSecret: "5JLUQLBVSF82JNECGZRKTS9ZBV84GDRH",
+        tmnCode: "MPHY2159",
+        secureSecret: "KWDGTEXOHPVZSUZFHUVDZRXHSRPHSMTM",
         vnpayHost: "https://sandbox.vnpayment.vn",
         testMode: true,
         hashAlgorithm: "SHA512",
@@ -343,7 +369,7 @@ class PaymentsController {
         vnp_ExpireDate: dateFormat(tomorrow),
       });
       new OK({ message: "Thanh toán thông báo", metadata: vnpayResponse }).send(
-        res
+        res,
       );
     }
   }
@@ -412,15 +438,24 @@ class PaymentsController {
 
   async getHistoryOrder(req, res) {
     const { id } = req.user;
-    const payments = await modelPayments.find({ userId: id }).sort({ createdAt: -1 });
+    const payments = await modelPayments
+      .find({ userId: id })
+      .sort({ createdAt: -1 });
 
     const orders = await Promise.all(
       payments.map(async (order) => {
-        const orderProducts = Array.isArray(order.products) ? order.products : [];
+        const orderProducts = Array.isArray(order.products)
+          ? order.products
+          : [];
         const products = await Promise.all(
           orderProducts.map(async (item) => {
-            const product = await modelProduct.findById(item.productId).catch(() => null);
-            const snapshot = resolveOrderItemSnapshot({ orderItem: item, product });
+            const product = await modelProduct
+              .findById(item.productId)
+              .catch(() => null);
+            const snapshot = resolveOrderItemSnapshot({
+              orderItem: item,
+              product,
+            });
 
             if (!product) {
               return {
@@ -449,7 +484,7 @@ class PaymentsController {
               selectedColorHex: snapshot.selectedColorHex,
               selectedColorImage: snapshot.selectedColorImage,
             };
-          })
+          }),
         );
 
         return {
@@ -464,11 +499,13 @@ class PaymentsController {
           typePayments: order.typePayments,
           statusOrder: order.statusOrder,
           createdAt: order.createdAt,
-          reviewedProductIds: (order.productReviews || []).map((review) => review.productId?.toString()),
+          reviewedProductIds: (order.productReviews || []).map((review) =>
+            review.productId?.toString(),
+          ),
           contactMessages: order.contactMessages || [],
           products,
         };
-      })
+      }),
     );
 
     new OK({ message: "Thành công", metadata: { orders } }).send(res);
@@ -487,12 +524,19 @@ class PaymentsController {
         throw new BadRequestError("Không tìm thấy đơn hàng");
       }
 
-      const orderProducts = Array.isArray(findPayment.products) ? findPayment.products : [];
+      const orderProducts = Array.isArray(findPayment.products)
+        ? findPayment.products
+        : [];
 
       const dataProduct = await Promise.all(
         orderProducts.map(async (item) => {
-          const product = await modelProduct.findById(item.productId).catch(() => null);
-          const snapshot = resolveOrderItemSnapshot({ orderItem: item, product });
+          const product = await modelProduct
+            .findById(item.productId)
+            .catch(() => null);
+          const snapshot = resolveOrderItemSnapshot({
+            orderItem: item,
+            product,
+          });
 
           return {
             product: product || {
@@ -508,9 +552,11 @@ class PaymentsController {
             selectedColorHex: snapshot.selectedColorHex,
             selectedColorImage: snapshot.selectedColorImage,
           };
-        })
+        }),
       );
-      const paymentData = findPayment.toObject ? findPayment.toObject() : { ...findPayment };
+      const paymentData = findPayment.toObject
+        ? findPayment.toObject()
+        : { ...findPayment };
       const { products, ...safeFindPayment } = paymentData;
       const data = {
         findPayment: {
@@ -549,14 +595,16 @@ class PaymentsController {
     findPayment.statusOrder = normalizedStatusOrder;
     await findPayment.save();
 
-    if (normalizedStatusOrder === "cancelled" && previousStatus !== "cancelled") {
+    if (
+      normalizedStatusOrder === "cancelled" &&
+      previousStatus !== "cancelled"
+    ) {
       for (const item of findPayment.products) {
         await decrementFlashSaleSoldQuantity(item.productId, item.quantity);
       }
     }
 
     new OK({ message: "Thành công", metadata: findPayment }).send(res);
-
   }
 
   async deleteOrderByAdmin(req, res) {
@@ -604,7 +652,9 @@ class PaymentsController {
 
     const order = await validateOrderOwner({ orderId, userId: id });
     if (!["pending", "completed"].includes(order.statusOrder)) {
-      throw new BadRequestError("Chỉ có thể hủy đơn ở trạng thái chờ xác nhận hoặc đã xác nhận");
+      throw new BadRequestError(
+        "Chỉ có thể hủy đơn ở trạng thái chờ xác nhận hoặc đã xác nhận",
+      );
     }
 
     order.statusOrder = "cancelled";
@@ -615,7 +665,6 @@ class PaymentsController {
     }
 
     new OK({ message: "Hủy đơn hàng thành công", metadata: order }).send(res);
-
   }
 
   async reorder(req, res) {
@@ -637,14 +686,16 @@ class PaymentsController {
     }
 
     const productDocs = await Promise.all(
-      products.map((item) => modelProduct.findById(item.productId))
+      products.map((item) => modelProduct.findById(item.productId)),
     );
 
     for (let i = 0; i < products.length; i += 1) {
       const orderItem = products[i];
       const product = productDocs[i];
       if (!product) {
-        throw new BadRequestError("Một số sản phẩm trong đơn không còn tồn tại");
+        throw new BadRequestError(
+          "Một số sản phẩm trong đơn không còn tồn tại",
+        );
       }
       if (product.stock < orderItem.quantity) {
         throw new BadRequestError(`Sản phẩm ${product.name} không đủ tồn kho`);
@@ -668,33 +719,42 @@ class PaymentsController {
       const orderItem = products[i];
       const product = productDocs[i];
       const snapshot = resolveOrderItemSnapshot({ orderItem, product });
-      const normalizedSelectedColorKey = normalizeColorKey(snapshot.selectedColorKey);
+      const normalizedSelectedColorKey = normalizeColorKey(
+        snapshot.selectedColorKey,
+      );
       const cartItemIndex = cart.product.findIndex(
         (item) =>
           item.productId.toString() === orderItem.productId.toString() &&
-          normalizeColorKey(item.selectedColorKey) === normalizedSelectedColorKey
+          normalizeColorKey(item.selectedColorKey) ===
+            normalizedSelectedColorKey,
       );
 
       if (cartItemIndex >= 0) {
         cart.product[cartItemIndex].quantity += orderItem.quantity;
         cart.product[cartItemIndex].unitPrice = toNonNegativeNumber(
           cart.product[cartItemIndex].unitPrice,
-          snapshot.unitPrice
+          snapshot.unitPrice,
         );
         cart.product[cartItemIndex].finalUnitPrice = toNonNegativeNumber(
           cart.product[cartItemIndex].finalUnitPrice,
-          snapshot.unitPrice
+          snapshot.unitPrice,
         );
         cart.product[cartItemIndex].selectedColorName =
-          cart.product[cartItemIndex].selectedColorName || snapshot.selectedColorName;
+          cart.product[cartItemIndex].selectedColorName ||
+          snapshot.selectedColorName;
         cart.product[cartItemIndex].selectedColorHex =
-          cart.product[cartItemIndex].selectedColorHex || snapshot.selectedColorHex;
+          cart.product[cartItemIndex].selectedColorHex ||
+          snapshot.selectedColorHex;
         cart.product[cartItemIndex].selectedColorImage =
-          cart.product[cartItemIndex].selectedColorImage || snapshot.selectedColorImage;
-        cart.product[cartItemIndex].selectedColorKey =
-          normalizeColorKey(cart.product[cartItemIndex].selectedColorKey || snapshot.selectedColorKey);
+          cart.product[cartItemIndex].selectedColorImage ||
+          snapshot.selectedColorImage;
+        cart.product[cartItemIndex].selectedColorKey = normalizeColorKey(
+          cart.product[cartItemIndex].selectedColorKey ||
+            snapshot.selectedColorKey,
+        );
 
-        cart.totalPrice += cart.product[cartItemIndex].finalUnitPrice * orderItem.quantity;
+        cart.totalPrice +=
+          cart.product[cartItemIndex].finalUnitPrice * orderItem.quantity;
       } else {
         cart.product.push({
           productId: orderItem.productId,
@@ -717,7 +777,9 @@ class PaymentsController {
     await recalculateCartTotals({ cart, userId: id });
     await cart.save();
 
-    new OK({ message: "Đã thêm sản phẩm vào giỏ hàng", metadata: cart }).send(res);
+    new OK({ message: "Đã thêm sản phẩm vào giỏ hàng", metadata: cart }).send(
+      res,
+    );
   }
 
   async getOrderContactMessages(req, res) {
@@ -750,7 +812,9 @@ class PaymentsController {
 
     const order = await validateOrderOwner({ orderId, userId: id });
     if (!SUPPORTED_ORDER_STATUSES.includes(order.statusOrder)) {
-      throw new BadRequestError("Không thể liên hệ với đơn hàng ở trạng thái hiện tại");
+      throw new BadRequestError(
+        "Không thể liên hệ với đơn hàng ở trạng thái hiện tại",
+      );
     }
 
     const user = await modelUser.findById(id);
@@ -824,7 +888,9 @@ class PaymentsController {
 
     if (isAdmin) {
       if (!isOwnMessage || messageDoc.senderType !== "admin") {
-        throw new BadRequestError("Bạn chỉ được xóa tin nhắn do chính mình gửi");
+        throw new BadRequestError(
+          "Bạn chỉ được xóa tin nhắn do chính mình gửi",
+        );
       }
     } else {
       if (order.userId.toString() !== id.toString()) {
@@ -832,7 +898,9 @@ class PaymentsController {
       }
 
       if (!isOwnMessage || messageDoc.senderType !== "user") {
-        throw new BadRequestError("Bạn chỉ được xóa tin nhắn do chính mình gửi");
+        throw new BadRequestError(
+          "Bạn chỉ được xóa tin nhắn do chính mình gửi",
+        );
       }
     }
 
@@ -857,7 +925,11 @@ class PaymentsController {
     }
 
     const normalizedRating = Number(rating);
-    if (Number.isNaN(normalizedRating) || normalizedRating < 1 || normalizedRating > 5) {
+    if (
+      Number.isNaN(normalizedRating) ||
+      normalizedRating < 1 ||
+      normalizedRating > 5
+    ) {
       throw new BadRequestError("Số sao đánh giá không hợp lệ");
     }
 
@@ -867,14 +939,14 @@ class PaymentsController {
     }
 
     const hasProductInOrder = (order.products || []).some(
-      (item) => item.productId.toString() === productId.toString()
+      (item) => item.productId.toString() === productId.toString(),
     );
     if (!hasProductInOrder) {
       throw new BadRequestError("Sản phẩm không thuộc đơn hàng này");
     }
 
     const alreadyReviewed = (order.productReviews || []).some(
-      (item) => item.productId.toString() === productId.toString()
+      (item) => item.productId.toString() === productId.toString(),
     );
     if (alreadyReviewed) {
       throw new BadRequestError("Bạn đã đánh giá sản phẩm này trong đơn hàng");
@@ -886,7 +958,9 @@ class PaymentsController {
     }
 
     const user = await modelUser.findById(id);
-    const safeImages = Array.isArray(images) ? images.filter((url) => typeof url === "string") : [];
+    const safeImages = Array.isArray(images)
+      ? images.filter((url) => typeof url === "string")
+      : [];
     const reviewPayload = {
       productId: productId.toString(),
       rating: normalizedRating,
@@ -909,7 +983,9 @@ class PaymentsController {
     });
     await product.save();
 
-    new OK({ message: "Đánh giá thành công", metadata: reviewPayload }).send(res);
+    new OK({ message: "Đánh giá thành công", metadata: reviewPayload }).send(
+      res,
+    );
   }
 
   async getProductReviewsAdmin(req, res) {
@@ -932,7 +1008,7 @@ class PaymentsController {
           images: review.images || [],
           adminReply: review.adminReply || null,
           createdAt: review.createdAt,
-        }))
+        })),
       )
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
@@ -967,7 +1043,9 @@ class PaymentsController {
 
     await product.save();
 
-    new OK({ message: "Phản hồi đánh giá thành công", metadata: review }).send(res);
+    new OK({ message: "Phản hồi đánh giá thành công", metadata: review }).send(
+      res,
+    );
   }
 
   async deleteProductReviewByAdmin(req, res) {
@@ -1000,13 +1078,16 @@ class PaymentsController {
       const order = await modelPayments.findById(orderId);
       if (order) {
         order.productReviews = (order.productReviews || []).filter(
-          (item) => item.productId?.toString() !== reviewedProductId
+          (item) => item.productId?.toString() !== reviewedProductId,
         );
         await order.save();
       }
     }
 
-    new OK({ message: "Xóa đánh giá thành công", metadata: { productId, reviewId } }).send(res);
+    new OK({
+      message: "Xóa đánh giá thành công",
+      metadata: { productId, reviewId },
+    }).send(res);
   }
 
   async getOrderAdmin(req, res) {
@@ -1028,23 +1109,30 @@ class PaymentsController {
       const detailedPayments = await Promise.all(
         payments.map(async (order) => {
           const products = await Promise.all(
-            (Array.isArray(order.products) ? order.products : []).map(async (item) => {
-              const product = await modelProduct.findById(item?.productId).catch(() => null);
-              const snapshot = resolveOrderItemSnapshot({ orderItem: item, product });
+            (Array.isArray(order.products) ? order.products : []).map(
+              async (item) => {
+                const product = await modelProduct
+                  .findById(item?.productId)
+                  .catch(() => null);
+                const snapshot = resolveOrderItemSnapshot({
+                  orderItem: item,
+                  product,
+                });
 
-              return {
-                productId: product?._id || item?.productId,
-                name: product?.name || "Sản phẩm không tồn tại",
-                image: snapshot.selectedColorImage,
-                price: snapshot.unitPrice,
-                unitPrice: snapshot.unitPrice,
-                quantity: item?.quantity,
-                selectedColorKey: snapshot.selectedColorKey,
-                selectedColorName: snapshot.selectedColorName,
-                selectedColorHex: snapshot.selectedColorHex,
-                selectedColorImage: snapshot.selectedColorImage,
-              };
-            })
+                return {
+                  productId: product?._id || item?.productId,
+                  name: product?.name || "Sản phẩm không tồn tại",
+                  image: snapshot.selectedColorImage,
+                  price: snapshot.unitPrice,
+                  unitPrice: snapshot.unitPrice,
+                  quantity: item?.quantity,
+                  selectedColorKey: snapshot.selectedColorKey,
+                  selectedColorName: snapshot.selectedColorName,
+                  selectedColorHex: snapshot.selectedColorHex,
+                  selectedColorImage: snapshot.selectedColorImage,
+                };
+              },
+            ),
           );
 
           return {
@@ -1062,7 +1150,7 @@ class PaymentsController {
             contactMessages: order.contactMessages || [],
             products,
           };
-        })
+        }),
       );
 
       new OK({

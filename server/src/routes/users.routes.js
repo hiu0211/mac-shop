@@ -3,7 +3,7 @@ const router = express.Router();
 
 const modelUser = require("../models/users.model");
 
-const { asyncHandler, authUser, authAdmin } = require("../auth/checkAuth");
+const { asyncHandler, authUser, requireRegisteredUser, authAdmin } = require("../auth/checkAuth");
 
 const controllerUsers = require("../controllers/users.controller");
 
@@ -11,13 +11,13 @@ router.post("/api/register", asyncHandler(controllerUsers.register));
 router.post("/api/login", asyncHandler(controllerUsers.login));
 router.post("/api/admin/login", asyncHandler(controllerUsers.loginAdmin));
 router.post("/api/login-google", asyncHandler(controllerUsers.loginGoogle));
-router.get("/api/auth", authUser, asyncHandler(controllerUsers.authUser));
+router.get("/api/auth", requireRegisteredUser, asyncHandler(controllerUsers.authUser));
 router.get("/api/admin/auth", authAdmin, asyncHandler(controllerUsers.authAdmin));
-router.get("/api/logout", authUser, asyncHandler(controllerUsers.logout));
+router.get("/api/logout", requireRegisteredUser, asyncHandler(controllerUsers.logout));
 router.get("/api/refresh-token", asyncHandler(controllerUsers.refreshToken));
 router.post(
   "/api/change-password",
-  authUser,
+  requireRegisteredUser,
   asyncHandler(controllerUsers.changePassword)
 );
 router.post(
@@ -27,12 +27,12 @@ router.post(
 router.post("/api/reset-password", asyncHandler(controllerUsers.verifyOtp));
 router.post(
   "/api/update-info-user",
-  authUser,
+  requireRegisteredUser,
   asyncHandler(controllerUsers.updateInfoUser)
 );
 router.post(
   "/api/update-password",
-  authUser,
+  requireRegisteredUser,
   asyncHandler(controllerUsers.updatePassword)
 );
 

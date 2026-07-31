@@ -65,13 +65,6 @@ function Cart() {
             setDiscountAmount(0);
             setCouponCode('');
             setSelectedCouponCode(undefined);
-
-            if (error?.response?.status === 401) {
-                message.error('Vui lòng đăng nhập để xem giỏ hàng');
-                navigate('/login');
-                return;
-            }
-
             message.error(error?.response?.data?.message || 'Không thể tải giỏ hàng');
         } finally {
             setInitialLoading(false);

@@ -43,11 +43,6 @@ function Header() {
     const hasSearchTrigger = Boolean(keyword.trim()) || selectedBrand !== 'all';
 
     const fetchCartCount = useCallback(async () => {
-        if (!dataUser?._id) {
-            setCartCount(0);
-            return;
-        }
-
         try {
             const res = await requestGetCart();
             const items = res?.metadata?.newData?.data || [];
@@ -56,7 +51,7 @@ function Header() {
         } catch {
             setCartCount(0);
         }
-    }, [dataUser?._id]);
+    }, []);
 
     useEffect(() => {
         const fetchBrandsAndCategories = async () => {

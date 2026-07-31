@@ -22,9 +22,9 @@ const modelCart = new Schema(
     discountAmount: { type: Number, default: 0 },
     couponId: { type: String, default: null, ref: "coupon" },
     couponCode: { type: String, default: "" },
-    fullName: { type: String, require: true },
-    phone: { type: String, require: true },
-    address: { type: String, require: true },
+    fullName: { type: String, default: '' },
+    phone: { type: String, default: '' },
+    address: { type: String, default: '' },
   },
   {
     timestamps: true,

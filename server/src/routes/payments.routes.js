@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const { asyncHandler, authUser, authAdmin } = require("../auth/checkAuth");
+const { asyncHandler, authUser, requireRegisteredUser, authAdmin } = require("../auth/checkAuth");
 
 const controllerPayments = require("../controllers/payments.controller");
 
@@ -19,13 +19,12 @@ router.get(
 
 router.get(
   "/api/get-history-order",
-  authUser,
+  requireRegisteredUser,
   asyncHandler(controllerPayments.getHistoryOrder)
 );
 
 router.get(
   "/api/get-one-payment",
-  authUser,
   asyncHandler(controllerPayments.getOnePayment)
 );
 
@@ -43,25 +42,25 @@ router.delete(
 
 router.post(
   "/api/cancel-order",
-  authUser,
+  requireRegisteredUser,
   asyncHandler(controllerPayments.cancelOrderByUser)
 );
 
 router.post(
   "/api/reorder",
-  authUser,
+  requireRegisteredUser,
   asyncHandler(controllerPayments.reorder)
 );
 
 router.get(
   "/api/order-contact",
-  authUser,
+  requireRegisteredUser,
   asyncHandler(controllerPayments.getOrderContactMessages)
 );
 
 router.post(
   "/api/order-contact",
-  authUser,
+  requireRegisteredUser,
   asyncHandler(controllerPayments.addOrderContactMessage)
 );
 
@@ -73,13 +72,13 @@ router.post(
 
 router.delete(
   "/api/order-contact-message",
-  authUser,
+  requireRegisteredUser,
   asyncHandler(controllerPayments.deleteOrderContactMessageByAdmin)
 );
 
 router.post(
   "/api/review-order-product",
-  authUser,
+  requireRegisteredUser,
   asyncHandler(controllerPayments.createOrderReview)
 );
 

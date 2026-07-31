@@ -202,14 +202,6 @@ function DetailProduct() {
     }, [dataProduct?.flashSale]);
 
     const handleAddToCart = async () => {
-        const token = cookies.get('logged');
-        if (!token) {
-            navigate('/login', {
-                state: { from: location.pathname + location.search }
-            });
-            return false;
-        }
-
         const availableColorOptions = normalizeColorOptions(dataProduct?.colorOptions);
         if (availableColorOptions.length > 0 && !selectedColorKey) {
             message.warning('Vui lòng chọn màu sắc trước khi thêm vào giỏ');

@@ -2,6 +2,8 @@ const modelUser = require("../models/users.model");
 const modelPayments = require("../models/payments.model");
 const modelApiKey = require("../models/apiKey.model");
 const modelOtp = require("../models/otp.model");
+const modelCart = require("../models/cart.model");
+const { recalculateCartTotals } = require("../services/couponService");
 
 const {
   BadRequestError,
@@ -26,6 +28,47 @@ const { jwtDecode } = require("jwt-decode");
 
 const ACCOUNT_LOCKED_MESSAGE =
   "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên";
+
+const mergeGuestCartToUser = async (req, userId) => {
+  try {
+    const guestId = req.cookies?.guestId || req.headers["x-guest-id"];
+    if (!guestId) return;
+
+    const guestCart = await modelCart.findOne({ userId: guestId });
+    if (!guestCart || !Array.isArray(guestCart.product) || guestCart.product.length === 0) {
+      if (guestCart) await modelCart.deleteOne({ _id: guestCart._id });
+      return;
+    }
+
+    const userCart = await modelCart.findOne({ userId: String(userId) });
+    if (!userCart) {
+      guestCart.userId = String(userId);
+      await guestCart.save();
+    } else {
+      for (const item of guestCart.product) {
+        const existingIdx = userCart.product.findIndex(
+          (p) =>
+            p.productId.toString() === item.productId.toString() &&
+            (p.selectedColorKey || "").toLowerCase() === (item.selectedColorKey || "").toLowerCase()
+        );
+        if (existingIdx !== -1) {
+          userCart.product[existingIdx].quantity += item.quantity;
+        } else {
+          userCart.product.push(item);
+        }
+      }
+      userCart.totalPrice = userCart.product.reduce(
+        (sum, item) => sum + (item.finalUnitPrice || item.unitPrice || 0) * item.quantity,
+        0
+      );
+      await recalculateCartTotals({ cart: userCart, userId: String(userId) });
+      await userCart.save();
+      await modelCart.deleteOne({ _id: guestCart._id });
+    }
+  } catch (err) {
+    console.error("Lỗi khi gộp giỏ hàng guest:", err);
+  }
+};
 
 const getCookieConfig = (req, maxAge, httpOnly = true) => {
   const isProduction = process.env.NODE_ENV === "production";
@@ -82,6 +125,7 @@ class controllerUsers {
       const token = await createToken({ id: newUser._id });
       const refreshToken = await createRefreshToken({ id: newUser._id });
       setAuthCookies(req, res, token, refreshToken);
+      await mergeGuestCartToUser(req, newUser._id);
       new Created({
         message: "Đăng ký thành công",
         metadata: { token, refreshToken },
@@ -112,6 +156,7 @@ class controllerUsers {
     const token = await createToken({ id: user._id });
     const refreshToken = await createRefreshToken({ id: user._id });
     setAuthCookies(req, res, token, refreshToken);
+    await mergeGuestCartToUser(req, user._id);
 
     new OK({
       message: "Đăng nhập thành công",
@@ -131,6 +176,7 @@ class controllerUsers {
       const token = await createToken({ id: user._id });
       const refreshToken = await createRefreshToken({ id: user._id });
       setAuthCookies(req, res, token, refreshToken);
+      await mergeGuestCartToUser(req, user._id);
       new OK({
         message: "Đăng nhập thành công",
         metadata: { token, refreshToken },
@@ -147,6 +193,7 @@ class controllerUsers {
       const token = await createToken({ id: newUser._id });
       const refreshToken = await createRefreshToken({ id: newUser._id });
       setAuthCookies(req, res, token, refreshToken);
+      await mergeGuestCartToUser(req, newUser._id);
       new OK({
         message: "Đăng nhập thành công",
         metadata: { token, refreshToken, message: "Đăng nhập thành công" },
