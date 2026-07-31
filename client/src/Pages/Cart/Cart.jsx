@@ -27,6 +27,9 @@ function Cart() {
     const [totalPrice, setTotalPrice] = useState(0);
     const [totalPriceAfterDiscount, setTotalPriceAfterDiscount] = useState(0);
     const [discountAmount, setDiscountAmount] = useState(0);
+    const [vipTier, setVipTier] = useState('none');
+    const [vipDiscountRate, setVipDiscountRate] = useState(0);
+    const [vipDiscountAmount, setVipDiscountAmount] = useState(0);
     const [couponCode, setCouponCode] = useState('');
     const [selectedCouponCode, setSelectedCouponCode] = useState(undefined);
     const [applyingCoupon, setApplyingCoupon] = useState(false);
@@ -48,7 +51,10 @@ function Cart() {
             const newData = res?.metadata?.newData || {};
             const cartData = Array.isArray(newData.data) ? newData.data : [];
             setCart(cartData);
-            setDiscountAmount(Number(newData.discountAmount || 0));
+            setDiscountAmount(Number(newData.discountAmount || newData.couponDiscountAmount || 0));
+            setVipTier(newData.vipTier || 'none');
+            setVipDiscountRate(Number(newData.vipDiscountRate || 0));
+            setVipDiscountAmount(Number(newData.vipDiscountAmount || 0));
             setCouponCode(newData.couponCode || '');
             setSelectedCouponCode(newData.couponCode || undefined);
             setSelectedRowKeys((prev) => prev.filter((key) => cartData.some((item) => {
@@ -63,6 +69,9 @@ function Cart() {
             setTotalPrice(0);
             setTotalPriceAfterDiscount(0);
             setDiscountAmount(0);
+            setVipTier('none');
+            setVipDiscountRate(0);
+            setVipDiscountAmount(0);
             setCouponCode('');
             setSelectedCouponCode(undefined);
             message.error(error?.response?.data?.message || 'Không thể tải giỏ hàng');
@@ -102,14 +111,15 @@ function Cart() {
             return selectedRowKeys.includes(item.cartItemKey || `${itemProductId}-${item.selectedColorKey || 'default'}`);
         });
         const selectedTotal = selectedItems.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
+        const calculatedVipDiscount = Math.floor((selectedTotal * vipDiscountRate) / 100);
+        const subtotalAfterVip = Math.max(0, selectedTotal - calculatedVipDiscount);
+        const couponDisc = couponCode ? discountAmount : 0;
+        const finalPrice = Math.max(0, subtotalAfterVip - couponDisc);
 
         setTotalPrice(selectedTotal);
-        if (couponCode) {
-            setTotalPriceAfterDiscount(Math.max(selectedTotal - discountAmount, 0));
-        } else {
-            setTotalPriceAfterDiscount(selectedTotal);
-        }
-    }, [cart, selectedRowKeys, couponCode, discountAmount]);
+        setVipDiscountAmount(calculatedVipDiscount);
+        setTotalPriceAfterDiscount(finalPrice);
+    }, [cart, selectedRowKeys, couponCode, discountAmount, vipDiscountRate]);
 
     useEffect(() => {
         const fetchAddressData = async () => {
@@ -589,9 +599,16 @@ function Cart() {
                                         <span>{totalPrice.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</span>
                                     </div>
 
+                                    {vipDiscountRate > 0 && vipDiscountAmount > 0 && (
+                                        <div className={cx('summary-row', 'discount-row')} style={{ color: '#d69e2e' }}>
+                                            <span>Ưu đãi hạng {vipTier === 'dong' ? 'Đồng' : vipTier === 'bac' ? 'Bạc' : vipTier === 'vang' ? 'Vàng' : vipTier === 'kimcuong' ? 'Kim Cương' : ''} ( - {vipDiscountRate}%):</span>
+                                            <span>- {vipDiscountAmount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</span>
+                                        </div>
+                                    )}
+
                                     {discountAmount > 0 && (
                                         <div className={cx('summary-row', 'discount-row')}>
-                                            <span>Giảm giá:</span>
+                                            <span>Giảm giá Voucher:</span>
                                             <span>- {discountAmount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</span>
                                         </div>
                                     )}

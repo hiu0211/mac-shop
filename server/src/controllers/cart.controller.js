@@ -1,9 +1,11 @@
 const modelProduct = require("../models/products.model");
 const modelCart = require("../models/cart.model");
+const modelUser = require("../models/users.model");
 const { BadRequestError } = require("../core/error.response");
 const { OK } = require("../core/success.response");
 const { recalculateCartTotals } = require("../services/couponService");
 const { getActiveFlashSaleForProduct } = require("../services/flashSaleService");
+const { ensureCurrentYearUserTier, getDiscountRateByTier } = require("../services/vipTierService");
 const mongoose = require("mongoose");
 
 
@@ -426,11 +428,28 @@ class controllerCart {
       };
     });
 
+    const userDoc = await modelUser.findById(id);
+    if (userDoc) {
+      await ensureCurrentYearUserTier(userDoc);
+    }
+    const vipTier = userDoc?.vipTier || "none";
+    const vipDiscountRate = getDiscountRateByTier(vipTier);
+    const rawTotalPrice = cart.totalPrice || 0;
+    const vipDiscountAmount = Math.floor((rawTotalPrice * vipDiscountRate) / 100);
+    const couponDiscountAmount = Number(cart.discountAmount || 0);
+    const totalDiscountAmount = vipDiscountAmount + couponDiscountAmount;
+    const totalPriceAfterDiscount = Math.max(0, rawTotalPrice - totalDiscountAmount);
+
     const newData = {
       data,
-      totalPrice: cart.totalPrice,
-      totalPriceAfterDiscount: cart.totalPriceAfterDiscount,
-      discountAmount: cart.discountAmount || 0,
+      totalPrice: rawTotalPrice,
+      vipTier,
+      vipDiscountRate,
+      vipDiscountAmount,
+      couponDiscountAmount,
+      discountAmount: couponDiscountAmount,
+      totalDiscountAmount,
+      totalPriceAfterDiscount,
       couponCode: cart.couponCode || "",
     };
     new OK({ message: "Thành công", metadata: { newData } }).send(res);

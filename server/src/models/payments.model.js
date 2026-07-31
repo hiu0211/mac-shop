@@ -61,6 +61,14 @@ const modelPayments = new Schema(
             ],
             default: [],
         },
+        tierCounted: { type: Boolean, default: false },
+        vipTierAtOrder: {
+            type: String,
+            enum: ['none', 'dong', 'bac', 'vang', 'kimcuong'],
+            default: 'none',
+        },
+        vipDiscountRate: { type: Number, default: 0 },
+        vipDiscountAmount: { type: Number, default: 0 },
     },
     {
         timestamps: true,

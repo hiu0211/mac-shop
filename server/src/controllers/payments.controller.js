@@ -16,6 +16,13 @@ const {
   recalculateCartTotals,
 } = require("../services/couponService");
 
+const {
+  ensureCurrentYearUserTier,
+  getDiscountRateByTier,
+  updateCustomerTier,
+  revertCustomerTier,
+} = require("../services/vipTierService");
+
 const { BadRequestError } = require("../core/error.response");
 const { OK } = require("../core/success.response");
 
@@ -274,8 +281,22 @@ class PaymentsController {
       throw new BadRequestError("Vui lòng nhập đầy đủ thông tin");
     }
 
-    let totalPriceBeforeDiscount = findCart.totalPrice;
-    let totalPriceAfterDiscount = findCart.totalPrice;
+    const userDoc = await modelUser.findById(id);
+    if (userDoc) {
+      await ensureCurrentYearUserTier(userDoc);
+    }
+    const vipTierAtOrder = userDoc?.vipTier || "none";
+    const vipDiscountRate = getDiscountRateByTier(vipTierAtOrder);
+    const totalPriceBeforeDiscount = findCart.totalPrice;
+    const vipDiscountAmount = Math.floor(
+      (totalPriceBeforeDiscount * vipDiscountRate) / 100,
+    );
+    const subtotalAfterVip = Math.max(
+      0,
+      totalPriceBeforeDiscount - vipDiscountAmount,
+    );
+
+    let totalPriceAfterDiscount = subtotalAfterVip;
     let discountAmount = 0;
     let couponId = null;
     let couponCode = "";
@@ -285,7 +306,7 @@ class PaymentsController {
         const validated = await validateCouponForCart({
           couponCode: findCart.couponCode,
           userId: id,
-          cartTotal: findCart.totalPrice,
+          cartTotal: subtotalAfterVip,
         });
         totalPriceAfterDiscount = validated.finalTotal;
         discountAmount = validated.discount;
@@ -301,7 +322,7 @@ class PaymentsController {
         findCart.couponId = null;
         findCart.couponCode = "";
         findCart.discountAmount = 0;
-        findCart.totalPriceAfterDiscount = findCart.totalPrice;
+        findCart.totalPriceAfterDiscount = subtotalAfterVip;
         await findCart.save();
         throw error;
       }
@@ -320,6 +341,9 @@ class PaymentsController {
         typePayments: "COD",
         totalPrice: totalPriceAfterDiscount,
         totalPriceBeforeDiscount,
+        vipTierAtOrder,
+        vipDiscountRate,
+        vipDiscountAmount,
         discountAmount,
         couponId: couponId ? couponId.toString() : null,
         couponCode,
@@ -380,8 +404,22 @@ class PaymentsController {
       const idCart = vnp_OrderInfo;
       const findCart = await modelCart.findOne({ _id: idCart });
 
-      let totalPriceBeforeDiscount = findCart.totalPrice;
-      let totalPriceAfterDiscount = findCart.totalPrice;
+      const userDoc = await modelUser.findById(findCart.userId);
+      if (userDoc) {
+        await ensureCurrentYearUserTier(userDoc);
+      }
+      const vipTierAtOrder = userDoc?.vipTier || "none";
+      const vipDiscountRate = getDiscountRateByTier(vipTierAtOrder);
+      const totalPriceBeforeDiscount = findCart.totalPrice;
+      const vipDiscountAmount = Math.floor(
+        (totalPriceBeforeDiscount * vipDiscountRate) / 100,
+      );
+      const subtotalAfterVip = Math.max(
+        0,
+        totalPriceBeforeDiscount - vipDiscountAmount,
+      );
+
+      let totalPriceAfterDiscount = subtotalAfterVip;
       let discountAmount = 0;
       let couponId = null;
       let couponCode = "";
@@ -391,14 +429,14 @@ class PaymentsController {
           const validated = await validateCouponForCart({
             couponCode: findCart.couponCode,
             userId: findCart.userId,
-            cartTotal: findCart.totalPrice,
+            cartTotal: subtotalAfterVip,
           });
           totalPriceAfterDiscount = validated.finalTotal;
           discountAmount = validated.discount;
           couponId = validated.coupon._id;
           couponCode = validated.coupon.code;
         } catch (error) {
-          totalPriceAfterDiscount = findCart.totalPrice;
+          totalPriceAfterDiscount = subtotalAfterVip;
           discountAmount = 0;
           couponId = null;
           couponCode = "";
@@ -414,6 +452,9 @@ class PaymentsController {
         fullName: findCart.fullName,
         totalPrice: totalPriceAfterDiscount,
         totalPriceBeforeDiscount,
+        vipTierAtOrder,
+        vipDiscountRate,
+        vipDiscountAmount,
         discountAmount,
         couponId: couponId ? couponId.toString() : null,
         couponCode,
@@ -595,6 +636,14 @@ class PaymentsController {
     findPayment.statusOrder = normalizedStatusOrder;
     await findPayment.save();
 
+    if (normalizedStatusOrder === "delivered" && previousStatus !== "delivered") {
+      await updateCustomerTier(findPayment.userId, findPayment._id);
+    }
+
+    if (normalizedStatusOrder !== "delivered" && findPayment.tierCounted) {
+      await revertCustomerTier(findPayment.userId, findPayment._id);
+    }
+
     if (
       normalizedStatusOrder === "cancelled" &&
       previousStatus !== "cancelled"
@@ -624,6 +673,10 @@ class PaymentsController {
 
     if (findPayment.statusOrder !== "cancelled") {
       throw new BadRequestError("Chỉ có thể xóa đơn hàng đã hủy");
+    }
+
+    if (findPayment.tierCounted) {
+      await revertCustomerTier(findPayment.userId, findPayment._id);
     }
 
     const deletedOrderId = findPayment._id.toString();
@@ -659,6 +712,10 @@ class PaymentsController {
 
     order.statusOrder = "cancelled";
     await order.save();
+
+    if (order.tierCounted) {
+      await revertCustomerTier(order.userId, order._id);
+    }
 
     for (const item of order.products) {
       await decrementFlashSaleSoldQuantity(item.productId, item.quantity);

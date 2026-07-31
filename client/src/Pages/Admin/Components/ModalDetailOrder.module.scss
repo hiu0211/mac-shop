@@ -14,30 +14,8 @@
         }
     }
 
-    .customerInfo {
-        background: #f8f9fa;
-        padding: 16px;
-        border-radius: 8px;
-
-        .infoGrid {
-            display: grid;
-            grid-template-columns: 120px 1fr;
-            gap: 12px;
-            align-items: center;
-
-            .label {
-                font-weight: 600;
-                color: #666;
-            }
-
-            .value {
-                color: #1a1a1a;
-            }
-        }
-    }
-
     .productList {
-        max-height: 400px;
+        max-height: 320px;
         overflow-y: auto;
         padding-right: 10px;
 
@@ -69,8 +47,8 @@
             }
 
             .productImage {
-                width: 100px;
-                height: 100px;
+                width: 80px;
+                height: 80px;
                 object-fit: cover;
                 border-radius: 6px;
                 margin-right: 20px;
@@ -83,10 +61,10 @@
                 justify-content: center;
 
                 .productName {
-                    font-size: 16px;
+                    font-size: 15px;
                     font-weight: 600;
                     color: #1a1a1a;
-                    margin-bottom: 8px;
+                    margin-bottom: 6px;
                 }
 
                 .productMeta {
@@ -108,55 +86,89 @@
         }
     }
 
-    .orderTotal {
-        margin-top: 24px;
-        padding-top: 16px;
-        border-top: 2px solid #f0f0f0;
-        text-align: right;
+    /* Layout hàng 2 chia 50 | 50 */
+    .splitRow {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-top: 20px;
+        align-items: stretch;
+    }
 
-        .totalAmount {
-            font-size: 20px;
-            font-weight: 600;
-            color: #1a1a1a;
+    .infoCard,
+    .summaryCard {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 18px 20px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
 
-            span {
-                color: #f5222d;
-                margin-left: 8px;
+        .cardTitle,
+        .summaryTitle {
+            font-size: 13px;
+            font-weight: 700;
+            color: #475569;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .infoRow,
+        .summaryRow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 14px;
+
+            .rowLabel {
+                color: #64748b;
+                font-weight: 500;
+                display: flex;
+                align-items: center;
+            }
+
+            .rowValue {
+                color: #1e293b;
+                font-weight: 600;
+            }
+
+            &.vipRow {
+                .vipAmount {
+                    color: #d97706;
+                    font-weight: 600;
+                }
+            }
+
+            &.couponRow {
+                .couponAmount {
+                    color: #dc2626;
+                    font-weight: 600;
+                }
+            }
+
+            &.finalRow {
+                margin-bottom: 0;
+                margin-top: 4px;
+
+                .finalLabel {
+                    font-size: 15px;
+                    font-weight: 700;
+                    color: #0f172a;
+                }
+
+                .finalValue {
+                    font-size: 20px;
+                    font-weight: 700;
+                    color: #d70018;
+                }
             }
         }
-    }
-
-    .chatList {
-        max-height: 260px;
-        overflow-y: auto;
-        padding-right: 6px;
-        margin-bottom: 12px;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .chatItem {
-        background: #f7f7f7;
-        border-radius: 8px;
-        padding: 10px 12px;
-
-        p {
-            margin: 0;
-            color: #1f1f1f;
-        }
-
-        span {
-            display: inline-block;
-            margin-top: 4px;
-            color: #888;
-            font-size: 12px;
-        }
-    }
-
-    .chatReply {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
     }
 }

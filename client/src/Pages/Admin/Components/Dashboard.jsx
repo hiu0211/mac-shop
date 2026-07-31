@@ -216,8 +216,8 @@ const Dashboard = () => {
     }, [stats.recentOrders, orderStatusFilter]);
 
     const fetchRevenueStats = useCallback(async ({ range, nextGroupBy } = {}) => {
-        const selectedRange = range || initialRevenueFilterRef.current.range;
-        const selectedGroupBy = nextGroupBy || initialRevenueFilterRef.current.groupBy;
+        const selectedRange = range || dateRange;
+        const selectedGroupBy = nextGroupBy || groupBy;
 
         if (!Array.isArray(selectedRange) || selectedRange.length !== 2 || !selectedRange[0] || !selectedRange[1]) {
             message.error('Vui lòng chọn khoảng thời gian');
@@ -253,7 +253,7 @@ const Dashboard = () => {
         } finally {
             setRevenueLoading(false);
         }
-    }, []);
+    }, [dateRange, groupBy]);
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -331,32 +331,37 @@ const Dashboard = () => {
         }
     };
 
+    const ORDER_STATUS_CONFIG = useMemo(() => [
+        { key: 'pending', label: 'Chờ xác nhận', color: '#faad14' },
+        { key: 'completed', label: 'Đã xác nhận', color: '#13c2c2' },
+        { key: 'shipping', label: 'Đang giao', color: '#1677ff' },
+        { key: 'delivered', label: 'Đã hoàn thành', color: '#52c41a' },
+        { key: 'cancelled', label: 'Đã hủy', color: '#f5222d' },
+    ], []);
+
     const orderStatusChartData = useMemo(() => {
         const counts = stats.orderStatusCounts || {};
-        const labels = ['Đã hoàn thành', 'Đã hủy'];
-        const dataKeys = ['delivered', 'cancelled'];
-        const data = dataKeys.map(key => counts[key] || 0);
-        const hasData = data.some(val => val > 0);
+        const labels = ORDER_STATUS_CONFIG.map((item) => item.label);
+        const data = ORDER_STATUS_CONFIG.map((item) => counts[item.key] || 0);
+        const backgroundColors = ORDER_STATUS_CONFIG.map((item) => item.color);
+        const hasData = data.some((val) => val > 0);
 
         return {
             labels,
             datasets: [
                 {
                     data: hasData ? data : [1],
-                    backgroundColor: [
-                        '#52c41a', // green
-                        '#f5222d', // red
-                    ],
+                    backgroundColor: backgroundColors,
                     borderWidth: 1,
                 }
             ],
             hasData
         };
-    }, [stats.orderStatusCounts]);
+    }, [stats.orderStatusCounts, ORDER_STATUS_CONFIG]);
 
     const totalOrdersCount = useMemo(() => {
         const counts = stats.orderStatusCounts || {};
-        return (counts['delivered'] || 0) + (counts['cancelled'] || 0);
+        return Object.values(counts).reduce((sum, val) => sum + Number(val || 0), 0);
     }, [stats.orderStatusCounts]);
 
     const doughnutOptions = {
@@ -372,7 +377,8 @@ const Dashboard = () => {
                         const data = chart.data;
                         if (data.labels.length && data.datasets.length) {
                             return data.labels.map((label, i) => {
-                                const value = (stats.orderStatusCounts || {})[['delivered', 'cancelled'][i]] || 0;
+                                const key = ORDER_STATUS_CONFIG[i]?.key;
+                                const value = (stats.orderStatusCounts || {})[key] || 0;
                                 const percent = totalOrdersCount ? ((value / totalOrdersCount) * 100).toFixed(1) : 0;
                                 return {
                                     text: `${label}: ${value} Đơn (${percent}%)`,
@@ -555,7 +561,7 @@ const Dashboard = () => {
             {/* Top 10 sản phẩm theo doanh thu */}
             <Card title="Top 10 sản phẩm theo doanh thu" className={cx('main-table-card')} style={{ marginBottom: 24 }}>
                 <Table
-                    rowKey="product_id"
+                    rowKey={(record, index) => record.product_id || `product-${index}`}
                     dataSource={revenueDataState.top_products}
                     pagination={false}
                     size="middle"

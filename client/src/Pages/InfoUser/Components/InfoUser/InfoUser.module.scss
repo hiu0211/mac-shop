@@ -4,6 +4,74 @@
     }
 }
 
+/* --- SCSS cho VIP Membership Card --- */
+.vipCard {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-radius: 12px;
+    padding: 20px 24px;
+    color: #fff;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.15);
+
+    .vipTop {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+
+        .vipTitle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .vipDiscountBadge {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(4px);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+    }
+
+    .vipBody {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        margin-bottom: 16px;
+
+        .spendingLabel {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 4px;
+        }
+
+        .spendingValue {
+            font-size: 22px;
+            font-weight: 700;
+            color: #38bdf8;
+        }
+
+        .vipYear {
+            font-size: 12px;
+            color: #64748b;
+        }
+    }
+
+    .vipProgressSection {
+        .progressText {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #cbd5e1;
+            margin-top: 6px;
+        }
+    }
+}
+
 /* --- SCSS cho Header Wishlist --- */
 .wishlistHeader {
     display: flex;

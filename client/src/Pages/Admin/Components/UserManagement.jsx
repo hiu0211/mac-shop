@@ -37,6 +37,21 @@ const phoneRule = (_, value) => {
 
 const formatDateTime = (value) => (value ? dayjs(value).format('DD/MM/YYYY HH:mm') : 'N/A');
 
+const renderVipTag = (vipTier) => {
+    switch (vipTier) {
+        case 'dong':
+            return <Tag color="#cd7f32">VIP Đồng (2%)</Tag>;
+        case 'bac':
+            return <Tag color="#718096">VIP Bạc (5%)</Tag>;
+        case 'vang':
+            return <Tag color="#d69e2e">VIP Vàng (10%)</Tag>;
+        case 'kimcuong':
+            return <Tag color="#00b5d8">VIP Kim Cương (15%)</Tag>;
+        default:
+            return <Tag color="default">Thành viên</Tag>;
+    }
+};
+
 const UserManagement = () => {
     const { dataUser } = useStore();
     const [dataUsers, setDataUsers] = useState([]);
@@ -89,6 +104,8 @@ const UserManagement = () => {
                 isAdmin: user.isAdmin,
                 isActive: user.isActive,
                 typeLogin: user.typeLogin,
+                vipTier: user.vipTier || 'none',
+                yearlySpending: user.yearlySpending || 0,
                 createdAt: user.createdAt,
                 updatedAt: user.updatedAt,
                 rawUser: user,
@@ -272,6 +289,20 @@ const UserManagement = () => {
             onFilter: (value, record) => record.isActive === value,
         },
         {
+            title: 'Hạng VIP',
+            dataIndex: 'vipTier',
+            key: 'vipTier',
+            render: (vipTier) => renderVipTag(vipTier),
+            filters: [
+                { text: 'Thành viên', value: 'none' },
+                { text: 'VIP Đồng (2%)', value: 'dong' },
+                { text: 'VIP Bạc (5%)', value: 'bac' },
+                { text: 'VIP Vàng (10%)', value: 'vang' },
+                { text: 'VIP Kim Cương (15%)', value: 'kimcuong' },
+            ],
+            onFilter: (value, record) => record.vipTier === value,
+        },
+        {
             title: 'Loại tài khoản',
             dataIndex: 'typeLogin',
             key: 'typeLogin',
@@ -338,6 +369,12 @@ const UserManagement = () => {
                             <Descriptions.Item label="Họ và tên">{selectedUser.fullName || 'N/A'}</Descriptions.Item>
                             <Descriptions.Item label="Email">{selectedUser.email || 'N/A'}</Descriptions.Item>
                             <Descriptions.Item label="Số điện thoại">{selectedUser.phone || 'N/A'}</Descriptions.Item>
+                            <Descriptions.Item label="Hạng VIP">
+                                {renderVipTag(selectedUser.vipTier || 'none')}
+                            </Descriptions.Item>
+                            <Descriptions.Item label="Tổng chi tiêu năm hiện tại">
+                                {Number(selectedUser.yearlySpending || 0).toLocaleString('vi-VN')} đ
+                            </Descriptions.Item>
                             <Descriptions.Item label="Loại tài khoản">
                                 {selectedUser.typeLogin === 'google' ? (
                                     <Tag color="orange">Google</Tag>

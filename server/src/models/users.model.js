@@ -12,6 +12,13 @@ const modelUser = new Schema(
         isActive: { type: Boolean, default: true },
         wishlist: { type: [{ type: Schema.Types.ObjectId, ref: 'product' }], default: [] },
         typeLogin: { type: String, enum: ['email', 'google'] },
+        vipTier: {
+            type: String,
+            enum: ['none', 'dong', 'bac', 'vang', 'kimcuong'],
+            default: 'none',
+        },
+        yearlySpending: { type: Number, default: 0, min: 0 },
+        spendingYear: { type: Number, default: () => new Date().getFullYear() },
     },
     {
         timestamps: true,

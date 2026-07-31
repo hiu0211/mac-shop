@@ -5,6 +5,7 @@ const modelOtp = require("../models/otp.model");
 const modelCart = require("../models/cart.model");
 const { recalculateCartTotals } = require("../services/couponService");
 const { sendNewAccountEmail } = require("../services/mailService");
+const { ensureCurrentYearUserTier } = require("../services/vipTierService");
 
 const {
   BadRequestError,
@@ -283,6 +284,7 @@ class controllerUsers {
     if (!findUser) {
       throw new BadRequestError("Tài khoản hoặc mật khẩu không chính xác");
     }
+    await ensureCurrentYearUserTier(findUser);
     const userString = JSON.stringify(findUser);
     const auth = CryptoJS.AES.encrypt(
       userString,
@@ -484,7 +486,12 @@ class controllerUsers {
     const users = await modelUser
       .find()
       .sort({ createdAt: -1 })
-      .select("_id fullName email phone isAdmin isActive typeLogin createdAt updatedAt");
+      .select("_id fullName email phone isAdmin isActive typeLogin vipTier yearlySpending spendingYear createdAt updatedAt");
+
+    for (const u of users) {
+      await ensureCurrentYearUserTier(u);
+    }
+
     new OK({
       message: "Lấy danh sách người dùng thành công",
       metadata: { users },

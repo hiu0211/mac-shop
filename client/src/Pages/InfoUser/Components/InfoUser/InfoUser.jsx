@@ -1,9 +1,9 @@
 import classNames from 'classnames/bind';
 import styles from './InfoUser.module.scss';
 
-import { Button, Dropdown, Input, message, Modal, Rate, Upload, Empty, Popconfirm, Drawer } from 'antd';
+import { Button, Dropdown, Input, message, Modal, Rate, Upload, Empty, Popconfirm, Drawer, Progress, Tag } from 'antd';
 import { Table } from 'antd';
-import { DeleteOutlined, DownOutlined, UploadOutlined, HeartFilled, RightOutlined } from '@ant-design/icons';
+import { DeleteOutlined, DownOutlined, UploadOutlined, HeartFilled, RightOutlined, CrownOutlined, TrophyOutlined } from '@ant-design/icons';
 import { useStore } from '../../../../hooks/useStore';
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
@@ -460,8 +460,90 @@ function InfoUser({ isOpen, setIsOpen }) {
     const reviewProduct = reviewOrder?.products?.find((item) => item.productId === selectedProductId);
     const reviewedIds = reviewOrder?.reviewedProductIds || [];
 
+    const getVipCardData = () => {
+        const vipTier = dataUser.vipTier || 'none';
+        const spending = Number(dataUser.yearlySpending || 0);
+
+        const tiers = [
+            { key: 'none', name: 'Thành viên', discount: 0, threshold: 0, color: '#8c8c8c' },
+            { key: 'dong', name: 'Đồng', discount: 2, threshold: 5000000, color: '#cd7f32' },
+            { key: 'bac', name: 'Bạc', discount: 5, threshold: 20000000, color: '#718096' },
+            { key: 'vang', name: 'Vàng', discount: 10, threshold: 50000000, color: '#d69e2e' },
+            { key: 'kimcuong', name: 'Kim Cương', discount: 15, threshold: 100000000, color: '#00b5d8' },
+        ];
+
+        const currentTierObj = tiers.find((t) => t.key === vipTier) || tiers[0];
+
+        let nextTierObj = null;
+        if (spending <= 5000000) {
+            nextTierObj = tiers[1];
+        } else if (spending <= 20000000) {
+            nextTierObj = tiers[2];
+        } else if (spending <= 50000000) {
+            nextTierObj = tiers[3];
+        } else if (spending <= 100000000) {
+            nextTierObj = tiers[4];
+        } else {
+            nextTierObj = null;
+        }
+
+        let progressPercent = 100;
+        let remaining = 0;
+
+        if (nextTierObj) {
+            progressPercent = Math.min(100, Math.round((spending / nextTierObj.threshold) * 100));
+            remaining = Math.max(0, nextTierObj.threshold - spending);
+        }
+
+        return { currentTierObj, nextTierObj, progressPercent, remaining, spending };
+    };
+
+    const vipData = getVipCardData();
+
     return (
         <div className={cx('wrapper')}>
+            {/* --- VIP Membership Card --- */}
+            <div className={cx('vipCard')}>
+                <div className={cx('vipTop')}>
+                    <div className={cx('vipTitle')}>
+                        <CrownOutlined style={{ fontSize: '22px', color: vipData.currentTierObj.color }} />
+                        <span>{vipData.currentTierObj.key === 'none' ? 'Thành viên' : `Hạng ${vipData.currentTierObj.name}`}</span>
+                    </div>
+                    <div className={cx('vipDiscountBadge')}>
+                        Giảm {vipData.currentTierObj.discount}% mọi đơn hàng
+                    </div>
+                </div>
+
+                <div className={cx('vipBody')}>
+                    <div>
+                        <div className={cx('spendingLabel')}>Tổng chi tiêu năm {dataUser.spendingYear || new Date().getFullYear()}</div>
+                        <div className={cx('spendingValue')}>{vipData.spending.toLocaleString('vi-VN')} đ</div>
+                    </div>
+                    <div className={cx('vipYear')}>
+                        Chu kỳ: 01/01 - 31/12
+                    </div>
+                </div>
+
+                <div className={cx('vipProgressSection')}>
+                    <Progress
+                        percent={vipData.progressPercent}
+                        strokeColor={vipData.currentTierObj.color || '#38bdf8'}
+                        trailColor="rgba(255,255,255,0.2)"
+                        showInfo={false}
+                    />
+                    <div className={cx('progressText')}>
+                        {vipData.nextTierObj ? (
+                            <>
+                                <span>Cần thêm <strong>{vipData.remaining.toLocaleString('vi-VN')} đ</strong> để nâng hạng {vipData.nextTierObj.name}</span>
+                                <span>{vipData.progressPercent}%</span>
+                            </>
+                        ) : (
+                            <span>🎉 Bạn đã đạt hạng VIP Kim Cương cao nhất!</span>
+                        )}
+                    </div>
+                </div>
+            </div>
+
             <h5>Thông tin cá nhân</h5>
             <div className={cx('form')}>
                 <Input

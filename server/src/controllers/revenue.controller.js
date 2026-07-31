@@ -170,8 +170,18 @@ class RevenueController {
       throw new BadRequestError("Giá trị group_by không hợp lệ");
     }
 
-    const startDateObj = new Date(`${start_date}T00:00:00.000Z`);
-    const endDateObj = new Date(`${end_date}T23:59:59.999Z`);
+    const parseStartOfDayLocal = (dateStr) => {
+      const [year, month, day] = dateStr.split("-").map(Number);
+      return new Date(year, month - 1, day, 0, 0, 0, 0);
+    };
+
+    const parseEndOfDayLocal = (dateStr) => {
+      const [year, month, day] = dateStr.split("-").map(Number);
+      return new Date(year, month - 1, day, 23, 59, 59, 999);
+    };
+
+    const startDateObj = parseStartOfDayLocal(start_date);
+    const endDateObj = parseEndOfDayLocal(end_date);
 
     if (endDateObj < startDateObj) {
       throw new BadRequestError("Ngày kết thúc phải sau ngày bắt đầu");
@@ -182,7 +192,6 @@ class RevenueController {
       throw new BadRequestError("Khoảng thời gian tối đa là 5 năm");
     }
 
-    // Assumption: date filtering is evaluated in UTC by using Z-suffixed boundaries.
     const orders = await modelPayments
       .find({
         statusOrder: "delivered",

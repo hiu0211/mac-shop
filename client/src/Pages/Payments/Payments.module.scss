@@ -52,44 +52,85 @@
 
         .list__products {
             margin-top: 30px;
+            text-align: left;
+
+            .productsTitle {
+                font-size: 16px;
+                font-weight: 600;
+                color: #2c3e50;
+                margin-bottom: 15px;
+                padding-bottom: 8px;
+                border-bottom: 2px solid #f0f0f0;
+            }
 
             ul {
                 list-style: none;
                 padding: 0;
+                margin: 0;
 
                 li {
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
-                    padding: 15px 0;
+                    padding: 16px 0;
                     border-bottom: 1px solid #eee;
 
-                    #product {
+                    &:last-child {
+                        border-bottom: none;
+                    }
+
+                    .productInfo {
                         display: flex;
                         align-items: center;
                         gap: 15px;
                         flex: 1;
 
                         img {
-                            width: 80px;
-                            height: 80px;
+                            width: 70px;
+                            height: 70px;
                             object-fit: cover;
                             border-radius: 8px;
+                            border: 1px solid #eee;
                         }
 
-                        h4 {
-                            margin: 0;
-                            color: #2c3e50;
-                            font-size: 16px;
+                        .productMeta {
+                            display: flex;
+                            flex-direction: column;
+                            gap: 4px;
+
+                            .productName {
+                                margin: 0;
+                                color: #1e293b;
+                                font-size: 15px;
+                                font-weight: 600;
+                            }
+
+                            .colorText {
+                                font-size: 13px;
+                                color: #64748b;
+                            }
                         }
                     }
 
-                    #price {
-                        margin: 0;
-                        color: #e74c3c;
-                        font-weight: 600;
-                        min-width: 120px;
+                    .priceQuantityBox {
                         text-align: right;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 4px;
+
+                        .productPrice {
+                            margin: 0;
+                            color: #d70018;
+                            font-weight: 700;
+                            font-size: 15px;
+                        }
+
+                        .productQty {
+                            margin: 0;
+                            color: #64748b;
+                            font-size: 13px;
+                            font-weight: 500;
+                        }
                     }
                 }
             }

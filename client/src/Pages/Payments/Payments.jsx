@@ -62,19 +62,69 @@ function Payments() {
                             <p>{dataPayment?.findPayment?.typePayments}</p>
                         </div>
 
-                        {dataPayment?.findPayment?.discountAmount > 0 && (
-                            <>
-                                <div className={cx('list')}>
-                                    <span>Tổng tiền hàng</span>
-                                    <p>{dataPayment?.findPayment?.totalPriceBeforeDiscount?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</p>
-                                </div>
+                        {(() => {
+                            const findPayment = dataPayment?.findPayment;
+                            const dataProduct = dataPayment?.dataProduct || [];
+                            const computedTotal = dataProduct.reduce((sum, item) => {
+                                const price = Number(item?.price ?? item?.unitPrice ?? item?.product?.price ?? 0);
+                                const qty = Number(item?.quantity ?? 1);
+                                return sum + price * qty;
+                            }, 0);
+                            const rawTotal = Number(findPayment?.totalPriceBeforeDiscount || 0) || computedTotal;
+                            const vipRate = Number(findPayment?.vipDiscountRate || 0);
+                            const vipAmount = Number(findPayment?.vipDiscountAmount || 0);
+                            const couponAmount = Number(findPayment?.discountAmount || 0);
+                            const hasVipDiscount = vipRate > 0 && vipAmount > 0;
+                            const hasCouponDiscount = couponAmount > 0;
 
-                                <div className={cx('list')}>
-                                    <span>Giảm giá</span>
-                                    <p>- {dataPayment?.findPayment?.discountAmount?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</p>
-                                </div>
-                            </>
-                        )}
+                            const getVipTierName = (tier) => {
+                                switch (tier) {
+                                    case 'dong':
+                                        return 'Đồng';
+                                    case 'bac':
+                                        return 'Bạc';
+                                    case 'vang':
+                                        return 'Vàng';
+                                    case 'kimcuong':
+                                        return 'Kim Cương';
+                                    default:
+                                        return '';
+                                }
+                            };
+
+                            const vipTierName = getVipTierName(findPayment?.vipTierAtOrder);
+
+                            return (
+                                <>
+                                    {rawTotal > 0 && (
+                                        <div className={cx('list')}>
+                                            <span>Tổng tiền hàng</span>
+                                            <p>{rawTotal.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</p>
+                                        </div>
+                                    )}
+
+                                    {hasVipDiscount && (
+                                        <div className={cx('list')}>
+                                            <span>Ưu đãi hạng {vipTierName} ( - {vipRate}%)</span>
+                                            <p style={{ color: '#d69e2e' }}>
+                                                - {vipAmount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {hasCouponDiscount && (
+                                        <div className={cx('list')}>
+                                            <span>
+                                                Giảm giá Voucher {findPayment?.couponCode ? `(${findPayment.couponCode})` : ''}
+                                            </span>
+                                            <p style={{ color: '#e53935' }}>
+                                                - {couponAmount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}
+                                            </p>
+                                        </div>
+                                    )}
+                                </>
+                            );
+                        })()}
 
                         <div className={cx('list')}>
                             <span>Thành tiền</span>
@@ -82,16 +132,24 @@ function Payments() {
                         </div>
 
                         <div className={cx('list__products')}>
+                            <h4 className={cx('productsTitle')}>Sản phẩm đã đặt</h4>
                             <ul>
                                 {dataPayment?.dataProduct?.map((item, index) => (
                                     <li key={`${item?.product?._id || 'missing'}-${item?.selectedColorKey || 'default'}-${index}`}>
-                                        <div id={cx('product')}>
+                                        <div className={cx('productInfo')}>
                                             <img src={item?.selectedColorImage || item?.product?.images?.[0]} alt="" />
-                                            <h4>{item?.product?.name}</h4>
+                                            <div className={cx('productMeta')}>
+                                                <h4 className={cx('productName')}>{item?.product?.name}</h4>
+                                                {item?.selectedColorName && <span className={cx('colorText')}>Màu: {item.selectedColorName}</span>}
+                                            </div>
                                         </div>
-                                        {item?.selectedColorName && <p id={cx('price')}>Màu: {item.selectedColorName}</p>}
-                                        <p id={cx('price')}>Số lượng : x{item?.quantity} </p>
-                                        {/* <p id={cx('price')}>{Number(item?.price || item?.unitPrice || item?.product?.price || 0).toLocaleString()} đ</p> */}
+
+                                        <div className={cx('priceQuantityBox')}>
+                                            <p className={cx('productPrice')}>
+                                                {Number(item?.price || item?.unitPrice || item?.product?.price || 0).toLocaleString('vi-VN')} đ
+                                            </p>
+                                            <p className={cx('productQty')}>Số lượng : x{item?.quantity}</p>
+                                        </div>
                                     </li>
                                 ))}
                             </ul>
