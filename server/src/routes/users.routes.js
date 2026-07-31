@@ -49,6 +49,12 @@ router.get(
   asyncHandler(controllerUsers.getAllUser)
 );
 
+router.post(
+  "/api/admin/create-user",
+  authAdmin,
+  asyncHandler(controllerUsers.createUser)
+);
+
 router.patch(
   "/api/update-user-role",
   authAdmin,

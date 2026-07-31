@@ -4,6 +4,7 @@ const modelApiKey = require("../models/apiKey.model");
 const modelOtp = require("../models/otp.model");
 const modelCart = require("../models/cart.model");
 const { recalculateCartTotals } = require("../services/couponService");
+const { sendNewAccountEmail } = require("../services/mailService");
 
 const {
   BadRequestError,
@@ -21,6 +22,7 @@ const MailForgotPassword = require("../services/MailForgotPassword");
 const { Created, OK } = require("../core/success.response");
 
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 const otpGenerator = require("otp-generator");
 const CryptoJS = require("crypto-js");
 const jwt = require("jsonwebtoken");
@@ -28,6 +30,43 @@ const { jwtDecode } = require("jwt-decode");
 
 const ACCOUNT_LOCKED_MESSAGE =
   "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên";
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const vietnamPhonePattern = /^(0(?:3|5|7|8|9)\d{8})$/;
+
+const normalizePhoneNumber = (value) => {
+  let phone = String(value || "").trim().replace(/[\s().-]/g, "");
+
+  if (phone.startsWith("+84")) {
+    phone = `0${phone.slice(3)}`;
+  }
+
+  return phone;
+};
+
+const generateRandomPassword = (length = 12) => {
+  const uppercaseChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const lowercaseChars = "abcdefghijklmnopqrstuvwxyz";
+  const numberChars = "0123456789";
+  const allChars = `${uppercaseChars}${lowercaseChars}${numberChars}`;
+
+  const passwordChars = [
+    uppercaseChars[crypto.randomInt(uppercaseChars.length)],
+    lowercaseChars[crypto.randomInt(lowercaseChars.length)],
+    numberChars[crypto.randomInt(numberChars.length)],
+  ];
+
+  while (passwordChars.length < length) {
+    passwordChars.push(allChars[crypto.randomInt(allChars.length)]);
+  }
+
+  for (let index = passwordChars.length - 1; index > 0; index -= 1) {
+    const randomIndex = crypto.randomInt(index + 1);
+    [passwordChars[index], passwordChars[randomIndex]] = [passwordChars[randomIndex], passwordChars[index]];
+  }
+
+  return passwordChars.join("");
+};
 
 const mergeGuestCartToUser = async (req, userId) => {
   try {
@@ -449,6 +488,81 @@ class controllerUsers {
     new OK({
       message: "Lấy danh sách người dùng thành công",
       metadata: { users },
+    }).send(res);
+  }
+
+  async createUser(req, res) {
+    const { fullName, email, phone, isAdmin } = req.body;
+
+    const normalizedFullName = String(fullName || "").trim();
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const normalizedPhone = normalizePhoneNumber(phone);
+
+    const parsedIsAdmin =
+      typeof isAdmin === "boolean"
+        ? isAdmin
+        : isAdmin === "true"
+          ? true
+          : isAdmin === "false"
+            ? false
+            : null;
+
+    if (!normalizedFullName || !normalizedEmail || !normalizedPhone || parsedIsAdmin === null) {
+      throw new BadRequestError("Vui lòng nhập đầy đủ thông tin");
+    }
+
+    if (!emailPattern.test(normalizedEmail)) {
+      throw new BadRequestError("Email không hợp lệ");
+    }
+
+    if (!vietnamPhonePattern.test(normalizedPhone)) {
+      throw new BadRequestError("Số điện thoại không hợp lệ");
+    }
+
+    const existingEmailUser = await modelUser.findOne({ email: normalizedEmail });
+    if (existingEmailUser) {
+      throw new BadRequestError("Email đã tồn tại trong hệ thống");
+    }
+
+    const existingPhoneUser = await modelUser.findOne({ phone: normalizedPhone });
+    if (existingPhoneUser) {
+      throw new BadRequestError("Số điện thoại đã tồn tại trong hệ thống");
+    }
+
+    const plainPassword = generateRandomPassword(12);
+    const salt = bcrypt.genSaltSync(10);
+    const passwordHash = bcrypt.hashSync(plainPassword, salt);
+
+    const createdUser = await modelUser.create({
+      fullName: normalizedFullName,
+      email: normalizedEmail,
+      phone: normalizedPhone,
+      password: passwordHash,
+      isAdmin: parsedIsAdmin,
+      isActive: true,
+      typeLogin: "email",
+    });
+
+    const userResponse = createdUser.toObject();
+    delete userResponse.password;
+
+    try {
+      await sendNewAccountEmail({
+        to: normalizedEmail,
+        fullName: normalizedFullName,
+        email: normalizedEmail,
+        password: plainPassword,
+      });
+    } catch (error) {
+      console.error("Lỗi gửi email tài khoản mới:", {
+        email: normalizedEmail,
+        error: error?.message || error,
+      });
+    }
+
+    new Created({
+      message: "Tạo người dùng mới thành công",
+      metadata: { user: userResponse },
     }).send(res);
   }
 

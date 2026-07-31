@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Button, Descriptions, Drawer, Input, Select, Space, Table, Tag, Tooltip, message } from 'antd';
-import { EyeOutlined, SearchOutlined } from '@ant-design/icons';
+import { Button, Descriptions, Drawer, Form, Input, Modal, Select, Space, Table, Tag, Tooltip, message } from 'antd';
+import { EyeOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { requestGetAllUser, requestUpdateUserRole, requestUpdateUserStatus } from '../../../Config/request';
+import { requestCreateUser, requestGetAllUser, requestUpdateUserRole, requestUpdateUserStatus } from '../../../Config/request';
 import { useStore } from '../../../hooks/useStore';
 
 const roleOptions = [
@@ -14,6 +14,26 @@ const accountStatusOptions = [
     { label: 'Đang hoạt động', value: true },
     { label: 'Ngừng hoạt động', value: false },
 ];
+
+const phoneRule = (_, value) => {
+    if (!value) {
+        return Promise.reject(new Error('Vui lòng nhập số điện thoại'));
+    }
+
+    let normalizedPhone = String(value).trim().replace(/[\s().-]/g, '');
+
+    if (normalizedPhone.startsWith('+84')) {
+        normalizedPhone = `0${normalizedPhone.slice(3)}`;
+    }
+
+    const vietnamPhonePattern = /^(0(?:3|5|7|8|9)\d{8})$/;
+
+    if (!vietnamPhonePattern.test(normalizedPhone)) {
+        return Promise.reject(new Error('Số điện thoại không hợp lệ'));
+    }
+
+    return Promise.resolve();
+};
 
 const formatDateTime = (value) => (value ? dayjs(value).format('DD/MM/YYYY HH:mm') : 'N/A');
 
@@ -27,6 +47,9 @@ const UserManagement = () => {
     const [selectedStatus, setSelectedStatus] = useState(true);
     const [selectedRole, setSelectedRole] = useState(false);
     const [savingChanges, setSavingChanges] = useState(false);
+    const [createModalOpen, setCreateModalOpen] = useState(false);
+    const [createLoading, setCreateLoading] = useState(false);
+    const [createForm] = Form.useForm();
 
     const isCurrentUserSelected = useMemo(() => {
         const selectedUserId = String(selectedUser?._id || '');
@@ -108,6 +131,44 @@ const UserManagement = () => {
         setSelectedUser(updatedUser);
         setSelectedStatus(Boolean(updatedUser.isActive));
         setSelectedRole(Boolean(updatedUser.isAdmin));
+    };
+
+    const handleOpenCreateModal = () => {
+        setCreateModalOpen(true);
+        createForm.setFieldsValue({
+            isAdmin: false,
+        });
+    };
+
+    const handleCloseCreateModal = () => {
+        setCreateModalOpen(false);
+        createForm.resetFields();
+    };
+
+    const handleCreateUser = async (values) => {
+        setCreateLoading(true);
+
+        try {
+            const res = await requestCreateUser({
+                fullName: values.fullName?.trim(),
+                email: values.email?.trim(),
+                phone: values.phone?.trim(),
+                isAdmin: values.isAdmin,
+            });
+
+            const newUser = res?.metadata?.user;
+
+            if (newUser?._id) {
+                setDataUsers((prev) => [newUser, ...prev]);
+            }
+
+            message.success('Đã tạo người dùng mới và gửi email thông báo');
+            handleCloseCreateModal();
+        } catch (error) {
+            message.error(error?.response?.data?.message || 'Không thể tạo người dùng mới');
+        } finally {
+            setCreateLoading(false);
+        }
     };
 
     const handleSaveChanges = async () => {
@@ -235,18 +296,23 @@ const UserManagement = () => {
 
     return (
         <div>
-            <Space style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-                <h2>Quản lý người dùng</h2>
+            <Space style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                <h2 style={{ marginBottom: 0 }}>Quản lý người dùng</h2>
             </Space>
 
-            <Input
-                placeholder="Tìm kiếm người dùng"
-                prefix={<SearchOutlined />}
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                allowClear
-                style={{ marginBottom: 16, width: 350 }}
-            />
+            <Space style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                <Input
+                    placeholder="Tìm kiếm người dùng"
+                    prefix={<SearchOutlined />}
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    allowClear
+                    style={{ width: 350 }}
+                />
+                <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreateModal}>
+                    Thêm mới người dùng
+                </Button>
+            </Space>
             <Table
                 rowKey="id"
                 columns={columns}
@@ -349,6 +415,59 @@ const UserManagement = () => {
                     </Space>
                 ) : null}
             </Drawer>
+
+            <Modal
+                title="Thêm mới người dùng"
+                open={createModalOpen}
+                onCancel={handleCloseCreateModal}
+                onOk={() => createForm.submit()}
+                okText="Tạo mới"
+                cancelText="Hủy"
+                confirmLoading={createLoading}
+                destroyOnHidden
+            >
+                <Form
+                    form={createForm}
+                    layout="vertical"
+                    onFinish={handleCreateUser}
+                    initialValues={{ isAdmin: false }}
+                >
+                    <Form.Item
+                        label="Họ và tên"
+                        name="fullName"
+                        rules={[{ required: true, message: 'Vui lòng nhập họ và tên' }]}
+                    >
+                        <Input placeholder="Nhập họ và tên" />
+                    </Form.Item>
+
+                    <Form.Item
+                        label="Email"
+                        name="email"
+                        rules={[
+                            { required: true, message: 'Vui lòng nhập email' },
+                            { type: 'email', message: 'Email không hợp lệ' },
+                        ]}
+                    >
+                        <Input placeholder="Nhập email" />
+                    </Form.Item>
+
+                    <Form.Item
+                        label="Số điện thoại"
+                        name="phone"
+                        rules={[{ validator: phoneRule }]}
+                    >
+                        <Input placeholder="Nhập số điện thoại" />
+                    </Form.Item>
+
+                    <Form.Item
+                        label="Vai trò"
+                        name="isAdmin"
+                        rules={[{ required: true, message: 'Vui lòng chọn vai trò' }]}
+                    >
+                        <Select options={roleOptions} />
+                    </Form.Item>
+                </Form>
+            </Modal>
         </div>
     );
 };

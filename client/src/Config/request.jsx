@@ -67,6 +67,11 @@ export const requestGetAllUser = async () => {
     return res.data;
 };
 
+export const requestCreateUser = async (data) => {
+    const res = await request.post('/api/admin/create-user', data);
+    return res.data;
+};
+
 export const requestUpdateUserRole = async (data) => {
     const res = await request.patch('/api/update-user-role', data);
     return res.data;
