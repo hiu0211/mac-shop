@@ -228,6 +228,10 @@ function Cart() {
 
     const handlePayments = async (typePayment) => {
         try {
+            if (!selectedRowKeys || selectedRowKeys.length === 0) {
+                message.error('Bạn vẫn chưa chọn sản phẩm nào để mua.');
+                return;
+            }
             const values = await form.validateFields();
             setLoading(true);
 

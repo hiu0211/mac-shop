@@ -60,7 +60,16 @@ const authUser = async (req, res, next) => {
 };
 
 const requireRegisteredUser = async (req, res, next) => {
-    if (!req.user || req.isGuest) {
+    if (!req.user) {
+        return authUser(req, res, (err) => {
+            if (err) return next(err);
+            if (!req.user || req.isGuest) {
+                return next(new BadUserRequestError('Vui lòng đăng nhập'));
+            }
+            next();
+        });
+    }
+    if (req.isGuest) {
         return next(new BadUserRequestError('Vui lòng đăng nhập'));
     }
     next();
