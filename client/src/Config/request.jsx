@@ -436,6 +436,36 @@ export const requestGetActiveFlashSales = async () => {
     return res.data;
 };
 
+export const requestCreateUserFromOrder = async (orderId) => {
+    const res = await request.post('/api/create-user-from-order', { orderId });
+    return res.data;
+};
+
+export const requestGetVipTiers = async () => {
+    const res = await request.get('/api/vip-tiers');
+    return res.data;
+};
+
+export const requestGetAdminVipTiers = async () => {
+    const res = await request.get('/api/admin/vip-tiers');
+    return res.data;
+};
+
+export const requestCreateVipTier = async (data) => {
+    const res = await request.post('/api/admin/vip-tiers', data);
+    return res.data;
+};
+
+export const requestUpdateVipTier = async (id, data) => {
+    const res = await request.put(`/api/admin/vip-tiers/${id}`, data);
+    return res.data;
+};
+
+export const requestDeleteVipTier = async (id) => {
+    const res = await request.delete(`/api/admin/vip-tiers/${id}`);
+    return res.data;
+};
+
 let isRefreshing = false;
 let failedRequestsQueue = [];
 

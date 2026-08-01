@@ -53,7 +53,7 @@ function LoginUser() {
         setLoading(true);
         try {
             const res = await requestLogin(data);
-            message.success(res.metadata.message);
+            message.success(res?.message || 'Đăng nhập thành công');
             // Đợi fetchAuth hoàn thành rồi mới navigate
             await fetchAuth();
             navigate(from, { replace: true });

@@ -1,11 +1,64 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Space, Button, Input, Tag, Select, Popconfirm } from 'antd';
-import { SearchOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Table, Space, Button, Input, Tag, Select, Popconfirm, Modal } from 'antd';
+import { SearchOutlined, EyeOutlined, DeleteOutlined, UserAddOutlined } from '@ant-design/icons';
 import { message } from 'antd';
-import { requestDeleteOrder, requestGetOrderAdmin, requestUpdateStatusOrder } from '../../../Config/request';
+import { requestDeleteOrder, requestGetOrderAdmin, requestUpdateStatusOrder, requestCreateUserFromOrder } from '../../../Config/request';
 import ModalDetailOrder from './ModalDetailOrder';
 
 const DEFAULT_STATUS_FILTER = 'all';
+
+const renderVipTag = (vipTier) => {
+    let text = 'Thành viên';
+    let textColor = '#8C5A2B';
+    let bgColor = '#FEF3D6';
+
+    switch (vipTier) {
+        case 'dong':
+            text = 'Hạng Đồng (2%)';
+            textColor = '#cd7f32';
+            bgColor = '#FDF3E7';
+            break;
+        case 'bac':
+            text = 'Hạng Bạc (5%)';
+            textColor = '#718096';
+            bgColor = '#EDF2F7';
+            break;
+        case 'vang':
+            text = 'Hạng Vàng (10%)';
+            textColor = '#d69e2e';
+            bgColor = '#FEF3D6';
+            break;
+        case 'kimcuong':
+            text = 'Hạng Kim Cương (15%)';
+            textColor = '#00b5d8';
+            bgColor = '#E0F2FE';
+            break;
+        default:
+            text = 'Thành viên';
+            textColor = '#8C5A2B';
+            bgColor = '#FEF3D6';
+            break;
+    }
+
+    return (
+        <Tag
+            style={{
+                borderRadius: 12,
+                border: 'none',
+                backgroundColor: bgColor,
+                color: textColor,
+                fontSize: 11,
+                padding: '2px 8px',
+                margin: 0,
+                display: 'inline-flex',
+                alignItems: 'center',
+                fontWeight: 500,
+            }}
+        >
+            {text}
+        </Tag>
+    );
+};
 
 const OrderManagement = () => {
     const [orders, setOrders] = useState([]);
@@ -66,17 +119,62 @@ const OrderManagement = () => {
         }
     };
 
+    const handleCreateUserFromOrder = async (orderId) => {
+        if (!orderId) return;
+
+        try {
+            setLoading(true);
+            const res = await requestCreateUserFromOrder(orderId);
+            message.success(res?.message || 'Đã tạo tài khoản thành công');
+            await fetchOrders(statusFilter);
+        } catch (error) {
+            console.error(error);
+            message.error(error?.response?.data?.message || 'Không thể tạo tài khoản từ đơn hàng');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const showConfirmCreateUser = (record) => {
+        Modal.confirm({
+            title: 'Tạo tài khoản người dùng',
+            content: `Tạo tài khoản cho ${record.customer} (${record.email}) và gửi email thông tin đăng nhập?`,
+            okText: 'Tạo tài khoản',
+            cancelText: 'Hủy',
+            onOk: () => handleCreateUserFromOrder(record.id),
+        });
+    };
+
     const columns = [
-        // {
-        //     title: 'Mã đơn hàng',
-        //     dataIndex: 'id',
-        //     key: 'id',
-        //     width: 220,
-        // },
         {
             title: 'Khách hàng',
             dataIndex: 'customer',
             key: 'customer',
+            render: (customer, record) => (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontWeight: 500 }}>{customer}</span>
+                    {record.isGuest ? (
+                        <Tag
+                            style={{
+                                borderRadius: 12,
+                                border: 'none',
+                                backgroundColor: '#FFF3E0',
+                                color: '#D97706',
+                                fontSize: 11,
+                                padding: '2px 8px',
+                                margin: 0,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                fontWeight: 500,
+                            }}
+                        >
+                            Khách vãng lai
+                        </Tag>
+                    ) : (
+                        renderVipTag(record.vipTier)
+                    )}
+                </div>
+            ),
         },
         {
             title: 'Số điện thoại',
@@ -120,6 +218,15 @@ const OrderManagement = () => {
                 <Space size="middle">
                     <Button title='Xem chi tiết đơn hàng' icon={<EyeOutlined />} onClick={() => handleShowModal(record)}>
                     </Button>
+                    {record.isGuest && record.email && (
+                        <Button
+                            type="primary"
+                            ghost
+                            title="Tạo tài khoản người dùng từ đơn hàng này"
+                            icon={<UserAddOutlined />}
+                            onClick={() => showConfirmCreateUser(record)}
+                        />
+                    )}
                     {record.status === 'cancelled' && (
                         <Popconfirm
                             title="Xóa đơn hàng"
@@ -147,18 +254,25 @@ const OrderManagement = () => {
 
             const response = await requestGetOrderAdmin(params);
             if (response.metadata) {
-                const formattedOrders = response.metadata.map((order) => ({
-                    key: order.orderId,
-                    id: order.orderId,
-                    customer: order.fullName,
-                    phone: `0${order.phone}`,
-                    address: order.address,
-                    date: new Date(order.createdAt).toLocaleDateString('vi-VN'),
-                    total: `${order.totalPrice?.toLocaleString() || 0} VNĐ`,
-                    status: order.statusOrder,
-                    typePayments: order.typePayments,
-                    products: order.products,
-                }));
+                const formattedOrders = response.metadata.map((order) => {
+                    const isGuest = !order.userId || String(order.userId).startsWith('guest_');
+                    return {
+                        key: order.orderId,
+                        id: order.orderId,
+                        userId: order.userId,
+                        email: order.email || '',
+                        isGuest,
+                        customer: order.fullName,
+                        phone: `0${order.phone}`,
+                        address: order.address,
+                        date: new Date(order.createdAt).toLocaleDateString('vi-VN'),
+                        total: `${order.totalPrice?.toLocaleString() || 0} VNĐ`,
+                        status: order.statusOrder,
+                        typePayments: order.typePayments,
+                        products: order.products,
+                        vipTier: order.vipTier || 'none',
+                    };
+                });
                 setOrders(formattedOrders);
             }
         } catch (error) {
@@ -223,6 +337,7 @@ const OrderManagement = () => {
                 isModalVisible={isModalVisible}
                 setIsModalVisible={setIsModalVisible}
                 selectedOrder={selectedOrder}
+                onOrderUpdated={() => fetchOrders(statusFilter)}
             />
         </div>
     );

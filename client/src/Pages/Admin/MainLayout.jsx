@@ -18,6 +18,7 @@ import {
     SettingOutlined,
     EllipsisOutlined,
     ThunderboltOutlined,
+    CrownOutlined,
 } from '@ant-design/icons';
 
 
@@ -92,6 +93,11 @@ const MainLayout = () => {
                     label: 'Flash Sale',
                 },
                 {
+                    key: 'vip-tiers',
+                    icon: <CrownOutlined />,
+                    label: 'Hạng VIP',
+                },
+                {
                     key: 'users',
                     icon: <UserOutlined />,
                     label: 'Người dùng',
@@ -136,7 +142,7 @@ const MainLayout = () => {
             console.error('Logout error:', error.response?.data?.message);
         } finally {
             localStorage.clear();
-            navigate('/admin/login');
+            navigate('/login');
         }
     };
 
@@ -166,6 +172,7 @@ const MainLayout = () => {
             case 'reviews': return 'Quản lý đánh giá';
             case 'coupons': return 'Quản lý mã giảm giá';
             case 'flash-sales': return 'Quản lý Flash Sale';
+            case 'vip-tiers': return 'Quản lý hạng VIP';
             default: return 'Trang quản trị';
 
         }

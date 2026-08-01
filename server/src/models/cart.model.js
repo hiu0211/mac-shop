@@ -25,6 +25,7 @@ const modelCart = new Schema(
     fullName: { type: String, default: '' },
     phone: { type: String, default: '' },
     address: { type: String, default: '' },
+    email: { type: String, default: '', trim: true },
   },
   {
     timestamps: true,

@@ -24,6 +24,7 @@ import ManagerProductType from '../Pages/Admin/Components/ManagerProductType/Man
 import ManagerProductTypeEditor from '../Pages/Admin/Components/ManagerProductType/ManagerProductTypeEditor';
 import CategoryManagement from '../Pages/Admin/Components/CategoryManagement';
 import FlashSaleManagement from '../Pages/Admin/Components/FlashSaleManagement';
+import VipTierManagement from '../Pages/Admin/Components/VipTierManagement';
 
 
 const publicRoutes = [
@@ -63,6 +64,7 @@ const privateRoutes = [
             { path: 'reviews', component: <ReviewManagement /> },
             { path: 'coupons', component: <CouponManagement /> },
             { path: 'flash-sales', component: <FlashSaleManagement /> },
+            { path: 'vip-tiers', component: <VipTierManagement /> },
         ],
     },
 ];

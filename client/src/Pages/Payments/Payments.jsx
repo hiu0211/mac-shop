@@ -58,7 +58,12 @@ function Payments() {
                         </div>
 
                         <div className={cx('list')}>
-                            <span>Kiểu thanh toán</span>
+                            <span>Email</span>
+                            <p>{dataPayment?.findPayment?.email || 'N/A'}</p>
+                        </div>
+
+                        <div className={cx('list')}>
+                            <span>Phương thức thanh toán</span>
                             <p>{dataPayment?.findPayment?.typePayments}</p>
                         </div>
 
@@ -96,7 +101,7 @@ function Payments() {
 
                             return (
                                 <>
-                                    {rawTotal > 0 && (
+                                    {rawTotal > 0 && (hasVipDiscount || hasCouponDiscount) && (
                                         <div className={cx('list')}>
                                             <span>Tổng tiền hàng</span>
                                             <p>{rawTotal.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' })}</p>

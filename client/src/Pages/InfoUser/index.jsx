@@ -29,7 +29,7 @@ function Index() {
             await requestLogout();
             message.success('Đăng xuất thành công');
             clearAuth();
-            navigate('/');
+            navigate('/login');
         } catch (error) {
             message.error(error.response?.data?.message || 'Đăng xuất thất bại');
         } finally {

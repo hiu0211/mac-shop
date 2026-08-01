@@ -4,6 +4,7 @@ const modelProduct = require("../models/products.model");
 const modelUser = require("../models/users.model");
 const modelCoupon = require("../models/coupon.model");
 const modelCouponUsage = require("../models/couponUsage.model");
+const mongoose = require("mongoose");
 const {
   getActiveFlashSaleForProduct,
   incrementFlashSaleSoldQuantity,
@@ -24,7 +25,44 @@ const {
 } = require("../services/vipTierService");
 
 const { BadRequestError } = require("../core/error.response");
-const { OK } = require("../core/success.response");
+const { OK, Created } = require("../core/success.response");
+const { sendNewAccountEmail } = require("../services/mailService");
+const bcrypt = require("bcrypt");
+const crypto = require("crypto");
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const normalizePhoneNumber = (value) => {
+  let phone = String(value || "").trim().replace(/[\s().-]/g, "");
+  if (phone.startsWith("+84")) {
+    phone = `0${phone.slice(3)}`;
+  }
+  return phone;
+};
+
+const generateRandomPassword = (length = 12) => {
+  const uppercaseChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const lowercaseChars = "abcdefghijklmnopqrstuvwxyz";
+  const numberChars = "0123456789";
+  const allChars = `${uppercaseChars}${lowercaseChars}${numberChars}`;
+
+  const passwordChars = [
+    uppercaseChars[crypto.randomInt(uppercaseChars.length)],
+    lowercaseChars[crypto.randomInt(lowercaseChars.length)],
+    numberChars[crypto.randomInt(numberChars.length)],
+  ];
+
+  while (passwordChars.length < length) {
+    passwordChars.push(allChars[crypto.randomInt(allChars.length)]);
+  }
+
+  for (let index = passwordChars.length - 1; index > 0; index -= 1) {
+    const randomIndex = crypto.randomInt(index + 1);
+    [passwordChars[index], passwordChars[randomIndex]] = [passwordChars[randomIndex], passwordChars[index]];
+  }
+
+  return passwordChars.join("");
+};
 
 const {
   VNPay,
@@ -281,7 +319,7 @@ class PaymentsController {
       throw new BadRequestError("Vui lòng nhập đầy đủ thông tin");
     }
 
-    const userDoc = await modelUser.findById(id);
+    const userDoc = mongoose.Types.ObjectId.isValid(id) ? await modelUser.findById(id) : null;
     if (userDoc) {
       await ensureCurrentYearUserTier(userDoc);
     }
@@ -338,6 +376,7 @@ class PaymentsController {
         address: findCart.address,
         phone: findCart.phone,
         fullName: findCart.fullName,
+        email: findCart.email || userDoc?.email || "",
         typePayments: "COD",
         totalPrice: totalPriceAfterDiscount,
         totalPriceBeforeDiscount,
@@ -404,7 +443,7 @@ class PaymentsController {
       const idCart = vnp_OrderInfo;
       const findCart = await modelCart.findOne({ _id: idCart });
 
-      const userDoc = await modelUser.findById(findCart.userId);
+      const userDoc = mongoose.Types.ObjectId.isValid(findCart.userId) ? await modelUser.findById(findCart.userId) : null;
       if (userDoc) {
         await ensureCurrentYearUserTier(userDoc);
       }
@@ -448,6 +487,7 @@ class PaymentsController {
         products: await buildOrderProductsFromCart(findCart.product || []),
         address: findCart.address,
         phone: findCart.phone,
+        email: findCart.email || userDoc?.email || "",
         typePayments: "VNPAY",
         fullName: findCart.fullName,
         totalPrice: totalPriceAfterDiscount,
@@ -1192,11 +1232,21 @@ class PaymentsController {
             ),
           );
 
+          let vipTier = "none";
+          if (order.userId && !String(order.userId).startsWith("guest_")) {
+            const user = await modelUser.findById(order.userId).catch(() => null);
+            if (user && user.vipTier) {
+              vipTier = user.vipTier;
+            }
+          }
+
           return {
             orderId: order._id,
+            userId: order.userId,
             fullName: order.fullName,
             phone: order.phone,
             address: order.address,
+            email: order.email || "",
             totalPrice: order.totalPrice,
             totalPriceBeforeDiscount: order.totalPriceBeforeDiscount,
             discountAmount: order.discountAmount,
@@ -1205,6 +1255,7 @@ class PaymentsController {
             statusOrder: order.statusOrder,
             createdAt: order.createdAt,
             contactMessages: order.contactMessages || [],
+            vipTier,
             products,
           };
         }),
@@ -1218,6 +1269,94 @@ class PaymentsController {
       console.log(error);
       throw new BadRequestError("Không thể lấy danh sách đơn hàng");
     }
+  }
+
+  async createUserFromOrder(req, res) {
+    const { orderId } = req.body;
+    if (!orderId) {
+      throw new BadRequestError("Vui lòng cung cấp mã đơn hàng");
+    }
+
+    const order = await modelPayments.findById(orderId);
+    if (!order) {
+      throw new BadRequestError("Không tìm thấy đơn hàng");
+    }
+
+    const orderEmail = String(order.email || "").trim().toLowerCase();
+    const orderPhone = normalizePhoneNumber(order.phone);
+    const orderFullName = String(order.fullName || "").trim();
+
+    if (!orderEmail) {
+      throw new BadRequestError("Đơn hàng này chưa có thông tin email");
+    }
+
+    if (!emailPattern.test(orderEmail)) {
+      throw new BadRequestError("Email của đơn hàng không hợp lệ");
+    }
+
+    let existingUser = await modelUser.findOne({ email: orderEmail });
+    if (!existingUser && orderPhone) {
+      existingUser = await modelUser.findOne({ phone: orderPhone });
+    }
+
+    if (existingUser) {
+      await modelPayments.updateMany(
+        { email: orderEmail },
+        { userId: existingUser._id.toString() }
+      );
+
+      if (order.statusOrder === "delivered") {
+        await updateCustomerTier(existingUser._id, order._id);
+      }
+
+      new OK({
+        message: `Tài khoản với email ${orderEmail} đã tồn tại trong hệ thống. Đơn hàng đã được liên kết thành công.`,
+        metadata: { user: existingUser, isNew: false },
+      }).send(res);
+      return;
+    }
+
+    const plainPassword = generateRandomPassword(12);
+    const salt = bcrypt.genSaltSync(10);
+    const passwordHash = bcrypt.hashSync(plainPassword, salt);
+
+    const createdUser = await modelUser.create({
+      fullName: orderFullName || "Khách hàng",
+      email: orderEmail,
+      phone: orderPhone || "0000000000",
+      password: passwordHash,
+      isAdmin: false,
+      isActive: true,
+      typeLogin: "email",
+    });
+
+    const userResponse = createdUser.toObject();
+    delete userResponse.password;
+
+    await modelPayments.updateMany(
+      { email: orderEmail },
+      { userId: createdUser._id.toString() }
+    );
+
+    if (order.statusOrder === "delivered") {
+      await updateCustomerTier(createdUser._id, order._id);
+    }
+
+    try {
+      await sendNewAccountEmail({
+        to: orderEmail,
+        fullName: orderFullName || orderEmail,
+        email: orderEmail,
+        password: plainPassword,
+      });
+    } catch (error) {
+      console.error("Lỗi gửi email tạo tài khoản từ đơn hàng:", error?.message || error);
+    }
+
+    new Created({
+      message: "Tạo tài khoản người dùng thành công và đã gửi thông tin đăng nhập qua email",
+      metadata: { user: userResponse, isNew: true },
+    }).send(res);
   }
 }
 

@@ -60,12 +60,14 @@ function AdminLogin() {
         setSubmitting(true);
         try {
             const res = await requestLoginGoogle(credential);
-            message.success(res?.message || 'Đăng nhập thành công');
+            // Kiểm tra quyền Admin
+            await requestAdmin();
+            message.success(res?.message || 'Đăng nhập trang quản trị thành công');
             await fetchAuth();
             const redirectTo = location.state?.from?.pathname || '/admin';
             navigate(redirectTo, { replace: true });
         } catch (error) {
-            const errorMessage = error?.response?.data?.message || 'Đăng nhập thất bại';
+            const errorMessage = error?.response?.data?.message || 'Bạn không có quyền truy cập';
             message.error(errorMessage);
         } finally {
             setSubmitting(false);

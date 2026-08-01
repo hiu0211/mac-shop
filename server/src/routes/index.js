@@ -89,6 +89,7 @@ function routes(app) {
   app.post("/api/admin/reviews/reply", paymentsRoutes);
   app.delete("/api/admin/reviews", paymentsRoutes);
   app.get("/api/get-order-admin", paymentsRoutes);
+  app.post("/api/create-user-from-order", paymentsRoutes);
 
   app.post("/api/admin/coupons", couponsRoutes);
   app.get("/api/admin/coupons", couponsRoutes);
@@ -109,6 +110,13 @@ function routes(app) {
   app.put("/api/admin/flash-sales", flashSaleRoutes);
   app.delete("/api/admin/flash-sales", flashSaleRoutes);
   app.get("/api/flash-sales/active", flashSaleRoutes);
+
+  const vipTierRoutes = require("./vipTier.routes");
+  app.get("/api/vip-tiers", vipTierRoutes);
+  app.get("/api/admin/vip-tiers", vipTierRoutes);
+  app.post("/api/admin/vip-tiers", vipTierRoutes);
+  app.put("/api/admin/vip-tiers/:id", vipTierRoutes);
+  app.delete("/api/admin/vip-tiers/:id", vipTierRoutes);
 }
 
 

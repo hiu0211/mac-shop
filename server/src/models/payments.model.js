@@ -25,6 +25,7 @@ const modelPayments = new Schema(
         fullName: { type: String, require: true },
         phone: { type: Number, require: true },
         address: { type: String, require: true },
+        email: { type: String, default: '', trim: true },
         typePayments: { type: String, enum: ['COD', 'MOMO', 'VNPAY'], default: 'COD', require: true },
         statusOrder: {
             type: String,
@@ -64,7 +65,6 @@ const modelPayments = new Schema(
         tierCounted: { type: Boolean, default: false },
         vipTierAtOrder: {
             type: String,
-            enum: ['none', 'dong', 'bac', 'vang', 'kimcuong'],
             default: 'none',
         },
         vipDiscountRate: { type: Number, default: 0 },

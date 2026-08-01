@@ -428,7 +428,7 @@ class controllerCart {
       };
     });
 
-    const userDoc = await modelUser.findById(id);
+    const userDoc = mongoose.Types.ObjectId.isValid(id) ? await modelUser.findById(id) : null;
     if (userDoc) {
       await ensureCurrentYearUserTier(userDoc);
     }
@@ -451,6 +451,10 @@ class controllerCart {
       totalDiscountAmount,
       totalPriceAfterDiscount,
       couponCode: cart.couponCode || "",
+      fullName: cart.fullName || userDoc?.fullName || "",
+      phone: cart.phone || userDoc?.phone || "",
+      address: cart.address || "",
+      email: cart.email || userDoc?.email || "",
     };
     new OK({ message: "Thành công", metadata: { newData } }).send(res);
   }
@@ -543,7 +547,7 @@ class controllerCart {
 
   async updateInfoUserCart(req, res) {
     const { id } = req.user;
-    const { fullName, phone, address } = req.body;
+    const { fullName, phone, address, email } = req.body;
     const cart = await modelCart.findOne({ userId: id });
     if (!cart) {
       throw new BadRequestError("Không tìm thấy giỏ hàng");
@@ -551,6 +555,9 @@ class controllerCart {
     cart.fullName = fullName;
     cart.phone = phone;
     cart.address = address;
+    if (email !== undefined) {
+      cart.email = String(email || '').trim().toLowerCase();
+    }
     await cart.save();
     new OK({ message: "Thành công", metadata: cart }).send(res);
   }

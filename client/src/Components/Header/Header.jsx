@@ -151,11 +151,11 @@ function Header() {
         try {
             await requestLogout();
             clearAuth();
-            navigate('/');
+            navigate('/login');
         } catch {
             // Logout error - still navigate away
             clearAuth();
-            navigate('/');
+            navigate('/login');
         } finally {
             setLogoutLoading(false);
         }

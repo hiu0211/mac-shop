@@ -1,4 +1,4 @@
-import { Spin } from 'antd';
+import { Spin, message } from 'antd';
 import { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
@@ -18,9 +18,11 @@ function ProtectedAdminRoute({ children }) {
                 if (isMounted) {
                     setIsAllowed(true);
                 }
-            } catch {
+            } catch (error) {
                 if (isMounted) {
                     setIsAllowed(false);
+                    const errorMessage = error?.response?.data?.message || 'Bạn không có quyền truy cập';
+                    message.error(errorMessage);
                 }
             } finally {
                 if (isMounted) {
@@ -53,7 +55,7 @@ function ProtectedAdminRoute({ children }) {
     }
 
     if (!isAllowed) {
-        return <Navigate to="/admin/login" replace state={{ from: location }} />;
+        return <Navigate to="/login" replace state={{ from: location }} />;
     }
 
     return children;

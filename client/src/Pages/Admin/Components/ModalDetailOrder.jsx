@@ -1,17 +1,49 @@
-import { Button, Empty, Input, Modal, Tag, Divider } from 'antd';
-import { CrownOutlined, TagOutlined, CreditCardOutlined, UserOutlined, PhoneOutlined, EnvironmentOutlined } from '@ant-design/icons';
+import { Button, Empty, Input, Modal, Tag, Divider, Popconfirm, message } from 'antd';
+import { CrownOutlined, TagOutlined, CreditCardOutlined, UserOutlined, PhoneOutlined, EnvironmentOutlined, UserAddOutlined, MailOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
-import { requestGetOnePayment } from '../../../Config/request';
+import { requestGetOnePayment, requestCreateUserFromOrder } from '../../../Config/request';
 import classNames from 'classnames/bind';
 import styles from './ModalDetailOrder.module.scss';
 
 const cx = classNames.bind(styles);
 
-const ModalDetailOrder = ({ isModalVisible, setIsModalVisible, selectedOrder }) => {
+const ModalDetailOrder = ({ isModalVisible, setIsModalVisible, selectedOrder, onOrderUpdated }) => {
     const [order, setOrder] = useState({});
+    const [createLoading, setCreateLoading] = useState(false);
     const totalPriceAfterDiscount = Number(
         order?.findPayment?.totalPriceAfterDiscount ?? order?.findPayment?.totalPrice ?? 0,
     );
+
+    const isGuest = !order?.findPayment?.userId || String(order?.findPayment?.userId).startsWith('guest_');
+
+    const handleCreateUser = async () => {
+        if (!selectedOrder) return;
+        try {
+            setCreateLoading(true);
+            const res = await requestCreateUserFromOrder(selectedOrder);
+            message.success(res?.message || 'Đã tạo tài khoản thành công');
+            const updated = await requestGetOnePayment(selectedOrder);
+            setOrder(updated.metadata);
+            if (onOrderUpdated) {
+                onOrderUpdated();
+            }
+        } catch (error) {
+            console.error(error);
+            message.error(error?.response?.data?.message || 'Không thể tạo tài khoản từ đơn hàng');
+        } finally {
+            setCreateLoading(false);
+        }
+    };
+
+    const showConfirmCreateUser = () => {
+        Modal.confirm({
+            title: 'Tạo tài khoản người dùng',
+            content: `Tạo mới tài khoản cho ${order?.findPayment?.fullName} (${order?.findPayment?.email}) và gửi email thông tin đăng nhập?`,
+            okText: 'Tạo tài khoản',
+            cancelText: 'Hủy',
+            onOk: handleCreateUser,
+        });
+    };
 
     useEffect(() => {
         if (!selectedOrder) {
@@ -79,6 +111,10 @@ const ModalDetailOrder = ({ isModalVisible, setIsModalVisible, selectedOrder }) 
                                 <span className={cx('rowValue')}>{order?.findPayment?.fullName || 'N/A'}</span>
                             </div>
                             <div className={cx('infoRow')}>
+                                <span className={cx('rowLabel')}>Email:</span>
+                                <span className={cx('rowValue')}>{order?.findPayment?.email || 'N/A'}</span>
+                            </div>
+                            <div className={cx('infoRow')}>
                                 <span className={cx('rowLabel')}>Số điện thoại:</span>
                                 <span className={cx('rowValue')}>
                                     {order?.findPayment?.phone ? `0${order.findPayment.phone}` : 'N/A'}
@@ -96,6 +132,19 @@ const ModalDetailOrder = ({ isModalVisible, setIsModalVisible, selectedOrder }) 
                                     {order?.findPayment?.address || 'N/A'}
                                 </span>
                             </div>
+                            {isGuest && order?.findPayment?.email && (
+                                <div style={{ marginTop: 16 }}>
+                                    <Button
+                                        type="primary"
+                                        icon={<UserAddOutlined />}
+                                        loading={createLoading}
+                                        block
+                                        onClick={showConfirmCreateUser}
+                                    >
+                                        Tạo tài khoản từ đơn hàng
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </div>
 

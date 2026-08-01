@@ -113,4 +113,10 @@ router.get(
   asyncHandler(controllerPayments.getOrderAdmin)
 );
 
+router.post(
+  "/api/create-user-from-order",
+  authAdmin,
+  asyncHandler(controllerPayments.createUserFromOrder)
+);
+
 module.exports = router;

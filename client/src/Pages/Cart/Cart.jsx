@@ -17,11 +17,13 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import useDebounce from '../../hooks/useDebounce';
 import useDebounceCallback from '../../hooks/useDebounceCallback';
+import { useStore } from '../../hooks/useStore';
 import { MinusOutlined, PlusOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 
 const cx = classNames.bind(styles);
 
 function Cart() {
+    const { dataUser } = useStore();
     const [cart, setCart] = useState([]);
     const [selectedRowKeys, setSelectedRowKeys] = useState([]);
     const [totalPrice, setTotalPrice] = useState(0);
@@ -57,6 +59,12 @@ function Cart() {
             setVipDiscountAmount(Number(newData.vipDiscountAmount || 0));
             setCouponCode(newData.couponCode || '');
             setSelectedCouponCode(newData.couponCode || undefined);
+            const autoEmail = newData.email || dataUser?.email || '';
+            if (autoEmail) {
+                form.setFieldsValue({
+                    email: autoEmail,
+                });
+            }
             setSelectedRowKeys((prev) => prev.filter((key) => cartData.some((item) => {
                 const itemProductId = item.productId || item._id || item.id;
                 const itemCartKey = item.cartItemKey || `${itemProductId}-${item.selectedColorKey || 'default'}`;
@@ -224,6 +232,7 @@ function Cart() {
                 fullName: values.fullName,
                 phone: values.phone,
                 address: values.address,
+                email: values.email,
             };
 
             await requestUpdateInfoUserCart(data);
@@ -478,6 +487,17 @@ function Cart() {
                                             ]}
                                         >
                                             <Input placeholder="Nhập số điện thoại liên hệ" size="large" />
+                                        </Form.Item>
+
+                                        <Form.Item
+                                            label="Email"
+                                            name="email"
+                                            rules={[
+                                                { required: true, message: 'Vui lòng nhập email!' },
+                                                { type: 'email', message: 'Email không hợp lệ!' },
+                                            ]}
+                                        >
+                                            <Input placeholder="Nhập email nhận thông báo đơn hàng" size="large" />
                                         </Form.Item>
 
                                         <Form.Item

@@ -14,7 +14,6 @@ const modelUser = new Schema(
         typeLogin: { type: String, enum: ['email', 'google'] },
         vipTier: {
             type: String,
-            enum: ['none', 'dong', 'bac', 'vang', 'kimcuong'],
             default: 'none',
         },
         yearlySpending: { type: Number, default: 0, min: 0 },
