@@ -545,6 +545,27 @@ class controllerCart {
     }
   }
 
+  async checkEmailExists(req, res) {
+    const { id } = req.user;
+    const { email } = req.query;
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      return new OK({ message: "Thành công", metadata: { exists: false } }).send(res);
+    }
+
+    const isRegisteredUser = mongoose.Types.ObjectId.isValid(id) && !req.isGuest;
+    const query = isRegisteredUser
+      ? { email: normalizedEmail, _id: { $ne: id } }
+      : { email: normalizedEmail };
+
+    const existingUser = await modelUser.findOne(query);
+    return new OK({
+      message: "Thành công",
+      metadata: { exists: Boolean(existingUser) },
+    }).send(res);
+  }
+
   async updateInfoUserCart(req, res) {
     const { id } = req.user;
     const { fullName, phone, address, email } = req.body;
@@ -552,12 +573,30 @@ class controllerCart {
     if (!cart) {
       throw new BadRequestError("Không tìm thấy giỏ hàng");
     }
+
+    if (email !== undefined && email !== null && String(email).trim() !== "") {
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailPattern.test(normalizedEmail)) {
+        throw new BadRequestError("Email không hợp lệ");
+      }
+
+      const isRegisteredUser = mongoose.Types.ObjectId.isValid(id) && !req.isGuest;
+      const query = isRegisteredUser
+        ? { email: normalizedEmail, _id: { $ne: id } }
+        : { email: normalizedEmail };
+
+      const existingUser = await modelUser.findOne(query);
+      if (existingUser) {
+        throw new BadRequestError("Email này đã được đăng ký. Vui lòng đăng nhập để tiếp tục mua hàng.");
+      }
+
+      cart.email = normalizedEmail;
+    }
+
     cart.fullName = fullName;
     cart.phone = phone;
     cart.address = address;
-    if (email !== undefined) {
-      cart.email = String(email || '').trim().toLowerCase();
-    }
     await cart.save();
     new OK({ message: "Thành công", metadata: cart }).send(res);
   }

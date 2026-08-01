@@ -312,11 +312,23 @@ class PaymentsController {
       throw new BadRequestError("Không tìm thấy giỏ hàng");
     }
     if (
-      findCart.address === "" ||
-      findCart.phone === "" ||
-      findCart.fullName === ""
+      !findCart.address ||
+      !findCart.phone ||
+      !findCart.fullName ||
+      !findCart.email
     ) {
-      throw new BadRequestError("Vui lòng nhập đầy đủ thông tin");
+      throw new BadRequestError("Vui lòng nhập đầy đủ thông tin thanh toán");
+    }
+
+    const normalizedCartEmail = String(findCart.email).trim().toLowerCase();
+    const isRegisteredUser = mongoose.Types.ObjectId.isValid(id) && !req.isGuest;
+    const query = isRegisteredUser
+      ? { email: normalizedCartEmail, _id: { $ne: id } }
+      : { email: normalizedCartEmail };
+
+    const existingUser = await modelUser.findOne(query);
+    if (existingUser) {
+      throw new BadRequestError("Email này đã được đăng ký. Vui lòng đăng nhập để tiếp tục mua hàng.");
     }
 
     const userDoc = mongoose.Types.ObjectId.isValid(id) ? await modelUser.findById(id) : null;

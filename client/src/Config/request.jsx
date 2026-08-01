@@ -277,6 +277,11 @@ export const requestUpdateInfoUserCart = async (data) => {
     return res.data;
 };
 
+export const requestCheckEmailExists = async (email) => {
+    const res = await request.get('/api/check-email-exists', { params: { email } });
+    return res.data?.metadata?.exists || false;
+};
+
 export const requestPayment = async (typePayment) => {
     const res = await request.post('/api/payment', { typePayment });
     return res.data;

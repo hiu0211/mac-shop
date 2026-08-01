@@ -25,6 +25,12 @@ router.post(
   asyncHandler(controllerCart.updateInfoUserCart)
 );
 
+router.get(
+  "/api/check-email-exists",
+  authUser,
+  asyncHandler(controllerCart.checkEmailExists)
+);
+
 router.put(
   "/api/update-quantity-cart",
   authUser,

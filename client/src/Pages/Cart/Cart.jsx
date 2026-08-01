@@ -10,6 +10,7 @@ import {
     requestPayment,
     requestRemoveCoupon,
     requestUpdateInfoUserCart,
+    requestCheckEmailExists,
     requestUpdateQuantityCart,
     requestGetAvailableCoupons,
 } from '../../Config/request';
@@ -236,10 +237,19 @@ function Cart() {
             };
 
             await requestUpdateInfoUserCart(data);
-            return;
         } catch (error) {
             console.error(error);
-            message.error('Cập nhật thông tin thất bại');
+            const serverMessage = error?.response?.data?.message || 'Cập nhật thông tin thất bại';
+            message.error(serverMessage);
+            if (serverMessage.toLowerCase().includes('email')) {
+                form.setFields([
+                    {
+                        name: 'email',
+                        errors: [serverMessage],
+                    },
+                ]);
+            }
+            throw error;
         } finally {
             setLoading(false);
         }
@@ -271,10 +281,12 @@ function Cart() {
                     message.error('Phương thức thanh toán không hợp lệ');
             }
         } catch (error) {
-            if (error.errorFields) {
+            if (error?.errorFields) {
                 message.error('Vui lòng điền đầy đủ thông tin thanh toán');
+            } else if (error?.response?.data?.message) {
+                // Đã thông báo lỗi từ server trong handleSubmit
             } else {
-                message.error('Có lỗi xảy ra khi thanh toán');
+                message.error(typeof error === 'string' ? error : 'Có lỗi xảy ra khi thanh toán');
             }
             console.error(error);
         } finally {
@@ -492,9 +504,31 @@ function Cart() {
                                         <Form.Item
                                             label="Email"
                                             name="email"
+                                            hasFeedback
                                             rules={[
                                                 { required: true, message: 'Vui lòng nhập email!' },
                                                 { type: 'email', message: 'Email không hợp lệ!' },
+                                                {
+                                                    validator: async (_, value) => {
+                                                        if (!value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+                                                            return Promise.resolve();
+                                                        }
+                                                        const normalizedInput = value.trim().toLowerCase();
+                                                        if (dataUser?.email && normalizedInput === dataUser.email.toLowerCase()) {
+                                                            return Promise.resolve();
+                                                        }
+                                                        try {
+                                                            const exists = await requestCheckEmailExists(normalizedInput);
+                                                            if (exists) {
+                                                                return Promise.reject(new Error('Email này đã được đăng ký. Vui lòng đăng nhập để tiếp tục mua hàng.'));
+                                                            }
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                        }
+                                                        return Promise.resolve();
+                                                    },
+                                                    validateTrigger: 'onBlur',
+                                                },
                                             ]}
                                         >
                                             <Input placeholder="Nhập email nhận thông báo đơn hàng" size="large" />
