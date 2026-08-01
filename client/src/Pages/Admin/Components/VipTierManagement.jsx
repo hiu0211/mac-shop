@@ -41,7 +41,7 @@ const VipTierManagement = () => {
             setTiers(res.metadata || []);
         } catch (error) {
             console.error('Error fetching VIP tiers:', error);
-            message.error('Không thể tải danh sách bậc hạng VIP');
+            message.error('Không thể tải danh sách bậc hạng');
         } finally {
             setLoading(false);
         }
@@ -88,10 +88,10 @@ const VipTierManagement = () => {
             setSaving(true);
             if (editingTier) {
                 await requestUpdateVipTier(editingTier._id, values);
-                message.success('Cập nhật bậc hạng VIP thành công');
+                message.success('Cập nhật bậc hạng thành công');
             } else {
                 await requestCreateVipTier(values);
-                message.success('Thêm bậc hạng VIP thành công');
+                message.success('Thêm bậc hạng thành công');
             }
             setIsModalOpen(false);
             fetchTiers();
@@ -106,7 +106,7 @@ const VipTierManagement = () => {
     const handleDelete = async (id) => {
         try {
             await requestDeleteVipTier(id);
-            message.success('Xóa bậc hạng VIP thành công');
+            message.success('Xóa bậc hạng thành công');
             fetchTiers();
         } catch (error) {
             console.error('Error deleting VIP tier:', error);
@@ -127,25 +127,25 @@ const VipTierManagement = () => {
             dataIndex: 'name',
             key: 'name',
         },
-        // {
-        //     title: 'Mã Hạng (Key)',
-        //     dataIndex: 'key',
-        //     key: 'key',
-        //     render: (key, record) => (
-        //         <Tag
-        //             color={record.color || 'default'}
-        //             style={{
-        //                 fontWeight: '600',
-        //                 fontSize: '13px',
-        //                 padding: '4px 10px',
-        //                 borderRadius: '4px',
-        //                 border: '1px solid rgba(0,0,0,0.1)',
-        //             }}
-        //         >
-        //             {key}
-        //         </Tag>
-        //     ),
-        // },
+        {
+            title: 'Màu sắc',
+            dataIndex: 'color',
+            key: 'color',
+            width: 100,
+            align: 'center',
+            render: (color) => (
+                <div
+                    style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: '6px',
+                        backgroundColor: color || '#8c8c8c',
+                        margin: '0 auto',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+                    }}
+                />
+            ),
+        },
         {
             title: 'Mức chi tiêu tối thiểu',
             dataIndex: 'minSpending',
@@ -222,7 +222,7 @@ const VipTierManagement = () => {
             </Card>
 
             <Modal
-                title={editingTier ? 'Chỉnh sửa bậc hạng VIP' : 'Thêm bậc hạng VIP mới'}
+                title={editingTier ? 'Chỉnh sửa bậc hạng' : 'Thêm bậc hạng mới'}
                 open={isModalOpen}
                 onCancel={() => setIsModalOpen(false)}
                 onOk={() => form.submit()}

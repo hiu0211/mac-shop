@@ -163,7 +163,7 @@ const createVipTier = async ({ name, minSpending, discountRate, color }) => {
 
 /**
  * Admin: Cập nhật bậc hạng (tên, minSpending, discountRate, color)
- * Nếu name thay đổi => Tự động cập nhật key tương ứng & đồng bộ User
+ * Giữ cố định key để đảm bảo tính toàn vẹn dữ liệu (User & Lịch sử đơn hàng)
  */
 const updateVipTier = async (id, { name, minSpending, discountRate, color }) => {
     const tier = await modelVipTier.findById(id);
@@ -171,37 +171,15 @@ const updateVipTier = async (id, { name, minSpending, discountRate, color }) => 
         throw new Error('Không tìm thấy bậc hạng');
     }
 
-    const oldKey = tier.key;
-    let newKey = oldKey;
-
-    if (name && name.trim() !== tier.name) {
-        newKey = slugifyKey(name);
-        if (!newKey) {
-            throw new Error('Tên bậc hạng phải chứa ít nhất 1 chữ cái hoặc chữ số');
-        }
-
-        // Kiểm tra xem key mới có bị trùng với hạng khác không
-        if (newKey !== oldKey) {
-            const existingKey = await modelVipTier.findOne({ key: newKey, _id: { $ne: id } });
-            if (existingKey) {
-                throw new Error(`Bậc hạng với key "${newKey}" đã tồn tại. Vui lòng chọn tên khác.`);
-            }
-        }
+    if (name && name.trim()) {
+        tier.name = name.trim();
     }
 
-    tier.name = name ? name.trim() : tier.name;
-    tier.key = newKey;
     if (minSpending !== undefined) tier.minSpending = Number(minSpending) || 0;
     if (discountRate !== undefined) tier.discountRate = Number(discountRate) || 0;
     if (color !== undefined) tier.color = color;
 
     await tier.save();
-
-    // Nếu key thay đổi, tự động cập nhật vipTier cho tất cả User đang ở hạng cũ
-    if (newKey !== oldKey) {
-        await modelUser.updateMany({ vipTier: oldKey }, { vipTier: newKey });
-    }
-
     return tier;
 };
 

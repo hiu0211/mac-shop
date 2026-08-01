@@ -6,7 +6,7 @@ import { Table } from 'antd';
 import { DeleteOutlined, DownOutlined, UploadOutlined, HeartFilled, RightOutlined, CrownOutlined, TrophyOutlined } from '@ant-design/icons';
 import { useStore } from '../../../../hooks/useStore';
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
     requestCancelOrder,
     requestGetHistoryOrder,
@@ -20,6 +20,7 @@ import {
     requestGetWishlist,
     requestGetProductById,
     requestRemoveWishlist,
+    requestGetVipTiers,
 } from '../../../../Config/request';
 import ModalUpdatePassword from './ModalUpdatePassword/ModalUpdatePassword';
 
@@ -32,6 +33,21 @@ function InfoUser({ isOpen, setIsOpen }) {
     const [email, setEmail] = useState(dataUser.email);
     const [phone, setPhone] = useState(dataUser.phone);
     const [address, setAddress] = useState(dataUser.address || 'Chưa cập nhật');
+    const [allVipTiers, setAllVipTiers] = useState([]);
+
+    useEffect(() => {
+        const fetchVipTiers = async () => {
+            try {
+                const res = await requestGetVipTiers();
+                if (res && res.metadata) {
+                    setAllVipTiers(res.metadata);
+                }
+            } catch (err) {
+                console.error('Error fetching VIP tiers:', err);
+            }
+        };
+        fetchVipTiers();
+    }, []);
 
     useEffect(() => {
         setFullName(dataUser.fullName);
@@ -464,35 +480,32 @@ function InfoUser({ isOpen, setIsOpen }) {
         const vipTier = dataUser.vipTier || 'none';
         const spending = Number(dataUser.yearlySpending || 0);
 
-        const tiers = [
-            { key: 'none', name: 'Thành viên', discount: 0, threshold: 0, color: '#8c8c8c' },
-            { key: 'dong', name: 'Đồng', discount: 2, threshold: 5000000, color: '#cd7f32' },
-            { key: 'bac', name: 'Bạc', discount: 5, threshold: 20000000, color: '#718096' },
-            { key: 'vang', name: 'Vàng', discount: 10, threshold: 50000000, color: '#d69e2e' },
-            { key: 'kimcuong', name: 'Kim Cương', discount: 15, threshold: 100000000, color: '#00b5d8' },
+        const defaultTiers = [
+            { key: 'none', name: 'Thành viên', discountRate: 0, minSpending: 0, color: '#8c8c8c' },
+            { key: 'dong', name: 'Đồng', discountRate: 2, minSpending: 5000000, color: '#cd7f32' },
+            { key: 'bac', name: 'Bạc', discountRate: 5, minSpending: 20000000, color: '#718096' },
+            { key: 'vang', name: 'Vàng', discountRate: 10, minSpending: 50000000, color: '#d69e2e' },
+            { key: 'kimcuong', name: 'Kim Cương', discountRate: 15, minSpending: 100000000, color: '#00b5d8' },
         ];
 
-        const currentTierObj = tiers.find((t) => t.key === vipTier) || tiers[0];
+        const tiersList = (allVipTiers && allVipTiers.length > 0) ? allVipTiers : defaultTiers;
+        const sortedTiers = [...tiersList].sort((a, b) => (a.minSpending || 0) - (b.minSpending || 0));
+
+        const currentTierObj = sortedTiers.find((t) => t.key === vipTier) || sortedTiers[0];
+        const currentTierIdx = sortedTiers.findIndex((t) => t.key === currentTierObj.key);
 
         let nextTierObj = null;
-        if (spending <= 5000000) {
-            nextTierObj = tiers[1];
-        } else if (spending <= 20000000) {
-            nextTierObj = tiers[2];
-        } else if (spending <= 50000000) {
-            nextTierObj = tiers[3];
-        } else if (spending <= 100000000) {
-            nextTierObj = tiers[4];
-        } else {
-            nextTierObj = null;
+        if (currentTierIdx !== -1 && currentTierIdx < sortedTiers.length - 1) {
+            nextTierObj = sortedTiers[currentTierIdx + 1];
         }
 
         let progressPercent = 100;
         let remaining = 0;
 
-        if (nextTierObj) {
-            progressPercent = Math.min(100, Math.round((spending / nextTierObj.threshold) * 100));
-            remaining = Math.max(0, nextTierObj.threshold - spending);
+        if (nextTierObj && nextTierObj.minSpending > 0) {
+            const threshold = nextTierObj.minSpending;
+            progressPercent = Math.min(100, Math.round((spending / threshold) * 100));
+            remaining = Math.max(0, threshold - spending);
         }
 
         return { currentTierObj, nextTierObj, progressPercent, remaining, spending };
@@ -510,7 +523,7 @@ function InfoUser({ isOpen, setIsOpen }) {
                         <span>{vipData.currentTierObj.key === 'none' ? 'Thành viên' : `Hạng ${vipData.currentTierObj.name}`}</span>
                     </div>
                     <div className={cx('vipDiscountBadge')}>
-                        Giảm {vipData.currentTierObj.discount}% mọi đơn hàng
+                        Giảm {vipData.currentTierObj.discountRate ?? vipData.currentTierObj.discount ?? 0}% mọi đơn hàng
                     </div>
                 </div>
 
@@ -538,7 +551,7 @@ function InfoUser({ isOpen, setIsOpen }) {
                                 <span>{vipData.progressPercent}%</span>
                             </>
                         ) : (
-                            <span>🎉 Bạn đã đạt hạng VIP Kim Cương cao nhất!</span>
+                            <span>🎉 Bạn đã đạt hạng {vipData.currentTierObj.key === 'none' ? 'Thành viên' : `VIP ${vipData.currentTierObj.name}`} cao nhất!</span>
                         )}
                     </div>
                 </div>

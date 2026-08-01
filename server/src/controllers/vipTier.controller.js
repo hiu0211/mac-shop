@@ -6,7 +6,7 @@ class VipTierController {
   async getVipTiers(req, res) {
     const tiers = await vipTierService.getAllVipTiers();
     new OK({
-      message: "Lấy danh sách bậc hạng VIP thành công",
+      message: "Lấy danh sách bậc hạng thành công",
       metadata: tiers,
     }).send(res);
   }
@@ -26,7 +26,7 @@ class VipTierController {
       });
 
       new Created({
-        message: "Thêm bậc hạng VIP thành công",
+        message: "Thêm bậc hạng thành công",
         metadata: newTier,
       }).send(res);
     } catch (error) {
@@ -51,7 +51,7 @@ class VipTierController {
       });
 
       new OK({
-        message: "Cập nhật bậc hạng VIP thành công",
+        message: "Cập nhật bậc hạng thành công",
         metadata: updatedTier,
       }).send(res);
     } catch (error) {
@@ -70,7 +70,7 @@ class VipTierController {
       await vipTierService.deleteVipTier(id);
 
       new OK({
-        message: "Xóa bậc hạng VIP thành công",
+        message: "Xóa bậc hạng thành công",
       }).send(res);
     } catch (error) {
       throw new BadRequestError(error.message || "Xóa bậc hạng thất bại");

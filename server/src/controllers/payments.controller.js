@@ -324,7 +324,7 @@ class PaymentsController {
       await ensureCurrentYearUserTier(userDoc);
     }
     const vipTierAtOrder = userDoc?.vipTier || "none";
-    const vipDiscountRate = getDiscountRateByTier(vipTierAtOrder);
+    const vipDiscountRate = await getDiscountRateByTier(vipTierAtOrder);
     const totalPriceBeforeDiscount = findCart.totalPrice;
     const vipDiscountAmount = Math.floor(
       (totalPriceBeforeDiscount * vipDiscountRate) / 100,
@@ -448,7 +448,7 @@ class PaymentsController {
         await ensureCurrentYearUserTier(userDoc);
       }
       const vipTierAtOrder = userDoc?.vipTier || "none";
-      const vipDiscountRate = getDiscountRateByTier(vipTierAtOrder);
+      const vipDiscountRate = await getDiscountRateByTier(vipTierAtOrder);
       const totalPriceBeforeDiscount = findCart.totalPrice;
       const vipDiscountAmount = Math.floor(
         (totalPriceBeforeDiscount * vipDiscountRate) / 100,

@@ -433,7 +433,7 @@ class controllerCart {
       await ensureCurrentYearUserTier(userDoc);
     }
     const vipTier = userDoc?.vipTier || "none";
-    const vipDiscountRate = getDiscountRateByTier(vipTier);
+    const vipDiscountRate = await getDiscountRateByTier(vipTier);
     const rawTotalPrice = cart.totalPrice || 0;
     const vipDiscountAmount = Math.floor((rawTotalPrice * vipDiscountRate) / 100);
     const couponDiscountAmount = Number(cart.discountAmount || 0);
