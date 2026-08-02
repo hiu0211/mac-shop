@@ -6,11 +6,14 @@ const modelUser = require("../models/users.model");
 const { asyncHandler, authUser, requireRegisteredUser, authAdmin } = require("../auth/checkAuth");
 
 const controllerUsers = require("../controllers/users.controller");
+const { forgotPasswordLimiter } = require("../middlewares/rateLimiter.middleware");
 
 router.post("/api/register", asyncHandler(controllerUsers.register));
 router.post("/api/login", asyncHandler(controllerUsers.login));
 router.post("/api/admin/login", asyncHandler(controllerUsers.loginAdmin));
 router.post("/api/login-google", asyncHandler(controllerUsers.loginGoogle));
+router.post("/api/auth/forgot-password", forgotPasswordLimiter, asyncHandler(controllerUsers.forgotPassword));
+router.post("/api/forgot-password", forgotPasswordLimiter, asyncHandler(controllerUsers.forgotPassword));
 router.get("/api/auth", authUser, requireRegisteredUser, asyncHandler(controllerUsers.authUser));
 router.get("/api/admin/auth", authAdmin, asyncHandler(controllerUsers.authAdmin));
 router.get("/api/logout", authUser, requireRegisteredUser, asyncHandler(controllerUsers.logout));

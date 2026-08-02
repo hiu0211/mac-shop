@@ -32,6 +32,11 @@ export const requestLogin = async (data) => {
     return res.data;
 };
 
+export const requestForgotPassword = async (data) => {
+    const res = await request.post('/api/auth/forgot-password', data);
+    return res.data;
+};
+
 export const requestAuth = async () => {
     const res = await request.get('/api/auth');
     return res.data;

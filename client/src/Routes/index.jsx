@@ -1,6 +1,7 @@
 import App from '../App';
 import LoginUser from '../Pages/LoginUser/LoginUser';
 import RegisterUser from '../Pages/RegisterUser/RegisterUser';
+import ForgotPassword from '../Pages/ForgotPassword/ForgotPassword';
 import DetailProduct from '../Pages/DetailProduct/DetailProduct';
 import Category from '../Pages/Category/Category';
 import CompareProduct from '../Pages/CompareProduct/CompareProduct';
@@ -30,6 +31,7 @@ import VipTierManagement from '../Pages/Admin/Components/VipTierManagement';
 const publicRoutes = [
     { path: '/', component: <App /> },
     { path: '/login', component: <LoginUser /> },
+    { path: '/forgot-password', component: <ForgotPassword /> },
     { path: '/admin/login', component: <AdminLogin /> },
     { path: '/register', component: <RegisterUser /> },
     { path: '/product/:id', component: <DetailProduct /> },

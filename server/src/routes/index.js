@@ -23,6 +23,8 @@ function routes(app) {
   app.get("/api/get-admin-stats", userRoutes);
   app.get("/api/get-all-users", userRoutes);
   app.post("/api/admin/create-user", userRoutes);
+  app.post("/api/auth/forgot-password", userRoutes);
+  app.post("/api/forgot-password", userRoutes);
   app.post("/api/send-mail-forgot-password", userRoutes);
   app.post("/api/reset-password", userRoutes);
   app.post("/api/update-info-user", userRoutes);

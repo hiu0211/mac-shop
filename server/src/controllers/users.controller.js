@@ -4,8 +4,10 @@ const modelApiKey = require("../models/apiKey.model");
 const modelOtp = require("../models/otp.model");
 const modelCart = require("../models/cart.model");
 const { recalculateCartTotals } = require("../services/couponService");
-const { sendNewAccountEmail } = require("../services/mailService");
+const { sendNewAccountEmail, sendForgotPasswordEmail } = require("../services/mailService");
 const { ensureCurrentYearUserTier } = require("../services/vipTierService");
+const { generateRandomPassword } = require("../utils/passwordHelper");
+const { logForgotPasswordRequest } = require("../middlewares/auditLogger.middleware");
 
 const {
   BadRequestError,
@@ -45,29 +47,7 @@ const normalizePhoneNumber = (value) => {
   return phone;
 };
 
-const generateRandomPassword = (length = 12) => {
-  const uppercaseChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const lowercaseChars = "abcdefghijklmnopqrstuvwxyz";
-  const numberChars = "0123456789";
-  const allChars = `${uppercaseChars}${lowercaseChars}${numberChars}`;
 
-  const passwordChars = [
-    uppercaseChars[crypto.randomInt(uppercaseChars.length)],
-    lowercaseChars[crypto.randomInt(lowercaseChars.length)],
-    numberChars[crypto.randomInt(numberChars.length)],
-  ];
-
-  while (passwordChars.length < length) {
-    passwordChars.push(allChars[crypto.randomInt(allChars.length)]);
-  }
-
-  for (let index = passwordChars.length - 1; index > 0; index -= 1) {
-    const randomIndex = crypto.randomInt(index + 1);
-    [passwordChars[index], passwordChars[randomIndex]] = [passwordChars[randomIndex], passwordChars[index]];
-  }
-
-  return passwordChars.join("");
-};
 
 const mergeGuestCartToUser = async (req, userId) => {
   try {
@@ -128,8 +108,8 @@ const getCookieConfig = (req, maxAge, httpOnly = true) => {
 
 const setAuthCookies = (req, res, token, refreshToken) => {
   res.cookie("token", token, getCookieConfig(req, 15 * 60 * 1000));
-  res.cookie("logged", 1, getCookieConfig(req, 7 * 24 * 60 * 60 * 1000, false));
-  res.cookie("refreshToken", refreshToken, getCookieConfig(req, 7 * 24 * 60 * 60 * 1000));
+  res.cookie("logged", 1, getCookieConfig(req, 1 * 24 * 60 * 60 * 1000, false));
+  res.cookie("refreshToken", refreshToken, getCookieConfig(req, 1 * 24 * 60 * 60 * 1000));
 };
 
 const clearAuthCookies = (req, res) => {
@@ -294,11 +274,17 @@ class controllerUsers {
   }
 
   async logout(req, res) {
-    const user = req.user;
-    await modelApiKey.deleteOne({ userId: user.id });
-    clearAuthCookies(req, res);
-
-    new OK({ message: "Đăng xuất thành công" }).send(res);
+    try {
+      const user = req.user;
+      if (user?.id) {
+        await modelApiKey.deleteOne({ userId: user.id });
+      }
+    } catch (error) {
+      console.error("Lỗi xóa ApiKey khi logout:", error);
+    } finally {
+      clearAuthCookies(req, res);
+      new OK({ message: "Đăng xuất thành công" }).send(res);
+    }
   }
 
   async refreshToken(req, res) {
@@ -320,7 +306,7 @@ class controllerUsers {
 
     const token = await createToken({ id: user._id });
     res.cookie("token", token, getCookieConfig(req, 15 * 60 * 1000));
-    res.cookie("logged", 1, getCookieConfig(req, 7 * 24 * 60 * 60 * 1000, false));
+    res.cookie("logged", 1, getCookieConfig(req, 1 * 24 * 60 * 60 * 1000, false));
 
     new OK({ message: "Refresh token thành công", metadata: { token } }).send(
       res
@@ -783,6 +769,60 @@ class controllerUsers {
       throw new BadRequestError("Bạn không có quyền truy cập");
     }
     new OK({ message: "Đăng nhập thành công" }).send(res);
+  }
+
+  async forgotPassword(req, res) {
+    const { email } = req.body;
+    if (!email) {
+      throw new BadRequestError("Vui lòng nhập email");
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+    if (!emailPattern.test(normalizedEmail)) {
+      throw new BadRequestError("Định dạng email không hợp lệ");
+    }
+
+    // Ghi log Audit request
+    logForgotPasswordRequest(normalizedEmail, req);
+
+    const user = await modelUser.findOne({ email: normalizedEmail });
+
+    if (user) {
+      if (user.typeLogin === "google") {
+        throw new BadRequestError(
+          "Tài khoản này đăng nhập bằng Google. Vui lòng sử dụng tính năng Đăng nhập bằng Google."
+        );
+      }
+
+      // Sinh mật khẩu mới ngẫu nhiên và mã hóa bằng bcrypt
+      const plainPassword = generateRandomPassword(12);
+      const salt = bcrypt.genSaltSync(10);
+      const passwordHash = bcrypt.hashSync(plainPassword, salt);
+
+      // Cập nhật mật khẩu mới vào DB
+      user.password = passwordHash;
+      await user.save();
+
+      // Gửi email chứa mật khẩu mới
+      try {
+        await sendForgotPasswordEmail({
+          to: normalizedEmail,
+          fullName: user.fullName || normalizedEmail,
+          email: normalizedEmail,
+          password: plainPassword,
+        });
+      } catch (error) {
+        console.error("Lỗi khi gửi email đặt lại mật khẩu:", error?.message || error);
+      }
+    } else {
+      // Trễ nhẹ giả lập để chống timing attack / user enumeration
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+
+    // Trả về thông báo chuyên nghiệp và rõ ràng cho người dùng
+    new OK({
+      message: "Mật khẩu mới đã được gửi tới email của bạn. Vui lòng kiểm tra hộp thư (kể cả thư mục Spam) để đăng nhập.",
+    }).send(res);
   }
 }
 

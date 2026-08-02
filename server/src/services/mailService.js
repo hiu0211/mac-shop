@@ -146,6 +146,93 @@ const sendNewAccountEmail = async ({ to, fullName, email, password }) => {
     return info;
 };
 
+/**
+ * Gửi email thông báo đặt lại mật khẩu (Quên mật khẩu)
+ */
+const sendForgotPasswordEmail = async ({ to, fullName, email, password }) => {
+    const fromAddress = process.env.MAIL_FROM || process.env.MAIL_USER;
+    const userEmail = process.env.MAIL_USER || process.env.USER_EMAIL;
+    const baseUrl = process.env.APP_URL || process.env.CLIENT_URL || 'http://localhost:5173';
+    const loginUrl = `${baseUrl.replace(/\/$/, '')}/login`;
+
+    if (!userEmail || (!process.env.MAIL_PASS && !process.env.REFRESH_TOKEN)) {
+        throw new Error('Thiếu cấu hình SMTP/OAuth2 mail');
+    }
+
+    const transport = await getMailTransport();
+
+    const info = await transport.sendMail({
+        from: fromAddress,
+        to,
+        replyTo: userEmail,
+        subject: '[Mac Shop] Đặt lại mật khẩu tài khoản của bạn',
+        headers: {
+            'X-Priority': '1',
+            'X-MSMail-Priority': 'High',
+            'Importance': 'High',
+            'X-Mailer': 'MacShop Mailer 2.0',
+        },
+        text: `Xin chào ${fullName || email},\n\nHệ thống đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn trên Mac Shop.\n\nThông tin mật khẩu mới:\n- Email đăng nhập: ${email}\n- Mật khẩu mới: ${password}\n\nĐăng nhập tại: ${loginUrl}\n\n* Vì lý do bảo mật, vui lòng đăng nhập và đổi mật khẩu ngay sau khi truy cập lại tài khoản.`,
+        html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1d1d1f; background-color: #f5f5f7; padding: 40px 15px; -webkit-font-smoothing: antialiased;">
+                <div style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); border: 1px solid rgba(0, 0, 0, 0.05);">
+                    
+                    <!-- Branding Header -->
+                    <div style="padding: 32px 32px 24px 32px; text-align: center; border-bottom: 1px solid #f0f0f2;">
+                        <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #1d1d1f; letter-spacing: -0.5px;">Mac Shop</h1>
+                        <p style="margin: 6px 0 0 0; font-size: 13px; color: #008060; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Khôi phục mật khẩu tài khoản</p>
+                    </div>
+
+                    <!-- Main Content -->
+                    <div style="padding: 32px;">
+                        <p style="font-size: 16px; margin: 0 0 16px 0; color: #1d1d1f;">Xin chào <strong>${fullName || email}</strong>,</p>
+                        <p style="font-size: 15px; margin: 0 0 24px 0; color: #515154; line-height: 1.5;">Hệ thống đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản <strong>Mac Shop</strong> gắn liền với email này.</p>
+
+                        <!-- Information Card -->
+                        <div style="background: #fbfbfd; border: 1px solid #e5e5e7; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                            <div style="margin-bottom: 14px;">
+                                <div style="font-size: 12px; color: #86868b; text-transform: uppercase; font-weight: 600; margin-bottom: 4px;">Email đăng nhập</div>
+                                <div style="font-size: 15px; font-weight: 600; color: #1d1d1f; word-break: break-all;">${email}</div>
+                            </div>
+                            <div style="border-top: 1px solid #f0f0f2; padding-top: 14px;">
+                                <div style="font-size: 12px; color: #86868b; text-transform: uppercase; font-weight: 600; margin-bottom: 6px;">Mật khẩu mới của bạn</div>
+                                <div style="display: inline-block; background: #ffffff; border: 1px solid #d2d2d7; padding: 6px 14px; border-radius: 6px; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 16px; font-weight: 700; color: #008060; letter-spacing: 1px;">
+                                    ${password}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Security Notice -->
+                        <div style="margin-bottom: 28px;">
+                            <p style="font-size: 13px; color: #6e6e73; margin: 0; line-height: 1.5;">
+                                🔒 <strong>Lưu ý bảo mật:</strong> Vì lý do an toàn, vui lòng <strong>đăng nhập và tiến hành đổi mật khẩu mới</strong> ngay sau khi truy cập lại tài khoản.
+                            </p>
+                        </div>
+
+                        <!-- Call To Action Button -->
+                        <div style="text-align: center; margin-bottom: 8px;">
+                            <a href="${loginUrl}" target="_blank" style="display: inline-block; background-color: #008060; color: #ffffff; font-size: 15px; font-weight: 600; text-decoration: none; padding: 12px 32px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 128, 96, 0.2);">
+                                Đăng nhập ngay
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div style="background-color: #fbfbfd; padding: 20px 32px; text-align: center; border-top: 1px solid #f0f0f2;">
+                        <p style="margin: 0; font-size: 12px; color: #86868b; line-height: 1.5;">
+                            Nếu bạn không thực hiện yêu cầu này, vui lòng liên hệ ngay với bộ phận hỗ trợ của Mac Shop để đảm bảo an toàn tài khoản.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `,
+    });
+
+    console.log('Đã gửi email khôi phục mật khẩu tới:', to, '| MessageID:', info?.messageId);
+    return info;
+};
+
 module.exports = {
     sendNewAccountEmail,
-};
+    sendForgotPasswordEmail,
+};

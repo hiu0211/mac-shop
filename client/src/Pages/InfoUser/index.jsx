@@ -28,11 +28,11 @@ function Index() {
         try {
             await requestLogout();
             message.success('Đăng xuất thành công');
+        } catch (error) {
+            console.error('Logout error:', error);
+        } finally {
             clearAuth();
             navigate('/login');
-        } catch (error) {
-            message.error(error.response?.data?.message || 'Đăng xuất thất bại');
-        } finally {
             setLoading(false);
         }
     };

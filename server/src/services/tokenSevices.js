@@ -38,7 +38,7 @@ const createRefreshToken = async (payload) => {
 
     return jwt.sign(payload, findApiKey.privateKey, {
         algorithm: 'RS256',
-        expiresIn: '7d',
+        expiresIn: '1d',
     });
 };
 
