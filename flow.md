@@ -68,9 +68,70 @@ Tài liệu này mô tả các luồng nghiệp vụ chính của hệ thống `
 - Reset password: `POST /api/auth/forgot` → gửi link/token reset qua email.
 - Middleware `checkAuth` đọc token từ `Authorization: Bearer` hoặc cookie; `authAdmin` kiểm tra role.
 
-### G. Quản trị (Admin) & Upload ảnh
-- Admin CRUD product: Admin UI gọi các endpoint `POST/PUT /api/products` (protected bằng `authAdmin`).
-- Upload hình ảnh: Admin gọi `POST /api/uploads` (multipart) → server dùng multer → upload lên Cloudinary → trả `secure_url` → admin lưu URL khi tạo product.
+### G. Quản trị (Admin) & Phân hệ Quản lý Chi tiết (Admin Subsystems)
+Tất cả các endpoint Admin được bảo vệ bởi middleware `checkAuth` + `authAdmin`. Dưới đây là luồng hoạt động của 12 phân hệ quản trị chính:
+
+1. **Quản lý Hãng sản xuất (`Brand Management`)**:
+   - `GET /api/admin/brands` → Lấy danh sách hãng.
+   - `POST /api/admin/brands` & `PUT /api/admin/brands` → Tạo/sửa hãng, sinh slug tự động, upload logo lên Cloudinary folder `mac-shop/brands`. Tên hãng thay đổi sẽ kích hoạt **Cascade Update** cập nhật tất cả sản phẩm liên quan (`modelProduct.updateMany`).
+   - `DELETE /api/admin/brands?id=...` → Xóa hãng. Kiểm tra guard rule `modelProduct.exists({ brand })` — chặn xóa nếu đang có sản phẩm liên kết.
+
+2. **Quản lý Danh mục (`Category Management`)**:
+   - `GET /api/categories?page=...&limit=...&search=...` → Lấy danh mục phân trang server-side kèm tìm kiếm debounce 300ms.
+   - `POST /api/categories` & `PUT /api/categories/:id` → Tạo/sửa danh mục, đọc ảnh Base64 qua FileReader.
+   - `DELETE /api/categories/:id` → Guard rule: Chặn xóa nếu `modelProduct.exists({ category: slug })` trả về `true`.
+
+3. **Quản lý Mã giảm giá (`Coupon Management`)**:
+   - `GET /api/admin/coupons` → Lấy danh sách Voucher.
+   - `POST /api/admin/coupons` & `PUT /api/admin/coupons` → Thêm/sửa mã Voucher (PERCENT hoặc FIXED), cài đặt khoảng ngày `startAt` - `endAt`, hạn mức tổng `totalUsageLimit` và hạn mức/user `perUserUsageLimit`.
+   - `PATCH /api/admin/coupons/status` → Bật/Tắt tức thì trạng thái `ACTIVE` / `INACTIVE`.
+   - `DELETE /api/admin/coupons?id=...` → Xóa Voucher.
+
+4. **Báo cáo Thống kê Doanh thu (`Dashboard & Analytics`)**:
+   - `GET /api/get-admin-stats` → Trả về KPI Cards: Tổng users, Tổng sản phẩm, Tổng đơn hàng, Tổng doanh thu thành công.
+   - `GET /api/revenue/statistics?startDate=...&endDate=...&groupBy=...` → Thống kê Doanh thu gộp (`total_revenue`), Giá vốn hàng bán (`cost_of_goods`), Lợi nhuận gộp (`gross_profit`) và Tỉ suất lợi nhuận (`profit_margin`) theo đơn hàng trạng thái `delivered`. Vẽ biểu đồ Line/Doughnut Chart (Chart.js).
+
+5. **Quản lý Khuyến mãi (`Flash Sale Management`)**:
+   - `GET /api/admin/flash-sales` → Lấy danh sách các đợt Flash Sale kèm trạng thái real-time (`UPCOMING`, `ACTIVE`, `SOLD_OUT`, `EXPIRED`, `INACTIVE`).
+   - `POST /api/admin/flash-sales` & `PUT /api/admin/flash-sales/:id` → Cấu hình giá sale (`flashSalePrice < price`) và số lượng suất mở bán (`quantity`).
+   - Integration: Khi mua hàng, giá Flash Sale được ưu tiên tuyệt đối. Vòng đời đơn hàng tự động tăng `soldQuantity` khi đặt hàng thành công và giảm `soldQuantity` khi hủy đơn.
+
+6. **Quản lý Loại sản phẩm & Mẫu thuộc tính (`ProductType & Schema Engine`)**:
+   - `GET /api/admin/product-types` → Lấy danh sách loại sản phẩm kèm mảng mẫu thuộc tính (`attributesTemplate`).
+   - `POST /api/admin/product-types` & `PUT /api/admin/product-types/:id` → Thiết kế mẫu thông số kỹ thuật động (key, label, type: text/number/select/boolean, unit, options).
+   - `DELETE /api/admin/product-types/:id` → Chặn xóa nếu còn sản phẩm dùng `componentType === code`.
+
+7. **Quản lý Tin nhắn Đơn hàng (`Message Management`)**:
+   - `GET /api/get-order-admin` → Lọc các đơn hàng có `contactMessages.length > 0`.
+   - `POST /api/order-contact-reply` → Admin phản hồi tin nhắn 2 chiều trực tiếp trong Modal Chat đơn hàng.
+   - `DELETE /api/order-contact-message` → Xóa tin nhắn rác/vi phạm bằng toán tử `$pull`.
+
+8. **Quản lý Đơn hàng (`Order Management`)**:
+   - `GET /api/get-order-admin` → Danh sách đơn hàng kèm lọc trạng thái và hiển thị Tag VIP.
+   - `POST /api/update-status-order` → Chuyển trạng thái đơn. Khi đơn sang `delivered`, gọi `vipTierService.updateCustomerTier` để tích lũy doanh số năm và nâng hạng VIP (`tierCounted = true`). Nếu rời `delivered`, gọi `revertCustomerTier` hoàn tác chi tiêu.
+   - `POST /api/create-user-from-order` → Tự tạo tài khoản mới từ đơn vãng lai, sinh mật khẩu ngẫu nhiên và gửi mail cho khách.
+
+9. **Quản lý Sản phẩm (`Product Management & UpsertProduct`)**:
+   - `GET /api/all-product` → Danh sách sản phẩm kèm bộ lọc Hãng/Loại/Danh mục.
+   - `POST /api/add-product` & `POST /api/edit-product` → Form động tự sinh ô input thông số kỹ thuật theo `attributesTemplate` của `ProductType`. BE validate qua `normalizeSpecificationsByTemplate`.
+   - Luồng Duplicate Product: Copy dữ liệu sản phẩm cũ, xóa `_id` để tạo nhanh sản phẩm tương tự.
+
+10. **Quản lý Đánh giá & Phản hồi (`Review Management`)**:
+    - `GET /api/admin/reviews` → Flatten toàn bộ mảng `reviews` từ tất cả sản phẩm thành bảng danh sách duy nhất.
+    - `POST /api/admin/reviews/reply` → Trả lời/sửa phản hồi của Admin (`adminReply`) hiển thị trực tiếp trên trang Chi tiết sản phẩm.
+    - `DELETE /api/admin/reviews` → Xóa đánh giá bằng `$pull`.
+
+11. **Quản lý Người dùng & Phân quyền (`User Management`)**:
+    - `GET /api/get-all-users` → Bảng tài khoản, hiển thị Hạng VIP, Chi tiêu năm, quyền Admin và trạng thái.
+    - `PATCH /api/update-user-role` & `PATCH /api/update-user-status` → Phân quyền Admin / Khóa tài khoản. Cờ bảo vệ ngăn Admin tự hạ quyền hoặc tự khóa tài khoản của chính mình (`isCurrentUserSelected`).
+    - `POST /api/admin/create-user` → Tạo tài khoản Admin/User mới với validate SĐT VN.
+
+12. **Quản lý Bậc hạng VIP (`VipTier Management`)**:
+    - `GET /api/admin/vip-tiers` → Tự động seed 5 bậc mặc định (`none`, `dong`, `bac`, `vang`, `kimcuong`) nếu bảng rỗng.
+    - `POST /api/admin/vip-tiers` & `PUT /api/admin/vip-tiers/:id` → Cấu hình mức chi tiêu tối thiểu năm (`minSpending`), % chiết khấu (`discountRate`) và bảng màu Hex Palette.
+    - `DELETE /api/admin/vip-tiers/:id` → Không thể xóa hạng `'none'`. Khi xóa tier khác, tự động chuyển toàn bộ user thuộc tier đó về `'none'`.
+
+---
 
 ### H. Chatbot AI
 - Flow:

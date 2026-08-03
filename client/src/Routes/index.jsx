@@ -12,20 +12,20 @@ import Payments from '../Pages/Payments/Payments';
 import AdminLogin from '../Pages/Admin/AdminLogin';
 import ProtectedAdminRoute from './ProtectedAdminRoute';
 
-import Dashboard from '../Pages/Admin/Components/Dashboard';
-import ProductManagement from '../Pages/Admin/Components/ProductManagement';
-import UserManagement from '../Pages/Admin/Components/UserManagement';
-import UpsertProduct from '../Pages/Admin/Components/UpsertProduct';
-import OrderManagement from '../Pages/Admin/Components/OrderManagement';
-import CouponManagement from '../Pages/Admin/Components/CouponManagement';
-import MessageManagement from '../Pages/Admin/Components/MessageManagement';
-import ReviewManagement from '../Pages/Admin/Components/ReviewManagement';
-import BrandManagement from '../Pages/Admin/Components/BrandManagement';
-import ManagerProductType from '../Pages/Admin/Components/ManagerProductType/ManagerProductType';
-import ManagerProductTypeEditor from '../Pages/Admin/Components/ManagerProductType/ManagerProductTypeEditor';
-import CategoryManagement from '../Pages/Admin/Components/CategoryManagement';
-import FlashSaleManagement from '../Pages/Admin/Components/FlashSaleManagement';
-import VipTierManagement from '../Pages/Admin/Components/VipTierManagement';
+import Dashboard from '../Pages/Admin/Dashboard/Dashboard';
+import ProductManagement from '../Pages/Admin/ProductManagement/ProductManagement';
+import UserManagement from '../Pages/Admin/UserManagement/UserManagement';
+import UpsertProduct from '../Pages/Admin/ProductManagement/UpsertProduct';
+import OrderManagement from '../Pages/Admin/OrderManagement/OrderManagement';
+import CouponManagement from '../Pages/Admin/CouponManagement/CouponManagement';
+import MessageManagement from '../Pages/Admin/MessageManagement/MessageManagement';
+import ReviewManagement from '../Pages/Admin/ReviewManagement/ReviewManagement';
+import BrandManagement from '../Pages/Admin/BrandManagement/BrandManagement';
+import ManagerProductType from '../Pages/Admin/ManagerProductType/ManagerProductType';
+import ManagerProductTypeEditor from '../Pages/Admin/ManagerProductType/ManagerProductTypeEditor';
+import CategoryManagement from '../Pages/Admin/CategoryManagement/CategoryManagement';
+import FlashSaleManagement from '../Pages/Admin/FlashSaleManagement/FlashSaleManagement';
+import VipTierManagement from '../Pages/Admin/VipTierManagement/VipTierManagement';
 
 
 const publicRoutes = [

@@ -14,7 +14,7 @@ import {
     requestCreateProductType,
     requestGetAllProductTypes,
     requestUpdateProductType,
-} from '../../../../Config/request';
+} from '../../../Config/request';
 
 const cx = classNames.bind(styles);
 

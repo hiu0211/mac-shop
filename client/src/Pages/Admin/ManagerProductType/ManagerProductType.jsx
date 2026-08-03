@@ -4,7 +4,7 @@ import { Button, Card, Input, Popconfirm, Space, Table, Tag, message } from 'ant
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 
 import styles from './ManagerProductType.module.scss';
-import { requestDeleteProductType, requestGetAllProductTypes } from '../../../../Config/request';
+import { requestDeleteProductType, requestGetAllProductTypes } from '../../../Config/request';
 
 const cx = classNames.bind(styles);
 
